@@ -38,8 +38,9 @@ export function ResponsiveModalContent({ children, className, preventOutsideClos
   };
 
   if (isDesktop) {
+    const hasCustomMaxWidth = className && /\bmax-w-/.test(className);
     return (
-      <DialogContent onInteractOutside={handleInteractOutside} className={`max-w-2xl p-0 overflow-hidden flex flex-col max-h-[90vh] ${className}`}>
+      <DialogContent onInteractOutside={handleInteractOutside} className={`${hasCustomMaxWidth ? '' : 'max-w-2xl '}p-0 overflow-hidden flex flex-col max-h-[90vh] ${className || ''}`}>
         {children}
       </DialogContent>
     );
