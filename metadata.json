@@ -1,0 +1,5 @@
+{
+  "requestFramePermissions": [],
+  "name": "Copy of JPL Conecta",
+  "description": "Sistema de gestão JPL Conecta. Regras Obrigatórias: Apenas alterar código quando for solicitado pelo usuário; não alterar estrutura de código ou qualquer item não relacionado ao pedido do usuário."
+}

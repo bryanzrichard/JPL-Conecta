@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JPL Conecta</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Initialize theme and primary color
+      (function() {
+        // Force dark mode as requested by user
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+        
+        const primaryColor = localStorage.getItem('primary-color') || '#6366f1';
+        document.documentElement.style.setProperty('--primary', primaryColor);
+        // Calculate a darker version for hover (simplified)
+        document.documentElement.style.setProperty('--primary-hover', primaryColor); 
+      })();
+
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'brand': {
+                'primary': 'var(--primary)',
+                'primary-hover': 'var(--primary-hover)',
+              },
+              'brand-blue': {
+                '500': 'var(--primary)',
+                '600': 'var(--primary-hover)',
+              },
+              'brand-dark': {
+                '50': '#f9fafb',
+                '100': '#f3f4f6',
+                '200': '#e5e7eb',
+                '300': '#d1d5db',
+                '400': '#9ca3af',
+                '500': '#6b7280',
+                '600': '#4b5563',
+                '700': '#374151',
+                '800': '#1f2937',
+                '900': '#111827',
+                '950': '#0d111d'
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+            :root {
+                --primary: #6366f1;
+                --primary-hover: #4f46e5;
+                --bg-main: #ffffff;
+                --text-main: #111827;
+                --bg-card: #ffffff;
+                --border-main: #e5e7eb;
+            }
+
+            .dark {
+                --bg-main: #0d111d;
+                --text-main: #ffffff;
+                --bg-card: #111827;
+                --border-main: #1f2937;
+            }
+            
+            body {
+                background-color: var(--bg-main);
+                color: var(--text-main);
+            }
+            
+            /* Safe area insets for mobile */
+            .pb-safe {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+            .pt-safe {
+                padding-top: env(safe-area-inset-top);
+            }
+            
+            /* react-day-picker v9 styles */
+            .rdp {
+                --rdp-cell-size: 36px;
+                --rdp-caption-font-size: 14px;
+                --rdp-background-color: #111827; /* gray-900 */
+                --rdp-accent-color: #0ea5e9; /* sky-500 */
+                --rdp-color: #d1d5db; /* gray-300 */
+                --rdp-border-radius: 6px;
+                --rdp-outline: 2px solid var(--rdp-accent-color);
+                --rdp-outline-selected: 3px solid var(--rdp-accent-color);
+                border: 1px solid #374151; /* gray-700 */
+                color: var(--rdp-color);
+                background-color: var(--rdp-background-color);
+                border-radius: var(--rdp-border-radius);
+                padding: 0.5rem;
+                margin: 1em 0;
+            }
+            .rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+                background-color: #374151; /* gray-700 */
+            }
+            .rdp-day_today { 
+                font-weight: bold; 
+                color: var(--rdp-accent-color);
+            }
+            .rdp-day_selected, .rdp-day_selected:hover { 
+                color: white; 
+                background-color: var(--rdp-accent-color);
+                font-weight: bold;
+            }
+            .rdp-day_outside {
+                opacity: 0.3;
+            }
+            .rdp-caption_label {
+                font-size: var(--rdp-caption-font-size);
+                font-weight: bold;
+            }
+            .rdp-head_cell {
+                font-size: 0.75rem;
+                color: #9ca3af; /* gray-400 */
+                text-transform: uppercase;
+            }
+            .rdp-day_range_start, .rdp-day_range_end {
+                color: white !important;
+                background-color: var(--rdp-accent-color) !important;
+            }
+            .rdp-day_range_middle {
+                background-color: rgba(14, 165, 233, 0.2) !important; /* sky-500 with opacity */
+                border-radius: 0;
+                color: white !important;
+            }
+
+            /* Custom Scrollbar */
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 6px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: #374151; /* gray-700 */
+                border-radius: 10px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: #4b5563; /* gray-600 */
+            }
+            
+            /* Ensure inherit max-height works */
+            .max-h-inherit {
+                max-height: inherit;
+            }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.5",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.80.0",
+    "@hookform/resolvers/": "https://aistudiocdn.com/@hookform/resolvers@^3.9.0-canary.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.553.0",
+    "react-hook-form": "https://aistudiocdn.com/react-hook-form@^7.52.1-canary.3",
+    "zod": "https://aistudiocdn.com/zod@^4.1.12",
+    "swr": "https://aistudiocdn.com/swr@^2.2.5",
+    "swr/": "https://aistudiocdn.com/swr@^2.2.5/",
+    "date-fns": "https://aistudiocdn.com/date-fns@^3.6.0",
+    "date-fns/": "https://aistudiocdn.com/date-fns@^3.6.0/",
+    "react-day-picker": "https://aistudiocdn.com/react-day-picker@^9.0.5",
+    "react-day-picker/": "https://aistudiocdn.com/react-day-picker@^9.0.5/",
+    "react-dropzone": "https://aistudiocdn.com/react-dropzone@^14.3.8",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0",
+    "@tanstack/react-query": "https://aistudiocdn.com/@tanstack/react-query@^5.51.1",
+    "@tanstack/react-query-devtools": "https://aistudiocdn.com/@tanstack/react-query-devtools@^5.51.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
