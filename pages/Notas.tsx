@@ -9,7 +9,8 @@ import ListaNotas from '../components/notas/ListaNotas';
 import DetalhesNotaModal from '../components/notas/DetalhesNotaModal';
 import ManualNotaModal from '../components/notas/ManualNotaModal';
 import SuccessPopup from '../components/notas/SuccessPopup';
-import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalFooter } from '../components/ui/ResponsiveModal';
+import { PageHeader } from '../components/ui/PageHeader';
+import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter } from '../components/ui/ResponsiveModal';
 import FiltrosNotas from '../components/notas/FiltrosNotas';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import NotasPendentesIA from '../components/notas/NotasPendentesIA';
@@ -308,82 +309,79 @@ const Notas: React.FC = () => {
     ];
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-center sm:items-center sm:justify-between gap-4 text-center sm:text-left">
-                <div className='flex flex-col sm:flex-row items-center gap-3'>
-                    <FileTextIcon className="h-8 w-8 text-brand-blue-500" />
+        <div className="space-y-6 animate-in fade-in-50">
+            <PageHeader
+                icon={FileTextIcon}
+                title="Notas Fiscais"
+                description="Gerencie e audite suas notas fiscais de entrada."
+                actions={
+                    <>
+                        <Button onClick={() => setIsUploadModalOpen(true)}>
+                            <PlusIcon className="h-4 w-4 mr-2" />
+                            Registrar com IA
+                        </Button>
+                        <Button onClick={() => setIsManualModalOpen(true)} variant="outline">
+                            <PlusIcon className="h-4 w-4 mr-2" />
+                            Registro Manual
+                        </Button>
+                    </>
+                }
+            />
+
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="bg-brand-dark-900 border border-gray-800 p-4 rounded-xl flex items-center gap-4 w-full md:w-auto justify-start shadow-sm order-2 md:order-1">
+                    <div className="flex-shrink-0 p-2.5 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20">
+                        <DollarSignIcon className="h-5 w-5 text-brand-blue-400" />
+                    </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Notas Fiscais</h1>
-                        <p className="text-gray-400 text-sm">Gerencie suas notas fiscais.</p>
+                        <p className="text-xs text-gray-400">Valor Total (Filtro)</p>
+                        {isLoadingSummary ? (
+                           <Skeleton className="h-7 w-32 mt-1" />
+                        ) : (
+                           <p className="text-xl font-bold text-white truncate">{formatCurrency(summaryData?.totalValue || 0)}</p>
+                        )}
                     </div>
                 </div>
-                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <Button onClick={() => setIsUploadModalOpen(true)} className="w-full sm:w-auto">
-                        <PlusIcon className="h-4 w-4 mr-2" />
-                        Registrar com IA
-                    </Button>
-                    <Button onClick={() => setIsManualModalOpen(true)} variant="outline" className="w-full sm:w-auto">
-                        <PlusIcon className="h-4 w-4 mr-2" />
-                        Registro Manual
-                    </Button>
-                </div>
-            </div>
 
-            <div className="flex flex-col md:flex-row justify-between items-center md:items-center gap-4">
-                {/* Count and Filter Button - Moved up to be above the value on mobile */}
-                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-center md:justify-end order-1 md:order-2">
+                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-between md:justify-end order-1 md:order-2">
                      <div className="text-sm text-gray-400">
                         {isLoadingSummary ? <Skeleton className="h-5 w-24" /> : <>
                           <span className="font-bold text-white">{summaryData?.count || 0}</span> {summaryData?.count === 1 ? 'nota encontrada' : 'notas encontradas'}
                         </>}
                     </div>
-                    <Button variant="outline" className="border-brand-blue-500/50 text-brand-blue-500 hover:bg-brand-blue-500/10 hover:text-brand-blue-400" onClick={() => { setTempFilters(filters); setIsFilterSheetOpen(true); }}>
+                    <Button variant="outline" className="h-9 text-sm border-brand-blue-500/50 text-brand-blue-400 hover:bg-brand-blue-500/10 hover:text-brand-blue-300" onClick={() => { setTempFilters(filters); setIsFilterSheetOpen(true); }}>
                         <FilterIcon className="h-4 w-4 mr-2"/>
-                        Filtrar Histórico
+                        Filtrar Notas
                     </Button>
-                    <ResponsiveModal open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} displayMode="drawer">
-                        <ResponsiveModalContent className="w-full sm:max-w-md bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-                            <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-brand-blue-500/10 rounded-lg">
-                                        <FilterIcon className="h-5 w-5 text-brand-blue-500" />
-                                    </div>
-                                    <div>
-                                        <ResponsiveModalTitle className="text-gray-900 dark:text-white text-lg">Filtrar Notas Fiscais</ResponsiveModalTitle>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Refine a busca por notas fiscais</p>
-                                    </div>
-                                </div>
-                            </ResponsiveModalHeader>
-                            <div className="flex-grow overflow-y-auto custom-scrollbar p-5 bg-brand-dark-950/50">
-                                <FiltrosNotas
-                                    filters={tempFilters}
-                                    onFiltersChange={setTempFilters}
-                                    suppliers={suppliers}
-                                />
-                            </div>
-                            <ResponsiveModalFooter className="p-4 border-t border-gray-800 bg-brand-dark-900 flex-shrink-0 flex justify-end items-center gap-3">
-                                <Button variant="ghost" onClick={handleClearFilters} className="h-9 px-4 text-gray-400 hover:text-white hover:bg-brand-dark-800">Limpar</Button>
-                                <Button onClick={handleApplyFilters} className="h-9 px-6 bg-brand-blue-600 hover:bg-brand-blue-500 text-white">Aplicar Filtros</Button>
-                            </ResponsiveModalFooter>
-                        </ResponsiveModalContent>
-                    </ResponsiveModal>
-                </div>
-
-                {/* Valor Total - Moved down to be below the filter on mobile */}
-                <div className="bg-brand-dark-900 p-5 rounded-2xl shadow-2xl shadow-black/50 flex items-center gap-4 w-full md:w-auto justify-center md:justify-start order-2 md:order-1">
-                    <div className="flex-shrink-0 p-3 rounded-full bg-brand-blue-500/10">
-                        <DollarSignIcon className="h-6 w-6 text-brand-blue-500" />
-                    </div>
-                    <div className="text-center md:text-left">
-                        <p className="text-sm text-gray-400">Valor Total (Filtro)</p>
-                        {isLoadingSummary ? (
-                           <Skeleton className="h-8 w-32 mt-1" />
-                        ) : (
-                           <p className="text-2xl font-bold text-white truncate">{formatCurrency(summaryData?.totalValue || 0)}</p>
-                        )}
-                    </div>
                 </div>
             </div>
+
+            <ResponsiveModal open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} displayMode="drawer">
+                <ResponsiveModalContent size="sm">
+                    <ResponsiveModalHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-brand-blue-500/10 rounded-lg border border-brand-blue-500/20">
+                                <FilterIcon className="h-5 w-5 text-brand-blue-400" />
+                            </div>
+                            <div>
+                                <ResponsiveModalTitle>Filtrar Notas Fiscais</ResponsiveModalTitle>
+                                <ResponsiveModalDescription>Refine a busca por número, fornecedor ou período</ResponsiveModalDescription>
+                            </div>
+                        </div>
+                    </ResponsiveModalHeader>
+                    <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50">
+                        <FiltrosNotas
+                            filters={tempFilters}
+                            onFiltersChange={setTempFilters}
+                            suppliers={suppliers}
+                        />
+                    </div>
+                    <ResponsiveModalFooter>
+                        <Button variant="ghost" onClick={handleClearFilters} className="text-gray-400 hover:text-white hover:bg-brand-dark-800">Limpar</Button>
+                        <Button onClick={handleApplyFilters} className="bg-brand-blue-600 hover:bg-brand-blue-500 text-white">Aplicar Filtros</Button>
+                    </ResponsiveModalFooter>
+                </ResponsiveModalContent>
+            </ResponsiveModal>
 
             {/* Renderiza a lista de notas pendentes se houver alguma */}
             {combinedJobs.length > 0 && (

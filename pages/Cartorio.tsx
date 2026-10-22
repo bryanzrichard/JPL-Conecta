@@ -9,6 +9,7 @@ import { useToast } from '../contexts/ToastContext';
 import { CartorioRecord } from '../types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/DropdownMenu';
 import { Skeleton } from '../components/ui/Skeleton';
+import { PageHeader } from '../components/ui/PageHeader';
 import ConfirmationModal from '../components/historico/ConfirmationModal';
 import CartorioModal from '../components/cartorio/CartorioModal';
 import { formatApiError } from '../lib/handleError';
@@ -182,31 +183,29 @@ const Cartorio: React.FC = () => {
     return (
         <div className="space-y-6 animate-in fade-in-50">
             {/* Header */}
-            <div className="flex flex-col md:flex-row items-center md:justify-between gap-4 text-center md:text-left">
-                <div className='flex flex-col sm:flex-row items-center gap-3'>
-                    <BuildingIcon className="h-8 w-8 text-brand-blue-500" />
-                    <div>
-                        <h1 className="text-2xl font-bold text-white">Cartório e Imóveis</h1>
-                        <p className="text-gray-400 text-sm">Registre gastos com documentação e imóveis.</p>
-                    </div>
-                </div>
-                <Button onClick={handleCreate} className="w-full sm:w-auto bg-brand-blue-600 hover:bg-brand-blue-700 text-white">
-                    <PlusIcon className="h-4 w-4 mr-2" /> Novo Registro
-                </Button>
-            </div>
+            <PageHeader
+                icon={BuildingIcon}
+                title="Cartório e Imóveis"
+                description="Registre gastos com documentação e imóveis."
+                actions={
+                    <Button onClick={handleCreate}>
+                        <PlusIcon className="h-4 w-4 mr-2" /> Novo Registro
+                    </Button>
+                }
+            />
 
             {/* Resumo & Filtro Desktop */}
-            <div className="flex flex-col md:flex-row justify-between items-center md:items-center gap-4">
-                <div className="bg-brand-dark-900 p-5 rounded-2xl shadow-2xl shadow-black/50 flex items-center gap-4 w-full md:w-auto justify-center md:justify-start">
-                    <div className="flex-shrink-0 p-3 rounded-full bg-brand-blue-500/10">
-                        <DollarSignIcon className="h-6 w-6 text-brand-blue-500" />
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="bg-brand-dark-900 border border-gray-800 p-4 rounded-xl shadow-sm flex items-center gap-4 w-full md:w-auto justify-start">
+                    <div className="flex-shrink-0 p-2.5 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20">
+                        <DollarSignIcon className="h-5 w-5 text-brand-blue-400" />
                     </div>
-                    <div className="text-center md:text-left">
-                        <p className="text-sm text-gray-400">Total (Filtro)</p>
+                    <div>
+                        <p className="text-xs text-gray-400">Total (Filtro)</p>
                         {isLoadingSummary ? (
-                            <Skeleton className="h-8 w-32 mt-1" />
+                            <Skeleton className="h-7 w-32 mt-1" />
                         ) : (
-                            <p className="text-2xl font-bold text-white truncate">{formatCurrency(summaryData?.totalValue || 0)}</p>
+                            <p className="text-xl font-bold text-white truncate">{formatCurrency(summaryData?.totalValue || 0)}</p>
                         )}
                     </div>
                 </div>

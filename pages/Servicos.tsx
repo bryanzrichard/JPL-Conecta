@@ -8,7 +8,8 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Badge } from '../components/ui/Badge';
-import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalFooter } from '../components/ui/ResponsiveModal';
+import { PageHeader } from '../components/ui/PageHeader';
+import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter } from '../components/ui/ResponsiveModal';
 import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/Popover';
 import { Command, CommandInput, CommandEmpty, CommandItem, CommandList } from '../components/ui/Command';
 import {
@@ -146,187 +147,186 @@ const Servicos: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className='flex items-center gap-3'>
-                    <BriefcaseIcon className="h-8 w-8 text-brand-blue-500" />
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Serviços</h1>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">Gerencie seus serviços e pagamentos.</p>
-                    </div>
-                </div>
-                <Button onClick={handleCreateNewService} className="w-full sm:w-auto">
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Novo Serviço
-                </Button>
-            </div>
+            <PageHeader
+                icon={BriefcaseIcon}
+                title="Serviços"
+                description="Gerencie seus serviços e pagamentos."
+                actions={
+                    <Button onClick={handleCreateNewService}>
+                        <PlusIcon className="h-4 w-4 mr-2" />
+                        Novo Serviço
+                    </Button>
+                }
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Valor Total */}
-                <div className="bg-brand-dark-900 p-5 rounded-2xl shadow-sm border border-gray-800 flex items-center gap-4">
-                    <div className="flex-shrink-0 p-3 rounded-full bg-brand-blue-500/10">
-                        <DollarSignIcon className="h-6 w-6 text-brand-blue-500" />
+                <div className="bg-brand-dark-900 p-4 rounded-xl shadow-sm border border-gray-800 flex items-center gap-4">
+                    <div className="flex-shrink-0 p-2.5 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20">
+                        <DollarSignIcon className="h-5 w-5 text-brand-blue-400" />
                     </div>
                     <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Valor Total (Em Andamento)</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white truncate">{formatCurrency(summary.totalValue)}</p>
+                        <p className="text-xs text-gray-400">Valor Total (Em Andamento)</p>
+                        <p className="text-xl font-bold text-white truncate">{formatCurrency(summary.totalValue)}</p>
                     </div>
                 </div>
 
                 {/* Falta Pagar */}
-                <div className="bg-brand-dark-900 p-5 rounded-2xl shadow-sm border border-gray-800 flex items-center gap-4">
-                    <div className="flex-shrink-0 p-3 rounded-full bg-green-500/10">
-                        <TrendingUpIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+                <div className="bg-brand-dark-900 p-4 rounded-xl shadow-sm border border-gray-800 flex items-center gap-4">
+                    <div className="flex-shrink-0 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                        <TrendingUpIcon className="h-5 w-5 text-emerald-400" />
                     </div>
                     <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Falta Pagar (Em Andamento)</p>
-                        <p className="text-2xl font-bold text-green-600 dark:text-green-400 truncate">{formatCurrency(summary.remainingValue)}</p>
+                        <p className="text-xs text-gray-400">Falta Pagar (Em Andamento)</p>
+                        <p className="text-xl font-bold text-emerald-400 truncate">{formatCurrency(summary.remainingValue)}</p>
                     </div>
                 </div>
             </div>
 
             <div className="flex justify-between items-center">
-                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                    <span className="font-bold text-gray-900 dark:text-white">{summary.count}</span> {summary.count === 1 ? 'serviço em andamento' : 'serviços em andamento'}
+                 <p className="text-sm text-gray-400">
+                    <span className="font-bold text-white">{summary.count}</span> {summary.count === 1 ? 'serviço em andamento' : 'serviços em andamento'}
                 </p>
-                <Button variant="outline" className="border-brand-blue-500/50 text-brand-blue-600 dark:text-brand-blue-500 hover:bg-brand-blue-500/10" onClick={() => { setTempFilters(filters); setIsFilterSheetOpen(true); }}>
+                <Button variant="outline" className="h-9 text-sm border-brand-blue-500/50 text-brand-blue-400 hover:bg-brand-blue-500/10 hover:text-brand-blue-300" onClick={() => { setTempFilters(filters); setIsFilterSheetOpen(true); }}>
                     <FilterIcon className="h-4 w-4 mr-2"/>
-                    Filtrar Histórico
+                    Filtrar Serviços
                 </Button>
-                <ResponsiveModal open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} displayMode="drawer">
-                    <ResponsiveModalContent className="w-full sm:max-w-md bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-                        <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-brand-blue-500/10 rounded-lg">
-                                    <FilterIcon className="h-5 w-5 text-brand-blue-500" />
-                                </div>
-                                <div>
-                                    <ResponsiveModalTitle className="text-gray-900 dark:text-white text-lg">Filtrar Serviços</ResponsiveModalTitle>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Refine a lista de serviços em andamento</p>
-                                </div>
+            </div>
+
+            <ResponsiveModal open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} displayMode="drawer">
+                <ResponsiveModalContent size="sm">
+                    <ResponsiveModalHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-brand-blue-500/10 rounded-lg border border-brand-blue-500/20">
+                                <FilterIcon className="h-5 w-5 text-brand-blue-400" />
                             </div>
-                        </ResponsiveModalHeader>
-                        <div className="flex-grow overflow-y-auto custom-scrollbar p-5 space-y-5 bg-brand-dark-950/50">
-                            {/* Collaborator Filter */}
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-medium text-gray-300">Colaborador</Label>
-                                <Popover open={isCollaboratorPopoverOpen} onOpenChange={setCollaboratorPopoverOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm border-gray-800 focus:border-brand-blue-500">
-                                            <span className="truncate">
-                                                {tempFilters.collaboratorId
-                                                    ? collaborators.find(c => c.id === tempFilters.collaboratorId)?.name
-                                                    : "Todos os colaboradores"}
-                                            </span>
-                                            <ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                        <Command>
-                                            <CommandInput placeholder="Buscar colaborador..." value={collaboratorSearch} onInput={(e) => setCollaboratorSearch(e.currentTarget.value)} />
-                                            <CommandList className="max-h-[200px] overflow-y-auto">
-                                                <CommandEmpty>Nenhum colaborador encontrado.</CommandEmpty>
-                                                <CommandItem className="cursor-pointer" onSelect={() => {
-                                                    setTempFilters(f => ({ ...f, collaboratorId: null }));
+                            <div>
+                                <ResponsiveModalTitle>Filtrar Serviços</ResponsiveModalTitle>
+                                <ResponsiveModalDescription>Refine a lista de serviços em andamento</ResponsiveModalDescription>
+                            </div>
+                        </div>
+                    </ResponsiveModalHeader>
+                    <div className="flex-grow overflow-y-auto custom-scrollbar p-6 space-y-5 bg-brand-dark-950/50">
+                        {/* Collaborator Filter */}
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-gray-300">Colaborador</Label>
+                            <Popover open={isCollaboratorPopoverOpen} onOpenChange={setCollaboratorPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm border-gray-800 focus:border-brand-blue-500">
+                                        <span className="truncate">
+                                            {tempFilters.collaboratorId
+                                                ? collaborators.find(c => c.id === tempFilters.collaboratorId)?.name
+                                                : "Todos os colaboradores"}
+                                        </span>
+                                        <ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                    <Command>
+                                        <CommandInput placeholder="Buscar colaborador..." value={collaboratorSearch} onInput={(e) => setCollaboratorSearch(e.currentTarget.value)} />
+                                        <CommandList className="max-h-[200px] overflow-y-auto">
+                                            <CommandEmpty>Nenhum colaborador encontrado.</CommandEmpty>
+                                            <CommandItem className="cursor-pointer" onSelect={() => {
+                                                setTempFilters(f => ({ ...f, collaboratorId: null }));
+                                                setCollaboratorPopoverOpen(false);
+                                            }}>
+                                                -- Todos --
+                                            </CommandItem>
+                                            {filteredCollaboratorsForSearch.map(c => (
+                                                <CommandItem key={c.id} className="cursor-pointer" onSelect={() => {
+                                                    setTempFilters(f => ({ ...f, collaboratorId: c.id }));
                                                     setCollaboratorPopoverOpen(false);
                                                 }}>
-                                                    -- Todos --
+                                                    {c.name}
                                                 </CommandItem>
-                                                {filteredCollaboratorsForSearch.map(c => (
-                                                    <CommandItem key={c.id} className="cursor-pointer" onSelect={() => {
-                                                        setTempFilters(f => ({ ...f, collaboratorId: c.id }));
-                                                        setCollaboratorPopoverOpen(false);
-                                                    }}>
-                                                        {c.name}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            
-                            {/* Project Filter */}
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-medium text-gray-300">Obra</Label>
-                                <Popover open={isProjectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm border-gray-800 focus:border-brand-blue-500">
-                                             <span className="truncate">
-                                                {tempFilters.projectId
-                                                    ? projects.find(p => p.id === tempFilters.projectId)?.name
-                                                    : "Todas as obras"}
-                                            </span>
-                                            <ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                        <Command>
-                                            <CommandInput placeholder="Buscar obra..." value={projectSearch} onInput={(e) => setProjectSearch(e.currentTarget.value)} />
-                                            <CommandList className="max-h-[200px] overflow-y-auto">
-                                                <CommandEmpty>Nenhuma obra encontrada.</CommandEmpty>
-                                                 <CommandItem className="cursor-pointer" onSelect={() => {
-                                                    setTempFilters(f => ({ ...f, projectId: null }));
+                                            ))}
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        
+                        {/* Project Filter */}
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-gray-300">Obra</Label>
+                            <Popover open={isProjectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm border-gray-800 focus:border-brand-blue-500">
+                                         <span className="truncate">
+                                            {tempFilters.projectId
+                                                ? projects.find(p => p.id === tempFilters.projectId)?.name
+                                                : "Todas as obras"}
+                                        </span>
+                                        <ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                    <Command>
+                                        <CommandInput placeholder="Buscar obra..." value={projectSearch} onInput={(e) => setProjectSearch(e.currentTarget.value)} />
+                                        <CommandList className="max-h-[200px] overflow-y-auto">
+                                            <CommandEmpty>Nenhuma obra encontrada.</CommandEmpty>
+                                             <CommandItem className="cursor-pointer" onSelect={() => {
+                                                setTempFilters(f => ({ ...f, projectId: null }));
+                                                setProjectPopoverOpen(false);
+                                            }}>
+                                                -- Todas --
+                                            </CommandItem>
+                                            {filteredProjectsForSearch.map(p => (
+                                                <CommandItem key={p.id} className="cursor-pointer" onSelect={() => {
+                                                    setTempFilters(f => ({ ...f, projectId: p.id }));
                                                     setProjectPopoverOpen(false);
                                                 }}>
-                                                    -- Todas --
+                                                    {p.name}
                                                 </CommandItem>
-                                                {filteredProjectsForSearch.map(p => (
-                                                    <CommandItem key={p.id} className="cursor-pointer" onSelect={() => {
-                                                        setTempFilters(f => ({ ...f, projectId: p.id }));
-                                                        setProjectPopoverOpen(false);
-                                                    }}>
-                                                        {p.name}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
+                                            ))}
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
 
-                             {/* Date Filter */}
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-medium text-gray-300">Período</Label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <Label htmlFor="start_date" className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Início</Label>
-                                        <Input
-                                            id="start_date"
-                                            type="date"
-                                            className="h-9 border-gray-800 focus:border-brand-blue-500 text-sm"
-                                            value={tempFilters.startDate ? tempFilters.startDate.toISOString().split('T')[0] : ''}
-                                            onChange={e => setTempFilters(f => ({...f, startDate: e.target.value ? new Date(e.target.value + 'T00:00:00') : null}))}
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="end_date" className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Fim</Label>
-                                        <Input
-                                            id="end_date"
-                                            type="date"
-                                            className="h-9 border-gray-800 focus:border-brand-blue-500 text-sm"
-                                            value={tempFilters.endDate ? tempFilters.endDate.toISOString().split('T')[0] : ''}
-                                            onChange={e => setTempFilters(f => ({...f, endDate: e.target.value ? new Date(e.target.value + 'T00:00:00') : null}))}
-                                        />
-                                    </div>
+                         {/* Date Filter */}
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-gray-300">Período</Label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <Label htmlFor="start_date" className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Início</Label>
+                                    <Input
+                                        id="start_date"
+                                        type="date"
+                                        className="h-9 border-gray-800 focus:border-brand-blue-500 text-sm"
+                                        value={tempFilters.startDate ? tempFilters.startDate.toISOString().split('T')[0] : ''}
+                                        onChange={e => setTempFilters(f => ({...f, startDate: e.target.value ? new Date(e.target.value + 'T00:00:00') : null}))}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="end_date" className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Fim</Label>
+                                    <Input
+                                        id="end_date"
+                                        type="date"
+                                        className="h-9 border-gray-800 focus:border-brand-blue-500 text-sm"
+                                        value={tempFilters.endDate ? tempFilters.endDate.toISOString().split('T')[0] : ''}
+                                        onChange={e => setTempFilters(f => ({...f, endDate: e.target.value ? new Date(e.target.value + 'T00:00:00') : null}))}
+                                    />
                                 </div>
                             </div>
                         </div>
-                        <ResponsiveModalFooter className="p-4 border-t border-gray-800 bg-brand-dark-900 flex-shrink-0 flex justify-end items-center gap-3">
-                            <Button variant="ghost" onClick={() => { handleClearFilters(); setIsFilterSheetOpen(false); }} className="h-9 px-4 text-gray-400 hover:text-white hover:bg-brand-dark-800">Limpar</Button>
-                            <Button onClick={() => { handleApplyFilters(); setIsFilterSheetOpen(false); }} className="h-9 px-6 bg-brand-blue-600 hover:bg-brand-blue-500 text-white">Aplicar Filtros</Button>
-                        </ResponsiveModalFooter>
-                    </ResponsiveModalContent>
-                </ResponsiveModal>
-            </div>
+                    </div>
+                    <ResponsiveModalFooter>
+                        <Button variant="ghost" onClick={() => { handleClearFilters(); setIsFilterSheetOpen(false); }} className="text-gray-400 hover:text-white hover:bg-brand-dark-800">Limpar</Button>
+                        <Button onClick={() => { handleApplyFilters(); setIsFilterSheetOpen(false); }} className="bg-brand-blue-600 hover:bg-brand-blue-500 text-white">Aplicar Filtros</Button>
+                    </ResponsiveModalFooter>
+                </ResponsiveModalContent>
+            </ResponsiveModal>
             
-            {loading ? <p className="text-center text-gray-500 dark:text-gray-400">Carregando serviços...</p> : 
+            {loading ? <p className="text-center text-gray-400">Carregando serviços...</p> : 
             processedServices.length === 0 ? (
                 <div className="text-center py-12 px-6 bg-brand-dark-900 rounded-2xl border-2 border-dashed border-gray-800 mt-4">
                     <div className="mx-auto p-3 bg-gray-800 rounded-full w-fit mb-4">
                         <BriefcaseIcon className="h-8 w-8 text-brand-blue-500" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nenhum serviço em andamento</h3>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Todos os serviços estão concluídos ou nenhum foi registrado ainda.</p>
+                    <h3 className="text-lg font-semibold text-white">Nenhum serviço em andamento</h3>
+                    <p className="mt-1 text-sm text-gray-400">Todos os serviços estão concluídos ou nenhum foi registrado ainda.</p>
                 </div>
             ) :
             <>
@@ -341,15 +341,15 @@ const Servicos: React.FC = () => {
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                         const isUrgent = !isOverdue && diffDays <= 7;
                         
-                        let cardBorderClass = 'border-gray-200 dark:border-gray-800/60 hover:border-brand-blue-500/30';
-                        if (isOverdue) cardBorderClass = 'border-red-200 dark:border-red-500/50 hover:border-red-500/70';
-                        else if (isUrgent) cardBorderClass = 'border-yellow-200 dark:border-yellow-500/50 hover:border-yellow-500/70';
+                        let cardBorderClass = 'border-gray-800/60 hover:border-brand-blue-500/30';
+                        if (isOverdue) cardBorderClass = 'border-red-500/50 hover:border-red-500/70';
+                        else if (isUrgent) cardBorderClass = 'border-yellow-500/50 hover:border-yellow-500/70';
                         
                         let dateBadge = null;
                         if (isOverdue) {
-                            dateBadge = <span className="text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/10 px-2 py-0.5 rounded-md">ATRASADO</span>;
+                            dateBadge = <span className="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-md">ATRASADO</span>;
                         } else if (isUrgent) {
-                            dateBadge = <span className="text-[10px] font-bold text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-500/10 px-2 py-0.5 rounded-md">URGENTE</span>;
+                            dateBadge = <span className="text-[10px] font-bold text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded-md">URGENTE</span>;
                         }
                         
                         return (
@@ -361,11 +361,11 @@ const Servicos: React.FC = () => {
                                 {/* Cabeçalho do Card: Descrição e Status */}
                                 <div className="flex justify-between items-start mb-3">
                                     <div className="pr-4 flex-1">
-                                        <h3 className="font-semibold text-gray-900 dark:text-white text-base leading-tight line-clamp-2 mb-1.5">
+                                        <h3 className="font-semibold text-white text-base leading-tight line-clamp-2 mb-1.5">
                                             {service.description}
                                         </h3>
                                         <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-500/10 px-2 py-0.5 rounded-md">
+                                            <span className="text-xs font-medium text-green-400 bg-green-500/10 px-2 py-0.5 rounded-md">
                                                 {service.status}
                                             </span>
                                             {dateBadge}
@@ -374,36 +374,36 @@ const Servicos: React.FC = () => {
                                     
                                     <div className="flex flex-col items-end flex-shrink-0 gap-1">
                                         <span className="text-[10px] text-gray-500 uppercase font-medium">Restante</span>
-                                        <span className="font-bold text-emerald-600 dark:text-emerald-400 text-lg tracking-tight">
+                                        <span className="font-bold text-emerald-400 text-lg tracking-tight">
                                             {formatCurrency(service.remaining_value)}
                                         </span>
                                     </div>
                                 </div>
 
                                 {/* Linha divisória sutil */}
-                                <div className="h-px w-full bg-gradient-to-r from-gray-100 dark:from-gray-800/50 via-gray-50 dark:via-gray-800/20 to-transparent my-3" />
+                                <div className="h-px w-full bg-gradient-to-r from-gray-800/50 via-gray-800/20 to-transparent my-3" />
 
                                 {/* Metadados: Colaborador, Obra, Datas */}
                                 <div className="flex items-end justify-between">
                                     <div className="space-y-2 flex-1 pr-4">
-                                        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+                                        <div className="flex items-center gap-2 text-xs text-gray-300">
                                             <UserIcon className="w-3.5 h-3.5 text-brand-blue-500/70 flex-shrink-0" />
                                             <span className="line-clamp-1">{service.collaborator_name || 'Sem colaborador'}</span>
                                         </div>
                                         
-                                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                        <div className="flex items-center gap-2 text-xs text-gray-400">
                                             <ConstructionIcon className="w-3.5 h-3.5 flex-shrink-0" />
                                             <span className="line-clamp-1">{service.project_name || 'Obra não informada'}</span>
                                         </div>
 
-                                        <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 pt-1">
+                                        <div className="flex items-center gap-2 text-xs text-gray-500 pt-1">
                                             <CalendarIcon className="w-3.5 h-3.5" />
                                             <span>Até {formatDate(service.end_date)}</span>
                                         </div>
                                     </div>
 
                                     {/* Indicador de Ação (Thumb-friendly) */}
-                                    <div className="w-8 h-8 rounded-full bg-brand-blue-500/10 flex items-center justify-center text-brand-blue-600 dark:text-brand-blue-400 group-hover:bg-brand-blue-500/20 transition-colors flex-shrink-0">
+                                    <div className="w-8 h-8 rounded-full bg-brand-blue-500/10 flex items-center justify-center text-brand-blue-400 group-hover:bg-brand-blue-500/20 transition-colors flex-shrink-0">
                                         <PlusIcon className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -415,7 +415,7 @@ const Servicos: React.FC = () => {
                 {/* Desktop: Table */}
                 <div className="hidden md:block overflow-hidden rounded-xl border border-gray-800 bg-brand-dark-900 shadow-sm">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <table className="w-full text-sm text-left text-gray-400">
                             <thead className="text-xs text-gray-400 uppercase bg-gray-800/50 border-b border-gray-800">
                                 <tr>
                                     <th className="px-6 py-4 font-medium">Status</th>
@@ -427,7 +427,7 @@ const Servicos: React.FC = () => {
                                     <th className="px-6 py-4 font-medium text-center">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                            <tbody className="divide-y divide-gray-800">
                                 {processedServices.map((service) => {
                                     const today = new Date();
                                     today.setHours(0, 0, 0, 0);
@@ -449,27 +449,27 @@ const Servicos: React.FC = () => {
                                         >
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex flex-col gap-1">
-                                                    <Badge variant="outline" className="w-fit bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">{service.status}</Badge>
-                                                    {isOverdue && <span className="text-[10px] text-red-600 dark:text-red-400 font-bold">ATRASADO</span>}
-                                                    {isUrgent && <span className="text-[10px] text-yellow-600 dark:text-yellow-400 font-bold">URGENTE</span>}
+                                                    <Badge variant="outline" className="w-fit bg-green-500/10 text-green-400 border-green-500/20">{service.status}</Badge>
+                                                    {isOverdue && <span className="text-[10px] text-red-400 font-bold">ATRASADO</span>}
+                                                    {isUrgent && <span className="text-[10px] text-yellow-400 font-bold">URGENTE</span>}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white max-w-xs truncate" title={service.description}>{service.description}</td>
+                                            <td className="px-6 py-4 font-medium text-white max-w-xs truncate" title={service.description}>{service.description}</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <span className="font-medium text-gray-900 dark:text-white">{service.collaborator_name || 'N/A'}</span>
-                                                    <span className="text-xs text-gray-500 dark:text-gray-400">{service.project_name || 'N/A'}</span>
+                                                    <span className="font-medium text-white">{service.collaborator_name || 'N/A'}</span>
+                                                    <span className="text-xs text-gray-400">{service.project_name || 'N/A'}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-400">
                                                 <div>{formatDate(service.start_date)}</div>
                                                 <div>até {formatDate(service.end_date)}</div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-gray-700 dark:text-gray-300">
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-gray-300">
                                                 {formatCurrency(service.total_value)}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right font-bold">
-                                                <span className="text-green-600 dark:text-green-400">{formatCurrency(service.remaining_value)}</span>
+                                                <span className="text-emerald-400">{formatCurrency(service.remaining_value)}</span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-center">
                                                 <DropdownMenu>
@@ -478,9 +478,9 @@ const Servicos: React.FC = () => {
                                                             variant="outline" 
                                                             size="icon" 
                                                             className="h-8 w-8 border-gray-700 hover:bg-gray-700"
-                                                            onClick={(e) => e.stopPropagation()} // Prevent row click
+                                                            onClick={(e) => e.stopPropagation()}
                                                         >
-                                                            <MoreVerticalIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                                            <MoreVerticalIcon className="h-4 w-4 text-gray-400" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">

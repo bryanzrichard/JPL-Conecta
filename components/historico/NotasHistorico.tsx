@@ -222,8 +222,8 @@ const NotasHistorico: React.FC = () => {
                     <div className="mx-auto p-3 bg-brand-dark-950 rounded-full w-fit mb-4 shadow-sm border border-gray-800">
                         <FileTextIcon className="h-8 w-8 text-brand-blue-500" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nenhuma nota encontrada</h3>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 max-w-sm">Nenhum registro corresponde aos filtros atuais. Tente ajustar sua busca ou limpar os filtros.</p>
+                    <h3 className="text-lg font-semibold text-white">Nenhuma nota encontrada</h3>
+                    <p className="mt-1 text-sm text-gray-400 max-w-sm mx-auto">Nenhum registro corresponde aos filtros atuais. Tente ajustar sua busca ou limpar os filtros.</p>
                 </div>
             );
         }
@@ -239,8 +239,8 @@ const NotasHistorico: React.FC = () => {
 
             <div className="hidden md:block overflow-hidden rounded-xl border border-gray-800 bg-brand-dark-900 shadow-sm">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                        <thead className="text-xs text-gray-400 uppercase bg-brand-dark-950/50 border-b border-gray-800">
+                    <table className="w-full text-sm text-left text-gray-400">
+                        <thead className="text-xs text-gray-400 uppercase bg-gray-800/50 border-b border-gray-800">
                             <tr>
                                 <th className="px-6 py-4 font-medium">Emissão</th>
                                 <th className="px-6 py-4 font-medium">Nº Nota</th>
@@ -250,29 +250,29 @@ const NotasHistorico: React.FC = () => {
                                 <th className="px-6 py-4 font-medium text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                        <tbody className="divide-y divide-gray-800">
                             {allNotas.map((nota) => (
-                                <tr key={nota.id} className="hover:bg-brand-dark-950/50 transition-colors">
+                                <tr key={nota.id} className="hover:bg-gray-800/40 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap">{formatDate(nota.issue_date)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{nota.invoice_number}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-white">{nota.invoice_number}</td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
-                                            <span className="font-medium text-gray-900 dark:text-white">{nota.suppliers?.name || 'N/A'}</span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">{nota.projects?.name || 'N/A'}</span>
+                                            <span className="font-medium text-white">{nota.suppliers?.name || 'N/A'}</span>
+                                            <span className="text-xs text-gray-400">{nota.projects?.name || 'N/A'}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <Badge variant="outline" className="bg-brand-dark-950/50 text-gray-300 border-gray-800">
+                                        <Badge variant="outline" className="bg-gray-800/50 text-gray-300 border-gray-700">
                                             {PAYMENT_METHODS[nota.payment_method] || nota.payment_method}
                                         </Badge>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-gray-900 dark:text-white">
+                                    <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-white">
                                         {formatCurrency(nota.total_value)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" size="icon" className="h-8 w-8 border-gray-800 hover:bg-brand-dark-950/50">
+                                                <Button variant="outline" size="icon" className="h-8 w-8 border-gray-700 hover:bg-gray-700">
                                                     <MoreVerticalIcon className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
@@ -324,24 +324,26 @@ const NotasHistorico: React.FC = () => {
                 </Button>
 
                 <ResponsiveModal open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} displayMode="drawer">
-                    <ResponsiveModalContent className="max-w-md bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-                        <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-                            <ResponsiveModalTitle className="flex items-center gap-2 text-base text-white">
-                                <FilterIcon className="h-4 w-4 text-brand-blue-500" />
-                                Filtrar Notas Fiscais
-                            </ResponsiveModalTitle>
-                            <ResponsiveModalDescription className="text-xs text-gray-500 dark:text-gray-400">
-                                Refine a lista de notas fiscais
-                            </ResponsiveModalDescription>
+                    <ResponsiveModalContent size="sm">
+                        <ResponsiveModalHeader>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-brand-blue-500/10 rounded-lg border border-brand-blue-500/20">
+                                    <FilterIcon className="h-5 w-5 text-brand-blue-400" />
+                                </div>
+                                <div>
+                                    <ResponsiveModalTitle>Filtrar Notas Fiscais</ResponsiveModalTitle>
+                                    <ResponsiveModalDescription>Refine a lista de notas fiscais</ResponsiveModalDescription>
+                                </div>
+                            </div>
                         </ResponsiveModalHeader>
-                        <div className="p-5 space-y-5 flex-grow overflow-y-auto custom-scrollbar bg-brand-dark-950/50">
+                        <div className="p-6 space-y-5 flex-grow overflow-y-auto custom-scrollbar bg-brand-dark-950/50">
                             <FilterCombobox label="Fornecedor" options={prerequisites?.suppliers || []} selectedValue={tempFilters.supplierId} onSelect={id => setTempFilters(f => ({...f, supplierId: id}))} />
                             <FilterCombobox label="Obra" options={prerequisites?.projects || []} selectedValue={tempFilters.projectId} onSelect={id => setTempFilters(f => ({...f, projectId: id}))} />
                             <div className="space-y-1.5"><Label className="text-xs font-medium text-gray-300">Período de Emissão</Label><DatePickerWithRange date={tempFilters.dateRange} onDateChange={range => setTempFilters(f => ({...f, dateRange: range}))}/></div>
                         </div>
-                        <ResponsiveModalFooter className="p-4 border-t border-gray-800 bg-brand-dark-900 flex-shrink-0 flex justify-end items-center gap-3">
-                            <Button variant="ghost" onClick={clearFilters} className="h-9 px-4 text-gray-400 hover:text-white hover:bg-brand-dark-800">Limpar</Button>
-                            <Button onClick={applyFilters} className="h-9 px-6 bg-brand-blue-600 hover:bg-brand-blue-500 text-white">Aplicar Filtros</Button>
+                        <ResponsiveModalFooter>
+                            <Button variant="ghost" onClick={clearFilters} className="text-gray-400 hover:text-white hover:bg-brand-dark-800">Limpar</Button>
+                            <Button onClick={applyFilters} className="bg-brand-blue-600 hover:bg-brand-blue-500 text-white">Aplicar Filtros</Button>
                         </ResponsiveModalFooter>
                     </ResponsiveModalContent>
                 </ResponsiveModal>

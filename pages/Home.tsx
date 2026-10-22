@@ -5,7 +5,8 @@ import { useDashboardAlerts } from '../hooks/useDashboardAlerts';
 import { SystemHealthPanel } from '../components/home/SystemHealthPanel';
 import { DashboardCharts } from '../components/home/DashboardCharts';
 import { AuditLogsPanel } from '../components/home/AuditLogsPanel';
-import { AlertTriangleIcon, ClockIcon, ChevronRightIcon, TrendingUpIcon } from '../lib/icons';
+import { PageHeader } from '../components/ui/PageHeader';
+import { HomeIcon, AlertTriangleIcon, ClockIcon, ChevronRightIcon, TrendingUpIcon } from '../lib/icons';
 import { Skeleton } from '../components/ui/Skeleton';
 
 const formatCurrency = (value: number) => {
@@ -22,6 +23,12 @@ const Home: React.FC = () => {
 
     return (
         <div className="space-y-6 animate-in fade-in-50 pb-20 md:pb-0">
+            <PageHeader
+                icon={HomeIcon}
+                title="Visão Geral & Indicadores"
+                description="Acompanhe métricas executivas, alertas operacionais e integridade do sistema."
+            />
+
             {/* KPI EXECUTIVE ALERTS ROW */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* 1. GASTOS NO MÊS */}

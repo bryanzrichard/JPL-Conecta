@@ -1,6 +1,6 @@
 import React from 'react';
-// FIX: Corrected import paths from `../../` to `../` to match the project structure.
 import { HistoryIcon } from '../lib/icons';
+import { PageHeader } from '../components/ui/PageHeader';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
 import NotasHistorico from '../components/historico/NotasHistorico';
 import ServicosHistorico from '../components/historico/ServicosHistorico';
@@ -8,16 +8,14 @@ import AdiantamentosHistorico from '../components/historico/AdiantamentosHistori
 
 const Historico: React.FC = () => {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <HistoryIcon className="h-8 w-8 text-brand-blue-500" />
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Histórico de Registros</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Consulte, edite ou exclua registros passados.</p>
-        </div>
-      </div>
+    <div className="space-y-6 animate-in fade-in-50">
+      <PageHeader
+        icon={HistoryIcon}
+        title="Histórico de Registros"
+        description="Consulte, edite ou exclua registros passados."
+      />
 
-      <Tabs defaultValue="notas">
+      <Tabs defaultValue="notas" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3 md:w-fit md:inline-grid md:min-w-[420px]">
           <TabsTrigger value="notas">Notas Fiscais</TabsTrigger>
           <TabsTrigger value="servicos">Serviços</TabsTrigger>

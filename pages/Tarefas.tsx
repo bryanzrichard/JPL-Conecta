@@ -9,7 +9,8 @@ import { Button } from '../components/ui/Button';
 import { PlusIcon, LayoutIcon, FilterIcon, ClipboardListIcon, AlertTriangleIcon, DollarSignIcon, MoreVerticalIcon, EditIcon, Trash2Icon, ConstructionIcon, UserIcon, CalendarIcon } from '../lib/icons';
 import TaskCard from '../components/home/TaskCard';
 import CreateTaskModal from '../components/home/CreateTaskModal';
-import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalFooter } from '../components/ui/ResponsiveModal';
+import { PageHeader } from '../components/ui/PageHeader';
+import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter } from '../components/ui/ResponsiveModal';
 import { Label } from '../components/ui/Label';
 import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/Popover';
 import { Command, CommandInput, CommandEmpty, CommandItem, CommandList } from '../components/ui/Command';
@@ -185,75 +186,74 @@ const Tarefas: React.FC = () => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in-50">
             {/* Header Area */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex items-center gap-3">
-                    <LayoutIcon className="h-8 w-8 text-brand-blue-500" />
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gerenciador de Tarefas</h1>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">Visualize e mova suas tarefas.</p>
-                    </div>
-                </div>
-                <div className="flex gap-2 w-full sm:w-auto">
-                    <Button variant="outline" className="w-full sm:w-auto lg:hidden" onClick={() => setIsFilterSheetOpen(true)}>
-                        <FilterIcon className="h-4 w-4 mr-2"/> Filtros
-                    </Button>
-                    <ResponsiveModal open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} displayMode="drawer">
-                        <ResponsiveModalContent className="w-full sm:max-w-md bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-                            <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-brand-blue-500/10 rounded-lg">
-                                        <FilterIcon className="h-5 w-5 text-brand-blue-500" />
-                                    </div>
-                                    <div>
-                                        <ResponsiveModalTitle className="text-gray-900 dark:text-white text-lg">Filtrar Tarefas</ResponsiveModalTitle>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Refine a lista de tarefas</p>
-                                    </div>
-                                </div>
-                            </ResponsiveModalHeader>
-                            <div className="p-5 space-y-5 flex-grow overflow-y-auto custom-scrollbar bg-brand-dark-950/50">
-                                <FilterCombobox label="Obra" options={prerequisites?.projects || []} selectedValue={tempFilters.projectId} onSelect={id => setTempFilters(p => ({...p, projectId: id}))} />
-                                <FilterCombobox label="Responsável" options={prerequisites?.collaborators || []} selectedValue={tempFilters.collaboratorId} onSelect={id => setTempFilters(p => ({...p, collaboratorId: id}))} />
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs font-medium text-gray-300">Prioridade</Label>
-                                    <select 
-                                        className="w-full rounded-lg border border-gray-800 bg-brand-dark-950 px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/50"
-                                        value={tempFilters.priority || ''}
-                                        onChange={(e) => setTempFilters(p => ({...p, priority: e.target.value || null}))}
-                                    >
-                                        <option value="">Todas</option>
-                                        <option value="Alta">Alta</option>
-                                        <option value="Média">Média</option>
-                                        <option value="Baixa">Baixa</option>
-                                    </select>
-                                </div>
+            <PageHeader
+                icon={LayoutIcon}
+                title="Gerenciador de Tarefas"
+                description="Visualize, acompanhe e gerencie o cronograma das obras."
+                actions={
+                    <>
+                        <Button variant="outline" className="lg:hidden" onClick={() => { setTempFilters(filters); setIsFilterSheetOpen(true); }}>
+                            <FilterIcon className="h-4 w-4 mr-2"/> Filtros
+                        </Button>
+                        <Button onClick={() => { setTaskToEdit(null); setCreateModalOpen(true); }}>
+                            <PlusIcon className="h-4 w-4 mr-2"/> Nova Tarefa
+                        </Button>
+                    </>
+                }
+            />
+
+            <ResponsiveModal open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} displayMode="drawer">
+                <ResponsiveModalContent size="sm">
+                    <ResponsiveModalHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-brand-blue-500/10 rounded-lg border border-brand-blue-500/20">
+                                <FilterIcon className="h-5 w-5 text-brand-blue-400" />
                             </div>
-                            <ResponsiveModalFooter className="p-4 border-t border-gray-800 bg-brand-dark-900 flex-shrink-0 flex justify-end items-center gap-3">
-                                <Button variant="ghost" onClick={handleClearFilters} className="h-9 px-4 text-gray-400 hover:text-white hover:bg-brand-dark-800">Limpar</Button>
-                                <Button onClick={handleApplyFilters} className="h-9 px-6 bg-brand-blue-600 hover:bg-brand-blue-500 text-white">Aplicar Filtros</Button>
-                            </ResponsiveModalFooter>
-                        </ResponsiveModalContent>
-                    </ResponsiveModal>
-                    <Button onClick={() => { setTaskToEdit(null); setCreateModalOpen(true); }} className="w-full sm:w-auto">
-                        <PlusIcon className="h-4 w-4 mr-2"/> Nova Tarefa
-                    </Button>
-                </div>
-            </div>
+                            <div>
+                                <ResponsiveModalTitle>Filtrar Tarefas</ResponsiveModalTitle>
+                                <ResponsiveModalDescription>Refine a lista por obra, responsável ou prioridade</ResponsiveModalDescription>
+                            </div>
+                        </div>
+                    </ResponsiveModalHeader>
+                    <div className="p-6 space-y-5 flex-grow overflow-y-auto custom-scrollbar bg-brand-dark-950/50">
+                        <FilterCombobox label="Obra" options={prerequisites?.projects || []} selectedValue={tempFilters.projectId} onSelect={id => setTempFilters(p => ({...p, projectId: id}))} />
+                        <FilterCombobox label="Responsável" options={prerequisites?.collaborators || []} selectedValue={tempFilters.collaboratorId} onSelect={id => setTempFilters(p => ({...p, collaboratorId: id}))} />
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-gray-300">Prioridade</Label>
+                            <select 
+                                className="w-full rounded-lg border border-gray-800 bg-brand-dark-950 px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/50"
+                                value={tempFilters.priority || ''}
+                                onChange={(e) => setTempFilters(p => ({...p, priority: e.target.value || null}))}
+                            >
+                                <option value="">Todas</option>
+                                <option value="Alta">Alta</option>
+                                <option value="Média">Média</option>
+                                <option value="Baixa">Baixa</option>
+                            </select>
+                        </div>
+                    </div>
+                    <ResponsiveModalFooter>
+                        <Button variant="ghost" onClick={handleClearFilters} className="text-gray-400 hover:text-white hover:bg-brand-dark-800">Limpar</Button>
+                        <Button onClick={handleApplyFilters} className="bg-brand-blue-600 hover:bg-brand-blue-500 text-white">Aplicar Filtros</Button>
+                    </ResponsiveModalFooter>
+                </ResponsiveModalContent>
+            </ResponsiveModal>
 
             {/* KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-brand-dark-900 p-4 rounded-xl flex items-center gap-3 border border-gray-800 shadow-sm">
-                    <div className="p-2 bg-blue-500/10 rounded-full"><ClipboardListIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" /></div>
-                    <div><p className="text-xs text-gray-500 dark:text-gray-400">Total de Tarefas</p><p className="text-xl font-bold text-gray-900 dark:text-white">{kpis.total}</p></div>
+                    <div className="p-2.5 bg-brand-blue-500/10 border border-brand-blue-500/20 rounded-xl"><ClipboardListIcon className="h-5 w-5 text-brand-blue-400" /></div>
+                    <div><p className="text-xs text-gray-400">Total de Tarefas</p><p className="text-xl font-bold text-white">{kpis.total}</p></div>
                 </div>
                 <div className="bg-brand-dark-900 p-4 rounded-xl flex items-center gap-3 border border-red-900/30 shadow-sm">
-                    <div className="p-2 bg-red-500/10 rounded-full"><AlertTriangleIcon className="h-5 w-5 text-red-600 dark:text-red-400" /></div>
-                    <div><p className="text-xs text-gray-500 dark:text-gray-400">Atrasadas</p><p className="text-xl font-bold text-red-600 dark:text-red-400">{kpis.delayed}</p></div>
+                    <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl"><AlertTriangleIcon className="h-5 w-5 text-red-400" /></div>
+                    <div><p className="text-xs text-gray-400">Atrasadas</p><p className="text-xl font-bold text-red-400">{kpis.delayed}</p></div>
                 </div>
                 <div className="bg-brand-dark-900 p-4 rounded-xl flex items-center gap-3 border border-gray-800 shadow-sm">
-                    <div className="p-2 bg-green-500/10 rounded-full"><DollarSignIcon className="h-5 w-5 text-green-600 dark:text-green-400" /></div>
-                    <div><p className="text-xs text-gray-500 dark:text-gray-400">Custo Acumulado</p><p className="text-xl font-bold text-green-600 dark:text-green-400">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(kpis.totalCost)}</p></div>
+                    <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl"><DollarSignIcon className="h-5 w-5 text-emerald-400" /></div>
+                    <div><p className="text-xs text-gray-400">Custo Acumulado</p><p className="text-xl font-bold text-emerald-400">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(kpis.totalCost)}</p></div>
                 </div>
             </div>
 
@@ -324,7 +324,7 @@ const Tarefas: React.FC = () => {
             {/* Desktop View: Table */}
             <div className="hidden md:block overflow-hidden rounded-xl border border-gray-800 bg-brand-dark-900 shadow-sm">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                    <table className="w-full text-sm text-left text-gray-400">
                         <thead className="text-xs text-gray-400 uppercase bg-gray-800/50 border-b border-gray-800">
                             <tr>
                                 <th className="px-6 py-4 font-medium">Status / Prioridade</th>
@@ -334,7 +334,7 @@ const Tarefas: React.FC = () => {
                                 <th className="px-6 py-4 font-medium text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                        <tbody className="divide-y divide-gray-800">
                             {isLoadingTasks ? (
                                 Array.from({length: 5}).map((_, i) => (
                                     <tr key={i}><td colSpan={5} className="p-4"><Skeleton className="h-8 w-full" /></td></tr>
@@ -349,7 +349,7 @@ const Tarefas: React.FC = () => {
                                 filteredTasks.map((task) => (
                                     <tr 
                                         key={task.id} 
-                                        className="hover:bg-gray-800/30 transition-colors"
+                                        className="hover:bg-gray-800/40 transition-colors"
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex flex-col gap-2 items-start">
@@ -359,26 +359,25 @@ const Tarefas: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
-                                                <p className="font-bold text-gray-900 dark:text-white max-w-sm truncate" title={task.title}>{task.title}</p>
+                                                <p className="font-semibold text-white max-w-sm truncate" title={task.title}>{task.title}</p>
                                                 {task.description && <p className="text-xs text-gray-500 truncate max-w-sm">{task.description}</p>}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
-                                                    <ConstructionIcon className="h-3 w-3 text-gray-500 dark:text-gray-400" />
-                                                    <span className="text-gray-700 dark:text-gray-300">{task.projects?.name || '-'}</span>
+                                                    <ConstructionIcon className="h-3 w-3 text-gray-400" />
+                                                    <span className="text-gray-300">{task.projects?.name || '-'}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <UserIcon className="h-3 w-3 text-gray-500 dark:text-gray-400" />
-                                                    <span className="text-gray-500 dark:text-gray-400 text-xs">{task.collaborators?.name || '-'}</span>
+                                                    <UserIcon className="h-3 w-3 text-gray-400" />
+                                                    <span className="text-gray-400 text-xs">{task.collaborators?.name || '-'}</span>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-xs">
-                                            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                                            <div className="flex items-center gap-2 text-gray-400">
                                                 <CalendarIcon className="h-3 w-3" />
-                                                {/* Fallback to simple text if structured date is missing */}
                                                 <span>{formatDate(task.data_inicio_prevista)} - {formatDate(task.data_fim_prevista)}</span>
                                             </div>
                                         </td>
@@ -446,16 +445,16 @@ const FilterCombobox: React.FC<{
     const filteredOptions = options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()));
 
     return (
-        <div className="space-y-1">
-            <Label>{label}</Label>
+        <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-gray-300">{label}</Label>
             <Popover open={isOpen} onOpenChange={setIsOpen}>
                 <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" className="w-full justify-between font-normal text-left h-auto border-gray-200 dark:border-gray-700">
+                    <Button type="button" variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm border-gray-800">
                         <span className="truncate">{selectedLabel}</span>
-                        <ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                        <ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="p-0 w-[200px]">
+                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
                     <Command>
                         <CommandInput placeholder="Buscar..." value={search} onInput={(e) => setSearch(e.currentTarget.value)} />
                         <CommandList className="max-h-[200px] overflow-y-auto">

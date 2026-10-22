@@ -17,6 +17,7 @@ import { formatApiError } from '../lib/handleError';
 import { logAuditAction } from '../lib/auditLogger';
 import { formatCnpj } from '../lib/utils';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../components/ui/Card';
+import { PageHeader } from '../components/ui/PageHeader';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/DropdownMenu';
 import { StarRating } from '../components/ui/StarRating';
 import { Badge } from '../components/ui/Badge';
@@ -280,13 +281,13 @@ const ActionCell = ({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => 
 );
 
 const InfoBox: React.FC<{icon: React.ReactNode, label: string, value: string}> = ({ icon, label, value }) => (
-    <div className="flex items-center gap-4 p-3 bg-brand-dark-950/50 rounded-lg border border-gray-800/50">
-        <div className="flex-shrink-0">
+    <div className="flex items-center gap-4 p-4 bg-brand-dark-900 rounded-xl border border-gray-800 shadow-sm">
+        <div className="flex-shrink-0 p-2.5 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20">
             {icon}
         </div>
         <div className="min-w-0">
-            <p className="text-sm text-gray-400">{label}</p>
-            <p className="font-medium text-white truncate" title={value}>{value}</p>
+            <p className="text-xs text-gray-400">{label}</p>
+            <p className="text-sm font-semibold text-white truncate" title={value}>{value}</p>
         </div>
     </div>
 );
@@ -309,37 +310,35 @@ const Registros: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in-50">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <PlusSquareIcon className="h-8 w-8 text-brand-blue-500" />
-          <div>
-            <h1 className="text-2xl font-bold text-white">Cadastros Gerais</h1>
-            <p className="text-gray-400 text-sm">Gerencie fornecedores, obras e colaboradores.</p>
-          </div>
-        </div>
-        <Button 
-            variant="destructive" 
-            onClick={() => setIsLogoutModalOpen(true)} 
-            className="bg-red-900/50 hover:bg-red-800 border border-red-800 text-red-100"
-        >
-            <LogOutIcon className="h-4 w-4 mr-2" />
-            Sair da Conta
-        </Button>
-      </div>
+      <PageHeader
+        icon={PlusSquareIcon}
+        title="Cadastros Gerais"
+        description="Gerencie fornecedores, obras e colaboradores."
+        actions={
+          <Button 
+              variant="destructive" 
+              onClick={() => setIsLogoutModalOpen(true)} 
+              className="bg-red-900/50 hover:bg-red-800 border border-red-800 text-red-100"
+          >
+              <LogOutIcon className="h-4 w-4 mr-2" />
+              Sair da Conta
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <InfoBox
-          icon={<UserCircleIcon className="h-7 w-7 text-brand-blue-500" />}
+          icon={<UserCircleIcon className="h-5 w-5 text-brand-blue-400" />}
           label="Email do Usuário"
           value={user?.email || 'N/A'}
         />
         <InfoBox
-          icon={<BuildingIcon className="h-7 w-7 text-brand-blue-500" />}
+          icon={<BuildingIcon className="h-5 w-5 text-brand-blue-400" />}
           label="Empresa"
           value={profile?.companies?.name || 'Não definida'}
         />
         <InfoBox
-          icon={<KeyRoundIcon className="h-7 w-7 text-brand-blue-500" />}
+          icon={<KeyRoundIcon className="h-5 w-5 text-brand-blue-400" />}
           label="Validade da Chave"
           value={formatDate(profile?.company_keys?.expires_at)}
         />
