@@ -1,83 +1,119 @@
-import React, { createContext, useContext } from 'react';
-import { useMediaQuery } from '../../hooks/use-media-query';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './Dialog';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from './Sheet';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { useDashboardAlerts } from '../hooks/useDashboardAlerts';
+import { SystemHealthPanel } from '../components/home/SystemHealthPanel';
+import { DashboardCharts } from '../components/home/DashboardCharts';
+import { AuditLogsPanel } from '../components/home/AuditLogsPanel';
+import { AlertTriangleIcon, ClockIcon, ChevronRightIcon, TrendingUpIcon } from '../lib/icons';
+import { Skeleton } from '../components/ui/Skeleton';
 
-const ResponsiveModalContext = createContext<{ isDesktop: boolean } | undefined>(undefined);
+const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+};
 
-export function useResponsiveModal() {
-  const context = useContext(ResponsiveModalContext);
-  if (context === undefined) {
-    throw new Error('useResponsiveModal must be used within a ResponsiveModal');
-  }
-  return context;
-}
-
-export function ResponsiveModal({ children, open, isOpen, onOpenChange }: { children: React.ReactNode, open?: boolean, isOpen?: boolean, onOpenChange?: (open: boolean) => void }) {
-  const isDesktop = useMediaQuery("(min-width: 768px)");
-  const actualOpen = open !== undefined ? open : isOpen;
-  
-  return (
-    <ResponsiveModalContext.Provider value={{ isDesktop }}>
-      {isDesktop ? (
-        <Dialog open={actualOpen} onOpenChange={onOpenChange}>{children}</Dialog>
-      ) : (
-        <Sheet open={actualOpen} onOpenChange={onOpenChange}>{children}</Sheet>
-      )}
-    </ResponsiveModalContext.Provider>
-  );
-}
-
-export function ResponsiveModalContent({ children, className, preventOutsideClose = true }: { children: React.ReactNode, className?: string, preventOutsideClose?: boolean }) {
-  const { isDesktop } = useResponsiveModal();
-  
-  const handleInteractOutside = (e: React.MouseEvent) => {
-    if (preventOutsideClose) {
-      e.preventDefault();
-    }
-  };
-
-  if (isDesktop) {
-    const hasCustomMaxWidth = className && /\bmax-w-/.test(className);
-    return (
-      <DialogContent onInteractOutside={handleInteractOutside} className={`${hasCustomMaxWidth ? '' : 'max-w-2xl '}p-0 overflow-hidden flex flex-col max-h-[90vh] ${className || ''}`}>
-        {children}
-      </DialogContent>
+const Home: React.FC = () => {
+    const { profile, user } = useAuth();
+    const navigate = useNavigate();
+    const { monthlySpending, delayedTasks, pendingAi, isLoading } = useDashboardAlerts(
+        profile?.company_id,
+        user?.id
     );
-  }
 
-  return (
-    <SheetContent onInteractOutside={handleInteractOutside} side="bottom" className={`max-h-[90vh] p-0 flex flex-col ${className}`}>
-      <div className="w-full flex justify-center pt-3 pb-2 shrink-0">
-        <div className="h-1.5 w-12 rounded-full bg-gray-600" />
-      </div>
-      <div className="flex-1 w-full flex flex-col min-h-0 overflow-hidden">
-        {children}
-      </div>
-    </SheetContent>
-  );
-}
+    return (
+        <div className="space-y-6 animate-in fade-in-50 pb-20 md:pb-0">
+            {/* KPI EXECUTIVE ALERTS ROW */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* 1. GASTOS NO MÊS */}
+                <div 
+                    onClick={() => navigate('/notas')}
+                    className="bg-brand-dark-900 border border-gray-800 hover:border-gray-700 p-5 rounded-xl flex items-center justify-between cursor-pointer transition-all shadow-sm hover:shadow-md group"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+                            <TrendingUpIcon className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-gray-400">Total Faturado no Mês</p>
+                            {isLoading ? (
+                                <Skeleton className="h-7 w-28 mt-1" />
+                            ) : (
+                                <p className="text-xl font-bold text-white tracking-tight">{formatCurrency(monthlySpending)}</p>
+                            )}
+                        </div>
+                    </div>
+                    <ChevronRightIcon className="h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors" />
+                </div>
 
-export function ResponsiveModalHeader({ children, className }: { children: React.ReactNode, className?: string }) {
-  const { isDesktop } = useResponsiveModal();
-  if (isDesktop) return <DialogHeader className={`p-6 border-b border-gray-800 text-left mb-0 ${className}`}>{children}</DialogHeader>;
-  return <SheetHeader className={className}>{children}</SheetHeader>;
-}
+                {/* 2. TAREFAS ATRASADAS */}
+                <div 
+                    onClick={() => navigate('/tarefas')}
+                    className={`bg-brand-dark-900 border p-5 rounded-xl flex items-center justify-between cursor-pointer transition-all shadow-sm hover:shadow-md group ${
+                        delayedTasks > 0 ? 'border-red-900/40 hover:border-red-800/60 bg-red-950/10' : 'border-gray-800 hover:border-gray-700'
+                    }`}
+                >
+                    <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl border flex items-center justify-center transition-transform group-hover:scale-105 ${
+                            delayedTasks > 0 ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-brand-dark-800 border-gray-700 text-gray-400'
+                        }`}>
+                            <AlertTriangleIcon className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-gray-400">Tarefas em Atraso</p>
+                            {isLoading ? (
+                                <Skeleton className="h-7 w-16 mt-1" />
+                            ) : (
+                                <p className={`text-xl font-bold tracking-tight ${delayedTasks > 0 ? 'text-red-400' : 'text-white'}`}>
+                                    {delayedTasks} {delayedTasks === 1 ? 'tarefa' : 'tarefas'}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                    <ChevronRightIcon className="h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors" />
+                </div>
 
-export function ResponsiveModalTitle({ children, className }: { children: React.ReactNode, className?: string }) {
-  const { isDesktop } = useResponsiveModal();
-  if (isDesktop) return <DialogTitle className={className}>{children}</DialogTitle>;
-  return <SheetTitle className={className}>{children}</SheetTitle>;
-}
+                {/* 3. PENDÊNCIAS / PROCESSAMENTOS IA */}
+                <div 
+                    onClick={() => navigate('/notas')}
+                    className={`bg-brand-dark-900 border p-5 rounded-xl flex items-center justify-between cursor-pointer transition-all shadow-sm hover:shadow-md group sm:col-span-2 lg:col-span-1 ${
+                        pendingAi > 0 ? 'border-amber-900/40 hover:border-amber-800/60 bg-amber-950/10' : 'border-gray-800 hover:border-gray-700'
+                    }`}
+                >
+                    <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl border flex items-center justify-center transition-transform group-hover:scale-105 ${
+                            pendingAi > 0 ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-brand-dark-800 border-gray-700 text-gray-400'
+                        }`}>
+                            <ClockIcon className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-gray-400">Processamento IA & Fila</p>
+                            {isLoading ? (
+                                <Skeleton className="h-7 w-20 mt-1" />
+                            ) : (
+                                <p className={`text-xl font-bold tracking-tight ${pendingAi > 0 ? 'text-amber-400' : 'text-white'}`}>
+                                    {pendingAi} {pendingAi === 1 ? 'item pendente' : 'itens pendentes'}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                    <ChevronRightIcon className="h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors" />
+                </div>
+            </div>
 
-export function ResponsiveModalDescription({ children, className }: { children: React.ReactNode, className?: string }) {
-  const { isDesktop } = useResponsiveModal();
-  if (isDesktop) return <DialogDescription className={className}>{children}</DialogDescription>;
-  return <SheetDescription className={className}>{children}</SheetDescription>;
-}
+            {/* DASHBOARD CHARTS */}
+            <DashboardCharts />
 
-export function ResponsiveModalFooter({ children, className }: { children: React.ReactNode, className?: string }) {
-  const { isDesktop } = useResponsiveModal();
-  if (isDesktop) return <DialogFooter className={`p-6 border-t border-gray-800 mt-0 ${className}`}>{children}</DialogFooter>;
-  return <SheetFooter className={`pb-safe ${className}`}>{children}</SheetFooter>;
-}
+            {/* AUDIT LOGS & HEALTH CHECK - SIDE BY SIDE IN WIDESCREEN DESKTOP */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
+                <div className="min-h-[440px] flex flex-col">
+                    <AuditLogsPanel />
+                </div>
+                <div className="min-h-[440px] flex flex-col">
+                    <SystemHealthPanel />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default Home;
