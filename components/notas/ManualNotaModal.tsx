@@ -198,16 +198,22 @@ const ManualNotaModal: React.FC<ManualNotaModalProps> = ({ isOpen, onClose, onSu
   };
 
   return (
-    <ResponsiveModal open={isOpen} onOpenChange={onClose}>
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="dialog">
       <ResponsiveModalContent className="max-w-5xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-        <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-          <ResponsiveModalTitle className="flex items-center gap-2 text-base text-white">
-              <PackageIcon className="h-4 w-4 text-brand-blue-500" />
-              Registrar Nova Nota Fiscal
-          </ResponsiveModalTitle>
-          <ResponsiveModalDescription className="text-xs text-gray-500 dark:text-gray-400">
-              Preencha os dados abaixo para registrar uma nota manualmente.
-          </ResponsiveModalDescription>
+        <ResponsiveModalHeader className="px-6 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20 flex items-center justify-center text-brand-blue-400 shrink-0">
+              <PackageIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <ResponsiveModalTitle className="text-base text-white font-bold">
+                Registrar Nova Nota Fiscal
+              </ResponsiveModalTitle>
+              <ResponsiveModalDescription className="text-xs text-gray-400 mt-0.5">
+                Cadastre notas fiscais e itens avulsos com conciliação automática por obra.
+              </ResponsiveModalDescription>
+            </div>
+          </div>
         </ResponsiveModalHeader>
         
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">

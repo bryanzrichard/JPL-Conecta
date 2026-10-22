@@ -125,36 +125,44 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, 
   };
 
   return (
-    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose}>
-      <ResponsiveModalContent className="max-w-3xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-        <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-          <ResponsiveModalTitle className="flex items-center gap-2 text-base text-white">
-            <UsersIcon className="h-4 w-4 text-emerald-500" />
-            {isEditMode ? 'Editar Colaborador' : 'Novo Colaborador'}
-          </ResponsiveModalTitle>
-          <ResponsiveModalDescription className="text-xs text-gray-500 dark:text-gray-400">
-            Preencha os dados básicos do colaborador.
-          </ResponsiveModalDescription>
+    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="dialog">
+      <ResponsiveModalContent className="max-w-2xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
+        <ResponsiveModalHeader className="px-6 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+              <UsersIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <ResponsiveModalTitle className="text-base text-white font-bold">
+                {isEditMode ? 'Editar Colaborador' : 'Novo Colaborador'}
+              </ResponsiveModalTitle>
+              <ResponsiveModalDescription className="text-xs text-gray-400 mt-0.5">
+                Cadastre profissionais, técnicos e prestadores vinculados às obras.
+              </ResponsiveModalDescription>
+            </div>
+          </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-5 bg-brand-dark-950/50">
-          <form id="collaborator-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-            <InputGroup label="Nome *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
-                <Input {...register('name')} placeholder="Nome completo" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
-            </InputGroup>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <InputGroup label="Cargo/Função" error={shouldShowError('role') ? errors.role?.message as string : undefined}>
-                  <Input {...register('role')} placeholder="Ex: Eletricista" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50">
+          <form id="collaborator-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <InputGroup label="Nome Completo *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
+                  <Input {...register('name')} placeholder="Ex: Carlos Alberto da Silva" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
               </InputGroup>
-              <InputGroup label="Telefone" error={shouldShowError('phone') ? errors.phone?.message as string : undefined}>
-                  <Input {...register('phone')} placeholder="(00) 00000-0000" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+              
+              <InputGroup label="CPF / Documento" error={shouldShowError('document') ? errors.document?.message as string : undefined}>
+                  <Input {...register('document')} placeholder="000.000.000-00" className="h-9 text-xs font-mono bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
               </InputGroup>
             </div>
             
-            <InputGroup label="CPF/CNPJ" error={shouldShowError('document') ? errors.document?.message as string : undefined}>
-                <Input {...register('document')} placeholder="Apenas números" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
-            </InputGroup>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <InputGroup label="Cargo / Função" error={shouldShowError('role') ? errors.role?.message as string : undefined}>
+                  <Input {...register('role')} placeholder="Ex: Eletricista, Encanador, Pedreiro" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+              </InputGroup>
+              <InputGroup label="Telefone / WhatsApp" error={shouldShowError('phone') ? errors.phone?.message as string : undefined}>
+                  <Input {...register('phone')} placeholder="(11) 98765-4321" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+              </InputGroup>
+            </div>
             
             <div className="pt-2">
               <button

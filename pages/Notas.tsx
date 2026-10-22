@@ -341,7 +341,7 @@ const Notas: React.FC = () => {
                         <FilterIcon className="h-4 w-4 mr-2"/>
                         Filtrar Histórico
                     </Button>
-                    <ResponsiveModal open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+                    <ResponsiveModal open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} displayMode="drawer">
                         <ResponsiveModalContent className="w-full sm:max-w-md bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
                             <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
                                 <div className="flex items-center gap-3">

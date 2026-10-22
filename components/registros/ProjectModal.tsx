@@ -190,37 +190,45 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
   const cepRegister = register('address_zip');
 
   return (
-    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose}>
-      <ResponsiveModalContent className="max-w-3xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-        <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-          <ResponsiveModalTitle className="flex items-center gap-2 text-base text-white">
-            <BuildingIcon className="h-4 w-4 text-blue-500" />
-            {isEditMode ? 'Editar Obra/Projeto' : 'Nova Obra/Projeto'}
-          </ResponsiveModalTitle>
-          <ResponsiveModalDescription className="text-xs text-gray-500 dark:text-gray-400">
-            Preencha os dados básicos da obra.
-          </ResponsiveModalDescription>
+    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="dialog">
+      <ResponsiveModalContent className="max-w-2xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
+        <ResponsiveModalHeader className="px-6 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-brand-blue-400 shrink-0">
+              <BuildingIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <ResponsiveModalTitle className="text-base text-white font-bold">
+                {isEditMode ? 'Editar Obra / Projeto' : 'Nova Obra / Projeto'}
+              </ResponsiveModalTitle>
+              <ResponsiveModalDescription className="text-xs text-gray-400 mt-0.5">
+                Defina o planejamento, cronograma e localização física da construção.
+              </ResponsiveModalDescription>
+            </div>
+          </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-5 bg-brand-dark-950/50">
-          <form id="project-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50">
+          <form id="project-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Status Field is hidden but maintained for logic */}
             <input type="hidden" {...register('status')} />
 
-            <InputGroup label="Nome da Obra *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
-                <Input {...register('name')} placeholder="Ex: Residencial Flores" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
-            </InputGroup>
-            
-            <InputGroup label="Mestre de Obra" error={shouldShowError('manager') ? errors.manager?.message as string : undefined}>
-                <Input {...register('manager')} placeholder="Nome do encarregado" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
-            </InputGroup>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <InputGroup label="Nome da Obra *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
+                  <Input {...register('name')} placeholder="Ex: Residencial Flores do Campo" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+              </InputGroup>
+              
+              <InputGroup label="Mestre de Obra / Responsável" error={shouldShowError('manager') ? errors.manager?.message as string : undefined}>
+                  <Input {...register('manager')} placeholder="Nome do encarregado ou mestre" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+              </InputGroup>
+            </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                <InputGroup label="Data de Início *" error={shouldShowError('start_date') ? errors.start_date?.message as string : undefined}>
-                   <Input type="date" {...register('start_date')} className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                   <Input type="date" {...register('start_date')} className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
                </InputGroup>
                <InputGroup label="Previsão de Término" error={shouldShowError('end_date') ? errors.end_date?.message as string : undefined}>
-                  <Input type="date" {...register('end_date')} className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                  <Input type="date" {...register('end_date')} className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
               </InputGroup>
             </div>
             

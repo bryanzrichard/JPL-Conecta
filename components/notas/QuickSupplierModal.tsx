@@ -12,6 +12,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { formatApiError } from '../../lib/handleError';
 import { formatCnpj as formatCnpjForDisplay } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
+import { TruckIcon } from '../../lib/icons';
 
 interface QuickSupplierModalProps {
   isOpen: boolean;
@@ -128,11 +129,22 @@ const QuickSupplierModal: React.FC<QuickSupplierModalProps> = ({ isOpen, onClose
   };
 
   return (
-    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose}>
+    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="dialog">
       <ResponsiveModalContent className="max-w-lg bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-        <ResponsiveModalHeader className="px-6 py-5 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-          <ResponsiveModalTitle>Cadastro Rápido de Fornecedor</ResponsiveModalTitle>
-          <ResponsiveModalDescription>Este fornecedor não foi encontrado. Adicione-o para continuar.</ResponsiveModalDescription>
+        <ResponsiveModalHeader className="px-6 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 shrink-0">
+              <TruckIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <ResponsiveModalTitle className="text-base text-white font-bold">
+                Cadastro Rápido de Fornecedor
+              </ResponsiveModalTitle>
+              <ResponsiveModalDescription className="text-xs text-gray-400 mt-0.5">
+                Fornecedor não localizado. Adicione os dados essenciais para prosseguir.
+              </ResponsiveModalDescription>
+            </div>
+          </div>
         </ResponsiveModalHeader>
         
         <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50">

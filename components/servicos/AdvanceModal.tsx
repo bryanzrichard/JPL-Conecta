@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +12,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { ServiceWithDetails } from '../../types';
 import { formatApiError } from '../../lib/handleError';
 import { logAuditAction } from '../../lib/auditLogger';
-import { TrendingUpIcon, UploadIcon, XIcon } from '../../lib/icons';
+import { TrendingUpIcon, UploadIcon, XIcon, PaperclipIcon } from '../../lib/icons';
 import { useAuth } from '../../hooks/useAuth';
 import { computeSha256 } from '../../lib/utils';
 
@@ -35,11 +34,10 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
   const customResolver = useMemo(() => {
       return async (values: AdiantamentoFormValues) => {
         try {
-            // Apply refine logic here to check against remaining value
             const schemaWithRefine = adiantamentoSchema.refine(
-                (data) => !service || data.value <= service.remaining_value,
+                (data) => !service || data.value <= service.remaining_value + 0.009,
                 {
-                    message: 'O valor do adiantamento não pode ser maior que o valor restante do serviço.',
+                    message: 'O valor do adiantamento não pode ser maior que o saldo restante do serviço.',
                     path: ['value'],
                 }
             );
@@ -69,6 +67,7 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
       handleSubmit, 
       control, 
       reset, 
+      watch,
       formState: { errors, isSubmitted, touchedFields } 
   } = useForm<AdiantamentoFormValues>({
     resolver: customResolver,
@@ -79,6 +78,10 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
         description: ''
     }
   });
+
+  const watchedValue = watch('value') || 0;
+  const newRemaining = service ? Math.max(0, Number(service.remaining_value) - Number(watchedValue)) : 0;
+  const willComplete = service && Number(watchedValue) > 0 && Number(watchedValue) >= Number(service.remaining_value) - 0.009;
   
   const createMutation = useMutation({
       mutationFn: async (data: AdiantamentoFormValues) => {
@@ -94,7 +97,7 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
           }
 
           const advanceValue = Number(data.value);
-          const isCompleting = advanceValue >= service.remaining_value;
+          const isCompleting = advanceValue >= service.remaining_value - 0.009;
 
           const { receipt_file, ...sendData } = data;
           const { error } = await (supabase as any).from('adiantamentos').insert({
@@ -122,7 +125,7 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
               profile?.company_id,
               user?.email,
               'CRIAR',
-              `Adiantamento: ${data.description}`,
+              `Adiantamento: ${data.description || 'Sem descrição'}`,
               { value: advanceValue, service_id: service.id }
           );
       },
@@ -140,7 +143,11 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
 
   useEffect(() => {
     if (!isOpen) {
-      reset();
+      reset({
+        value: 0,
+        payment_date: new Date().toISOString().split('T')[0],
+        description: ''
+      });
       setReceiptFile(null);
     }
   }, [isOpen, reset]);
@@ -154,54 +161,87 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
   };
 
   return (
-    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose}>
-      <ResponsiveModalContent className="max-w-3xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-        <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-          <ResponsiveModalTitle className="flex items-center gap-2 text-base text-white">
-            <TrendingUpIcon className="h-4 w-4 text-brand-blue-500" />
-            Registrar Adiantamento
-          </ResponsiveModalTitle>
-          <ResponsiveModalDescription className="text-xs text-gray-500 dark:text-gray-400">
-            Registre um pagamento antecipado para este serviço.
-          </ResponsiveModalDescription>
+    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="dialog">
+      <ResponsiveModalContent className="max-w-2xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
+        <ResponsiveModalHeader className="px-6 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+              <TrendingUpIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <ResponsiveModalTitle className="text-base text-white font-bold">
+                Lançar Adiantamento
+              </ResponsiveModalTitle>
+              <ResponsiveModalDescription className="text-xs text-gray-400 mt-0.5">
+                {service ? `Contrato: ${service.description}` : 'Registro de adiantamento financeiro'}
+              </ResponsiveModalDescription>
+            </div>
+          </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-5 bg-brand-dark-950/50">
-          <form id="advance-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {service && (
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 text-center sm:text-left">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Valor restante disponível para adiantamento:</p>
-                    <p className="text-lg font-bold text-emerald-500">{formatCurrency(service.remaining_value)}</p>
+        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50 space-y-5">
+          {service && (
+            <div className="bg-brand-dark-900 border border-gray-800 p-4 rounded-xl space-y-3">
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span className="truncate">Obra: <strong className="text-gray-200">{service.project_name || 'Geral'}</strong></span>
+                    <span className="truncate">Prestador: <strong className="text-gray-200">{service.collaborator_name || 'Não informado'}</strong></span>
                 </div>
-            )}
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-800/80 text-center">
+                    <div className="bg-brand-dark-950/80 p-2 rounded-lg border border-gray-800">
+                        <span className="text-[10px] text-gray-500 uppercase font-semibold">Valor Contrato</span>
+                        <p className="text-xs font-bold text-gray-300 mt-0.5">{formatCurrency(service.total_value)}</p>
+                    </div>
+                    <div className="bg-brand-dark-950/80 p-2 rounded-lg border border-gray-800">
+                        <span className="text-[10px] text-gray-500 uppercase font-semibold">Saldo Disponível</span>
+                        <p className="text-xs font-bold text-emerald-400 mt-0.5">{formatCurrency(service.remaining_value)}</p>
+                    </div>
+                    <div className="bg-brand-dark-950/80 p-2 rounded-lg border border-gray-800">
+                        <span className="text-[10px] text-gray-500 uppercase font-semibold">Saldo Posterior</span>
+                        <p className={`text-xs font-bold mt-0.5 ${willComplete ? 'text-blue-400' : 'text-gray-300'}`}>
+                            {formatCurrency(newRemaining)}
+                        </p>
+                    </div>
+                </div>
+                {willComplete && (
+                    <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1.5 animate-in fade-in">
+                        <span>✓ Este adiantamento liquidará o saldo total e marcará o serviço como <b>Concluído</b>.</span>
+                    </div>
+                )}
+            </div>
+          )}
 
-            <InputGroup label="Valor (R$) *" error={shouldShowError('value') ? errors.value?.message as string : undefined}>
-                <CurrencyInput control={control} name="value" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
-            </InputGroup>
+          <form id="advance-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <InputGroup label="Valor do Adiantamento (R$) *" error={shouldShowError('value') ? errors.value?.message as string : undefined}>
+                  <CurrencyInput control={control} name="value" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500 font-mono" />
+              </InputGroup>
+              
+              <InputGroup label="Data do Pagamento *" error={shouldShowError('payment_date') ? errors.payment_date?.message as string : undefined}>
+                  <Input type="date" {...register('payment_date')} className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+              </InputGroup>
+            </div>
             
-            <InputGroup label="Data de Pagamento *" error={shouldShowError('payment_date') ? errors.payment_date?.message as string : undefined}>
-                <Input type="date" {...register('payment_date')} className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
-            </InputGroup>
-            
-            <InputGroup label="Descrição (Opcional)">
+            <InputGroup label="Descrição ou Justificativa">
                 <Textarea 
                     {...register('description')} 
-                    placeholder="Ex: Compra de material inicial" 
+                    placeholder="Ex: Compra de materiais para início da etapa..." 
                     className="h-20 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500 resize-none"
                 />
             </InputGroup>
 
-            <InputGroup label="Comprovante (Opcional)">
-               <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-800 border-dashed rounded-md bg-brand-dark-900 relative">
+            <InputGroup label="Comprovante de Transferência / Recibo (Opcional)">
+               <div className="mt-1 flex justify-center px-6 pt-5 pb-5 border-2 border-gray-800 border-dashed rounded-xl bg-brand-dark-900/60 hover:border-gray-700 transition-colors relative">
                    <div className="space-y-1 text-center">
                        {receiptFile ? (
                            <div className="flex flex-col items-center gap-2">
-                               <div className="flex items-center gap-2 bg-brand-dark-800 px-3 py-1.5 rounded text-sm text-white border border-gray-700">
-                                   <span className="truncate max-w-[200px]">{receiptFile.name}</span>
+                               <div className="flex items-center gap-2 bg-brand-dark-800 px-3.5 py-2 rounded-lg text-sm text-white border border-gray-700">
+                                   <PaperclipIcon className="h-4 w-4 text-brand-blue-400" />
+                                   <span className="truncate max-w-[220px] font-medium text-xs">{receiptFile.name}</span>
                                    <button 
                                        type="button" 
                                        onClick={() => setReceiptFile(null)}
-                                       className="text-gray-400 hover:text-red-400 p-0.5"
+                                       className="text-gray-400 hover:text-red-400 p-0.5 ml-1 transition-colors"
+                                       title="Remover arquivo"
                                    >
                                        <XIcon className="h-4 w-4" />
                                    </button>
@@ -209,37 +249,54 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
                            </div>
                        ) : (
                            <>
-                               <UploadIcon className="mx-auto h-10 w-10 text-gray-500" />
-                               <div className="flex text-sm text-gray-400">
+                               <UploadIcon className="mx-auto h-8 w-8 text-gray-500" />
+                               <div className="flex text-xs text-gray-400 justify-center">
                                    <label
                                        htmlFor="file-upload-advance"
-                                       className="relative cursor-pointer bg-brand-dark-900 rounded-md font-medium text-brand-blue-500 hover:text-brand-blue-400 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-brand-blue-500"
+                                       className="relative cursor-pointer bg-transparent rounded font-medium text-brand-blue-400 hover:text-brand-blue-300 focus-within:outline-none"
                                    >
-                                       <span>Fazer upload de arquivo</span>
-                                       <input id="file-upload-advance" name="file-upload-advance" type="file" className="sr-only" onChange={(e) => {
-                                           if (e.target.files && e.target.files[0]) {
-                                               setReceiptFile(e.target.files[0]);
-                                           }
-                                       }} />
+                                       <span>Clique para enviar comprovante</span>
+                                       <input 
+                                          id="file-upload-advance" 
+                                          name="file-upload-advance" 
+                                          type="file" 
+                                          accept="image/*,application/pdf"
+                                          className="sr-only" 
+                                          onChange={(e) => {
+                                             if (e.target.files && e.target.files[0]) {
+                                                 setReceiptFile(e.target.files[0]);
+                                             }
+                                          }} 
+                                       />
                                    </label>
-                                   <p className="pl-1">ou arraste e solte</p>
                                </div>
-                               <p className="text-xs text-gray-500">PDF, PNG, JPG até 10MB</p>
+                               <p className="text-[10px] text-gray-500">PDF, PNG ou JPG (Comprovante PIX ou Recibo assinado)</p>
                            </>
                        )}
                    </div>
                </div>
             </InputGroup>
-
           </form>
         </div>
 
-        <ResponsiveModalFooter className="p-4 border-t border-gray-800 bg-brand-dark-900 flex-shrink-0 flex justify-end gap-3">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={createMutation.isPending} className="text-sm h-9">
+        <ResponsiveModalFooter className="px-6 py-4 border-t border-gray-800 bg-brand-dark-900 flex justify-end gap-3">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onClose} 
+            disabled={createMutation.isPending} 
+            className="text-xs h-9 px-4 border-gray-700 hover:bg-gray-800 text-gray-300"
+          >
               Cancelar
           </Button>
-          <Button type="submit" form="advance-form" isLoading={createMutation.isPending} loadingText="Registrando..." className="text-sm h-9 px-6">
-              Registrar
+          <Button 
+            type="submit" 
+            form="advance-form" 
+            isLoading={createMutation.isPending} 
+            loadingText="Registrando..." 
+            className="text-xs h-9 px-6 bg-brand-blue-600 hover:bg-brand-blue-500 text-white font-medium"
+          >
+              Registrar Adiantamento
           </Button>
         </ResponsiveModalFooter>
       </ResponsiveModalContent>
@@ -249,9 +306,9 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
 
 const InputGroup: React.FC<{ label: string; error?: string; children: React.ReactNode }> = ({ label, error, children }) => (
     <div>
-        <Label className={error ? "text-red-500" : ""}>{label}</Label>
-        <div className="mt-1">{children}</div>
-        {error && <p className="text-xs text-red-500 mt-1 font-medium animate-in fade-in slide-in-from-top-1">{error}</p>}
+        <Label className={`text-xs font-medium ${error ? "text-red-400" : "text-gray-300"}`}>{label}</Label>
+        <div className="mt-1.5">{children}</div>
+        {error && <p className="text-xs text-red-400 mt-1 font-medium animate-in fade-in">{error}</p>}
     </div>
 );
 
@@ -274,7 +331,7 @@ const CurrencyInput: React.FC<{ control: any; name: string; className?: string }
             return (
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500 sm:text-sm">R$</span>
+                        <span className="text-gray-500 text-xs">R$</span>
                     </div>
                     <Input 
                         type="text" 

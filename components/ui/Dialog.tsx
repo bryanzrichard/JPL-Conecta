@@ -85,20 +85,30 @@ export function DialogContent({ children, className, onInteractOutside }: { chil
         }
     }
     setIsOpen(false);
-  }
+  };
+
+  const hasCustomMax = className && /\bmax-w-/.test(className);
+  const hasCustomPadding = className && /\bp-/.test(className);
 
   return (
     <div 
-      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/80 animate-in fade-in-0" 
-      onClick={handleBackdropClick} // Close on backdrop click
+      className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-black/75 backdrop-blur-sm animate-in fade-in-0 p-3 sm:p-6" 
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
     >
       <div 
-        className={`relative bg-brand-dark-900 border border-gray-800 rounded-2xl shadow-2xl w-full max-w-md m-4 my-8 p-6 animate-in fade-in-0 zoom-in-95 duration-300 ${className}`}
-        onClick={(e) => e.stopPropagation()} // Stop click from bubbling to backdrop
+        className={`relative bg-brand-dark-900 border border-gray-800 rounded-2xl shadow-2xl shadow-black/60 w-full ${hasCustomMax ? '' : 'max-w-md '}my-auto ${hasCustomPadding ? '' : 'p-6 '}animate-in fade-in-0 zoom-in-95 duration-200 ${className || ''}`}
+        onClick={(e) => e.stopPropagation()}
       >
         {children}
-        <button onClick={() => setIsOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+        <button 
+          onClick={() => setIsOpen(false)} 
+          className="absolute top-4 right-4 z-20 p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-brand-dark-800/80 transition-colors"
+          title="Fechar (Esc)"
+        >
           <XIcon className="h-5 w-5" />
+          <span className="sr-only">Fechar</span>
         </button>
       </div>
     </div>

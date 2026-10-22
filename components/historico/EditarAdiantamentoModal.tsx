@@ -174,33 +174,48 @@ const EditarAdiantamentoModal: React.FC<EditarAdiantamentoModalProps> = ({ isOpe
   const isFormDirty = isDirty || isReceiptChanged;
 
   return (
-    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose}>
-      <ResponsiveModalContent className="max-w-3xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-        <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-          <ResponsiveModalTitle className="flex items-center gap-2 text-base text-white">
-            <TrendingUpIcon className="h-4 w-4 text-brand-blue-500" />
-            Editar Adiantamento
-          </ResponsiveModalTitle>
-          <ResponsiveModalDescription className="text-xs text-gray-500 dark:text-gray-400">
-            Atualize as informações do pagamento.
-          </ResponsiveModalDescription>
+    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="dialog">
+      <ResponsiveModalContent className="max-w-2xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
+        <ResponsiveModalHeader className="px-6 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20 flex items-center justify-center text-brand-blue-400 shrink-0">
+              <TrendingUpIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <ResponsiveModalTitle className="text-base text-white font-bold">
+                Editar Adiantamento
+              </ResponsiveModalTitle>
+              <ResponsiveModalDescription className="text-xs text-gray-400 mt-0.5">
+                Atualize o valor, data ou comprovante deste lançamento.
+              </ResponsiveModalDescription>
+            </div>
+          </div>
         </ResponsiveModalHeader>
 
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-5 bg-brand-dark-950/50">
+        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50">
           <form id="edit-advance-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                
-                <div className="p-3 bg-gray-800/30 border border-gray-700 rounded-lg">
-                    <p className="text-xs text-gray-400">Referente ao Serviço:</p>
-                    <p className="text-sm font-medium text-white">{advance.service_description}</p>
+                <div className="p-3.5 bg-brand-dark-900 border border-gray-800 rounded-xl flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold">Serviço Vinculado</p>
+                        <p className="text-sm font-bold text-white mt-0.5">{advance.service_description || 'Serviço'}</p>
+                    </div>
+                    {advance.collaborator_name && (
+                        <div className="text-right">
+                            <p className="text-[10px] text-gray-400 uppercase font-semibold">Colaborador</p>
+                            <p className="text-xs font-medium text-gray-300 mt-0.5">{advance.collaborator_name}</p>
+                        </div>
+                    )}
                 </div>
 
-                <InputGroup label="Valor (R$) *" error={shouldShowError('value') ? errors.value?.message as string : undefined}>
-                    <CurrencyInput control={control} name="value" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
-                </InputGroup>
-                
-                <InputGroup label="Data de Pagamento *" error={shouldShowError('payment_date') ? errors.payment_date?.message as string : undefined}>
-                    <Input type="date" {...register('payment_date')} className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
-                </InputGroup>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <InputGroup label="Valor (R$) *" error={shouldShowError('value') ? errors.value?.message as string : undefined}>
+                        <CurrencyInput control={control} name="value" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500 font-mono" />
+                    </InputGroup>
+                    
+                    <InputGroup label="Data de Pagamento *" error={shouldShowError('payment_date') ? errors.payment_date?.message as string : undefined}>
+                        <Input type="date" {...register('payment_date')} className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                    </InputGroup>
+                </div>
                 
                 <InputGroup label="Descrição">
                     <Textarea 

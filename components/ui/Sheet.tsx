@@ -61,11 +61,13 @@ export function SheetContent({ children, className, side = 'right', onInteractOu
   const { isOpen, setIsOpen } = useSheet();
   if (!isOpen) return null;
 
+  const hasCustomMax = className && /\bmax-w-/.test(className);
+
   const sideClasses = {
     top: 'inset-x-0 top-0 border-b border-gray-800 animate-in slide-in-from-top-full',
     bottom: 'inset-x-0 bottom-0 w-full rounded-t-2xl border-t border-gray-800 animate-in slide-in-from-bottom-full',
-    left: 'inset-y-0 left-0 h-full w-full max-w-sm border-r border-gray-800 animate-in slide-in-from-left-full',
-    right: 'inset-y-0 right-0 h-full w-full max-w-sm border-l border-gray-800 animate-in slide-in-from-right-full',
+    left: `inset-y-0 left-0 h-full w-full ${hasCustomMax ? '' : 'max-w-sm '}border-r border-gray-800 animate-in slide-in-from-left-full`,
+    right: `inset-y-0 right-0 h-full w-full ${hasCustomMax ? '' : 'max-w-sm '}border-l border-gray-800 animate-in slide-in-from-right-full`,
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -80,13 +82,13 @@ export function SheetContent({ children, className, side = 'right', onInteractOu
 
   return (
     <div className="fixed inset-0 z-[60] flex">
-      <div className="absolute inset-0 bg-black/60 animate-in fade-in-0" onClick={handleBackdropClick} />
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm animate-in fade-in-0" onClick={handleBackdropClick} />
       <div 
-        className={`absolute bg-brand-dark-900 shadow-xl flex flex-col duration-300 ${sideClasses[side]} ${className}`}
+        className={`absolute bg-brand-dark-900 shadow-2xl shadow-black/80 flex flex-col duration-300 ${sideClasses[side]} ${className || ''}`}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
-        <SheetClose className="absolute top-4 right-4">
+        <SheetClose className="absolute top-4 right-4 z-20 p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-brand-dark-800/80 transition-colors">
             <XIcon className="h-5 w-5" />
         </SheetClose>
       </div>

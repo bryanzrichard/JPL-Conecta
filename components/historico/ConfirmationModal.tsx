@@ -1,6 +1,7 @@
 import React from 'react';
 import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter } from '../ui/ResponsiveModal';
 import { Button } from '../ui/Button';
+import { AlertTriangleIcon } from '../../lib/icons';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -18,27 +19,41 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     onConfirm, 
     title, 
     description, 
-    confirmText = 'Confirmar', 
+    confirmText = 'Confirmar Exclusão', 
     isLoading = false 
 }) => {
   return (
-    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose}>
-      <ResponsiveModalContent className="max-w-md bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col">
-        <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-          <ResponsiveModalTitle className="text-base text-white">{title}</ResponsiveModalTitle>
-          <ResponsiveModalDescription className="hidden">Confirmação de ação</ResponsiveModalDescription>
-        </ResponsiveModalHeader>
-        
-        <div className="p-5 text-sm text-gray-400 bg-brand-dark-950/50">
-          {description}
+    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="dialog">
+      <ResponsiveModalContent className="max-w-md bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col shadow-2xl">
+        <div className="p-6 flex flex-col items-center text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+            <AlertTriangleIcon className="h-6 w-6" />
+          </div>
+
+          <div className="space-y-1.5">
+            <h3 className="text-lg font-bold text-white tracking-tight">{title}</h3>
+            <div className="text-xs text-gray-400 leading-relaxed max-w-sm mx-auto">
+              {description}
+            </div>
+          </div>
         </div>
         
-        <ResponsiveModalFooter className="p-4 border-t border-gray-800 bg-brand-dark-900 flex-shrink-0 flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose} disabled={isLoading} className="text-sm h-9">Cancelar</Button>
+        <ResponsiveModalFooter className="p-4 border-t border-gray-800 bg-brand-dark-900/90 flex justify-end gap-2.5">
           <Button 
-            className="text-sm h-9 px-6 bg-red-600 hover:bg-red-500 font-medium text-white border-none" 
+            type="button"
+            variant="outline" 
+            onClick={onClose} 
+            disabled={isLoading} 
+            className="text-xs h-9 px-4 border-gray-700 hover:bg-gray-800 text-gray-300"
+          >
+            Cancelar
+          </Button>
+          <Button 
+            type="button"
+            className="text-xs h-9 px-5 bg-red-600 hover:bg-red-500 font-semibold text-white shadow-sm shadow-red-600/30 border-none" 
             onClick={onConfirm} 
             isLoading={isLoading}
+            loadingText="Excluindo..."
           >
             {confirmText}
           </Button>

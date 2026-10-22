@@ -142,62 +142,72 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier
   };
 
   return (
-    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose}>
-      <ResponsiveModalContent className="max-w-3xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-        <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-          <ResponsiveModalTitle className="flex items-center gap-2 text-base text-white">
-            <TruckIcon className="h-4 w-4 text-orange-500" />
-            {isEditMode ? 'Editar Fornecedor' : 'Novo Fornecedor'}
-          </ResponsiveModalTitle>
-          <ResponsiveModalDescription className="text-xs text-gray-500 dark:text-gray-400">
-            Preencha os dados básicos do fornecedor.
-          </ResponsiveModalDescription>
+    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="dialog">
+      <ResponsiveModalContent className="max-w-2xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
+        <ResponsiveModalHeader className="px-6 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 shrink-0">
+              <TruckIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <ResponsiveModalTitle className="text-base text-white font-bold">
+                {isEditMode ? 'Editar Fornecedor' : 'Novo Fornecedor'}
+              </ResponsiveModalTitle>
+              <ResponsiveModalDescription className="text-xs text-gray-400 mt-0.5">
+                Cadastre ou atualize dados fiscais e contatos de fornecedores e prestadores.
+              </ResponsiveModalDescription>
+            </div>
+          </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-5 bg-brand-dark-950/50">
-          <form id="supplier-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-            <InputGroup label="Nome *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
-                <Input {...register('name')} placeholder="Nome do Fornecedor" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
-            </InputGroup>
-            
-            <InputGroup label="CNPJ *" error={shouldShowError('cnpj') ? errors.cnpj?.message as string : undefined}>
-                <Controller
-                  name="cnpj"
-                  control={control}
-                  render={({ field }) => (
-                      <Input 
-                          {...field} 
-                          value={field.value ?? ''}
-                          onChange={handleCNPJChange} 
-                          placeholder="00.000.000/0000-00" 
-                          maxLength={18}
-                          onBlur={field.onBlur}
-                          className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500"
-                      />
-                  )}
-                />
-            </InputGroup>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <InputGroup label="Vendedor" error={shouldShowError('seller') ? errors.seller?.message as string : undefined}>
-                  <Input {...register('seller')} placeholder="Nome do Vendedor" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50">
+          <form id="supplier-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <InputGroup label="Razão Social / Nome Fantasia *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
+                  <Input {...register('name')} placeholder="Ex: Votorantim Cimentos" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
               </InputGroup>
               
-              <InputGroup label="Contato do Vendedor" error={shouldShowError('seller_contact') ? errors.seller_contact?.message as string : undefined}>
-                  <Input {...register('seller_contact')} placeholder="(XX) XXXXX-XXXX" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+              <InputGroup label="CNPJ *" error={shouldShowError('cnpj') ? errors.cnpj?.message as string : undefined}>
+                  <Controller
+                    name="cnpj"
+                    control={control}
+                    render={({ field }) => (
+                        <Input 
+                            {...field} 
+                            value={field.value ?? ''}
+                            onChange={handleCNPJChange} 
+                            placeholder="00.000.000/0000-00" 
+                            maxLength={18}
+                            onBlur={field.onBlur}
+                            className="h-9 text-xs font-mono bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500"
+                        />
+                    )}
+                  />
+              </InputGroup>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <InputGroup label="Vendedor / Representante" error={shouldShowError('seller') ? errors.seller?.message as string : undefined}>
+                  <Input {...register('seller')} placeholder="Nome do contato comercial" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+              </InputGroup>
+              
+              <InputGroup label="Telefone / WhatsApp" error={shouldShowError('seller_contact') ? errors.seller_contact?.message as string : undefined}>
+                  <Input {...register('seller_contact')} placeholder="(11) 99999-9999" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
               </InputGroup>
             </div>
             
             <div className="pt-2">
-              <div className="p-4 bg-brand-dark-900/50 border border-gray-800/50 rounded-xl space-y-3">
-                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">Avaliação do Fornecedor</h3>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-brand-dark-900/60 border border-gray-800 rounded-xl space-y-3">
+                <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Desempenho & Avaliação</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Controller
                       name="service_rating"
                       control={control}
                       render={({ field: { onChange, value } }) => (
-                          <InputGroup label="Qualidade do Serviço">
-                              <StarRating rating={value ?? 0} onRatingChange={(r) => onChange(r)} />
+                          <InputGroup label="Qualidade do Atendimento / Material">
+                              <div className="mt-1">
+                                <StarRating rating={value ?? 0} onRatingChange={(r) => onChange(r)} />
+                              </div>
                           </InputGroup>
                       )}
                   />
@@ -206,7 +216,9 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier
                       control={control}
                       render={({ field: { onChange, value } }) => (
                           <InputGroup label="Pontualidade na Entrega">
-                              <StarRating rating={value ?? 0} onRatingChange={(r) => onChange(r)} />
+                              <div className="mt-1">
+                                <StarRating rating={value ?? 0} onRatingChange={(r) => onChange(r)} />
+                              </div>
                           </InputGroup>
                       )}
                   />
@@ -216,14 +228,22 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier
           </form>
         </div>
 
-        <ResponsiveModalFooter className="p-4 border-t border-gray-800 bg-brand-dark-900 flex-shrink-0 flex justify-end gap-3">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending} className="text-sm h-9">Cancelar</Button>
+        <ResponsiveModalFooter className="px-6 py-4 border-t border-gray-800 bg-brand-dark-900 flex justify-end gap-3">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onClose} 
+            disabled={mutation.isPending} 
+            className="text-xs h-9 px-4 border-gray-700 hover:bg-gray-800 text-gray-300"
+          >
+            Cancelar
+          </Button>
           <Button 
               type="submit" 
               form="supplier-form"
               isLoading={mutation.isPending} 
               loadingText="Salvando..."
-              className="text-sm h-9 px-6"
+              className="text-xs h-9 px-6 bg-brand-blue-600 hover:bg-brand-blue-500 text-white font-medium"
           >
             {isEditMode ? 'Salvar Alterações' : 'Salvar Fornecedor'}
           </Button>

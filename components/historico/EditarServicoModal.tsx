@@ -139,16 +139,22 @@ const EditarServicoModal: React.FC<EditarServicoModalProps> = ({ isOpen, onClose
   const isFormDirty = isDirty || isReceiptChanged;
 
   return (
-    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose}>
+    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="dialog">
       <ResponsiveModalContent className="max-w-5xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-        <ResponsiveModalHeader className="px-5 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-          <ResponsiveModalTitle className="flex items-center gap-2 text-base text-white">
-            <BriefcaseIcon className="h-4 w-4 text-brand-blue-500" />
-            Editar Serviço
-          </ResponsiveModalTitle>
-          <ResponsiveModalDescription className="text-xs text-gray-500 dark:text-gray-400">
-            Atualize os detalhes do serviço.
-          </ResponsiveModalDescription>
+        <ResponsiveModalHeader className="px-6 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20 flex items-center justify-center text-brand-blue-400 shrink-0">
+              <BriefcaseIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <ResponsiveModalTitle className="text-base text-white font-bold">
+                Editar Serviço / Contrato
+              </ResponsiveModalTitle>
+              <ResponsiveModalDescription className="text-xs text-gray-400 mt-0.5">
+                Atualize prestador, prazos, valor contratado ou comprovante de contrato.
+              </ResponsiveModalDescription>
+            </div>
+          </div>
         </ResponsiveModalHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full w-full overflow-hidden">
