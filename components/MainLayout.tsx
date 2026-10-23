@@ -4,10 +4,11 @@ import { useAuth } from '../hooks/useAuth';
 import { useDashboardAlerts } from '../hooks/useDashboardAlerts';
 import { Button } from './ui/Button';
 import { ThemeToggle } from './ui/ThemeToggle';
+import { GlobalSearchModal } from './GlobalSearchModal';
 import { 
     MenuIcon, XIcon, PlusIcon, ClipboardListIcon, FileTextIcon, 
     LayoutIcon, ConstructionIcon, HistoryIcon, ActivityIcon, BuildingIcon,
-    LogOutIcon, ChevronRightIcon, UploadCloudIcon
+    LogOutIcon, ChevronRightIcon, UploadCloudIcon, SearchIcon
 } from '../lib/icons';
 
 const MainLayout: React.FC = () => {
@@ -16,6 +17,19 @@ const MainLayout: React.FC = () => {
     const location = useLocation();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isQuickAddOpen, setQuickAddOpen] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+    // Global shortcut Ctrl+K / Cmd+K to open Search Modal
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                setIsSearchOpen((prev) => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     // Realtime alerts for navigation badges
     const { delayedTasks, pendingAi } = useDashboardAlerts(profile?.company_id, user?.id);
@@ -189,24 +203,41 @@ const MainLayout: React.FC = () => {
             {/* ========================================================= */}
             <div className="flex-1 flex flex-col md:pl-64 min-w-0">
                 {/* Desktop Topbar Header */}
-                <header className="hidden md:flex sticky top-0 z-20 h-16 shrink-0 items-center justify-between border-b border-gray-800 bg-brand-dark-900/80 backdrop-blur-md px-6 lg:px-8">
+                <header className="hidden md:flex sticky top-0 z-20 h-16 shrink-0 items-center justify-between border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-brand-dark-900/80 backdrop-blur-md px-6 lg:px-8">
                     {/* Breadcrumbs Context */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xs font-medium text-gray-500">JPL Gestão</span>
-                        <ChevronRightIcon className="h-3.5 w-3.5 text-gray-600" />
-                        <span className="text-sm font-semibold text-gray-200">{currentRoute.module}</span>
+                        <ChevronRightIcon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-600" />
+                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{currentRoute.module}</span>
+                    </div>
+
+                    {/* Global Search Trigger Input (Desktop) */}
+                    <div className="flex-1 max-w-md mx-4 lg:mx-8">
+                        <button
+                            type="button"
+                            onClick={() => setIsSearchOpen(true)}
+                            className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200/70 dark:bg-brand-dark-800/60 dark:hover:bg-brand-dark-800 border border-gray-200 dark:border-gray-700/60 hover:border-brand-blue-500/50 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-all text-xs group shadow-sm"
+                        >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <SearchIcon className="h-4 w-4 text-gray-400 group-hover:text-brand-blue-500 transition-colors shrink-0" />
+                                <span className="truncate">Buscar insumos, preços, obras, tarefas...</span>
+                            </div>
+                            <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-white dark:bg-brand-dark-900 border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 shrink-0">
+                                <span className="text-[9px]">⌘</span>K
+                            </kbd>
+                        </button>
                     </div>
 
                     {/* Quick Desktop Actions */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 shrink-0">
                         <ThemeToggle variant="icon" />
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={() => navigate('/notas', { state: { action: 'newAiNota' } })}
-                            className="border-gray-700 bg-brand-dark-800/80 hover:bg-brand-dark-700 text-gray-200 hover:text-white text-xs h-9 px-3 gap-2"
+                            className="border-gray-300 dark:border-gray-700 bg-white dark:bg-brand-dark-800/80 hover:bg-gray-50 dark:hover:bg-brand-dark-700 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white text-xs h-9 px-3 gap-2"
                         >
-                            <UploadCloudIcon className="h-3.5 w-3.5 text-brand-blue-400" />
+                            <UploadCloudIcon className="h-3.5 w-3.5 text-brand-blue-500 dark:text-brand-blue-400" />
                             <span>Registrar c/ IA</span>
                         </Button>
                         <Button
@@ -221,14 +252,22 @@ const MainLayout: React.FC = () => {
                 </header>
 
                 {/* Mobile Top Header (Fixed on Mobile only) */}
-                <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-brand-dark-900/90 backdrop-blur-md border-b border-gray-800 h-16 px-4 flex items-center justify-between">
+                <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white/90 dark:bg-brand-dark-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 h-16 px-4 flex items-center justify-between">
                     <NavLink to="/" className="text-lg font-bold text-brand-blue-500 flex items-center gap-2">
                         <LayoutIcon className="h-5 w-5" />
                         JPL Conecta
                     </NavLink>
                     <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setIsSearchOpen(true)}
+                            title="Buscar em todo o sistema (Ctrl + K)"
+                            className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-brand-dark-800 transition-colors"
+                        >
+                            <SearchIcon className="h-5 w-5" />
+                        </button>
                         <ThemeToggle variant="icon" />
-                        <div className="w-8 h-8 rounded-full bg-brand-dark-800 border border-gray-700 flex items-center justify-center text-xs font-bold text-gray-300">
+                        <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-brand-dark-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300">
                             {userInitial}
                         </div>
                     </div>
@@ -352,6 +391,12 @@ const MainLayout: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Modal de Busca Global e Inteligência de Preços (Ctrl + K) */}
+            <GlobalSearchModal
+                isOpen={isSearchOpen}
+                onClose={() => setIsSearchOpen(false)}
+            />
         </div>
     );
 };
