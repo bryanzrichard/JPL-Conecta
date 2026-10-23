@@ -7,7 +7,22 @@ import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/Popover';
 import { Command, CommandInput, CommandEmpty, CommandItem, CommandList } from '../ui/Command';
-import { ChevronsUpDownIcon, AlertTriangleIcon, ShieldCheckIcon, ClockIcon, EditIcon, PackageIcon } from '../../lib/icons';
+import { 
+  ChevronsUpDownIcon, 
+  AlertTriangleIcon, 
+  ShieldCheckIcon, 
+  ClockIcon, 
+  EditIcon, 
+  PackageIcon, 
+  TruckIcon, 
+  ConstructionIcon, 
+  FileTextIcon, 
+  DollarSignIcon, 
+  CreditCardIcon, 
+  PlusIcon, 
+  Trash2Icon, 
+  RefreshCwIcon 
+} from '../../lib/icons';
 import { Supplier, Project, PAYMENT_METHODS, CATEGORIA_NOTA_ENUM, AIProcessJob } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
 import { manualNotaSchema, ManualNotaFormValues, createZodResolver } from '../../lib/validators';
@@ -17,7 +32,6 @@ import { formatApiError } from '../../lib/handleError';
 import { logAuditAction } from '../../lib/auditLogger';
 import { formatCurrency } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
-import { RefreshCcw } from 'lucide-react';
 
 const QuickSupplierModal = lazy(() => import('./QuickSupplierModal'));
 const ItemsManagerModal = lazy(() => import('./ItemsManagerModal'));
@@ -32,6 +46,14 @@ interface FormStepProps {
 
 const customResolver = createZodResolver(manualNotaSchema);
 
+const PAYMENT_QUICK_OPTIONS = [
+  { slug: 'pix', label: 'PIX', icon: '⚡' },
+  { slug: 'boleto', label: 'Boleto', icon: '📄' },
+  { slug: 'cartao_credito', label: 'Cartão Crédito', icon: '💳' },
+  { slug: 'transferencia', label: 'Transferência', icon: '🏦' },
+  { slug: 'dinheiro', label: 'Dinheiro', icon: '💵' },
+];
+
 const FormStep: React.FC<FormStepProps> = ({ job, onSuccess, onClose, suppliers, projects }) => {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -43,534 +65,794 @@ const FormStep: React.FC<FormStepProps> = ({ job, onSuccess, onClose, suppliers,
   const [verificationMessage, setVerificationMessage] = useState<string>('');
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
-  const [showOptionalFields, setShowOptionalFields] = useState(false);
   const [initialSupplierData, setInitialSupplierData] = useState<{name: string, cnpj: string} | null>(null);
 
   const form = useForm<ManualNotaFormValues>({
     resolver: customResolver,
     mode: 'onBlur',
+    defaultValues: {
+      supplier_id: '',
+      project_id: '',
+      invoice_number: '',
+      issue_date: new Date().toISOString().split('T')[0],
+      shipping_value: 0,
+      total_value: 0,
+      payment_method: 'pix',
+      observations: '',
+      items: [],
+    }
   });
 
   const { 
-      register, 
-      control, 
-      handleSubmit, 
-      reset, 
-      setValue, 
-      formState: { errors, isSubmitted, touchedFields } 
+    register, 
+    control, 
+    handleSubmit, 
+    reset, 
+    setValue, 
+    formState: { errors, isSubmitted, touchedFields } 
   } = form;
 
   useEffect(() => {
     const normalize = (str: string) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
     const matchCategory = (cat: string): typeof CATEGORIA_NOTA_ENUM[number] => {
-        if (!cat) return 'Estrutura e Fundação';
-        if ((CATEGORIA_NOTA_ENUM as readonly string[]).includes(cat)) {
-            return cat as typeof CATEGORIA_NOTA_ENUM[number];
-        }
-        const normalizedCat = normalize(cat);
-        const found = CATEGORIA_NOTA_ENUM.find(c => normalize(c) === normalizedCat);
-        if (found) return found;
-        return 'Estrutura e Fundação';
+      if (!cat) return 'Estrutura e Fundação';
+      if ((CATEGORIA_NOTA_ENUM as readonly string[]).includes(cat)) {
+        return cat as typeof CATEGORIA_NOTA_ENUM[number];
+      }
+      const normalizedCat = normalize(cat);
+      const found = CATEGORIA_NOTA_ENUM.find(c => normalize(c) === normalizedCat);
+      if (found) return found;
+      return 'Estrutura e Fundação';
     };
     
     if (extractedData) {
-        reset({
-            invoice_number: extractedData.invoice_number || '',
-            issue_date: extractedData.issue_date || new Date().toISOString().split('T')[0],
-            items: (extractedData.items || []).map((item: any) => ({
-                description: item.description || '',
-                quantity: item.quantity || 1,
-                unit_price: item.unit_price || 0,
-                category: matchCategory(item.category),
-                manufacturer: item.manufacturer || '',
-                unit_of_measure: item.unit_of_measure || ''
-            })),
-            supplier_id: '', 
-            project_id: '',
-            shipping_value: extractedData.shipping_value || 0,
-            total_value: extractedData.total_value || 0,
-            payment_method: extractedData.payment_method || 'pix', 
-            observations: '',
-        });
-        
-        let isCancelled = false;
+      const parsedItems = (extractedData.items || []).map((item: any) => ({
+        description: item.description || '',
+        quantity: item.quantity || 1,
+        unit_price: item.unit_price || 0,
+        category: matchCategory(item.category),
+        manufacturer: item.manufacturer || '',
+        unit_of_measure: item.unit_of_measure || ''
+      }));
 
-        const verifySupplier = async () => {
-            const rawCnpj = extractedData.fornecedor_cnpj || '';
-            const cnpjClean = rawCnpj.replace(/\D/g, '');
-            const cnpjFormatted = cnpjClean.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-            const name = extractedData.fornecedor_nome;
+      reset({
+        invoice_number: extractedData.invoice_number || '',
+        issue_date: extractedData.issue_date || new Date().toISOString().split('T')[0],
+        items: parsedItems.length > 0 ? parsedItems : [{
+          description: '',
+          quantity: 1,
+          unit_price: 0,
+          category: 'Estrutura e Fundação',
+          manufacturer: '',
+          unit_of_measure: ''
+        }],
+        supplier_id: '', 
+        project_id: '',
+        shipping_value: extractedData.shipping_value || 0,
+        total_value: extractedData.total_value || 0,
+        payment_method: extractedData.payment_method || 'pix', 
+        observations: '',
+      });
+      
+      let isCancelled = false;
 
-            if (!cnpjClean || !profile?.company_id) {
-                if (!isCancelled) {
-                    setVerificationStatus('error');
-                    setVerificationMessage('CNPJ do fornecedor não foi extraído. Por favor, selecione manualmente.');
-                }
-                return;
-            }
+      const verifySupplier = async () => {
+        const rawCnpj = extractedData.fornecedor_cnpj || '';
+        const cnpjClean = rawCnpj.replace(/\D/g, '');
+        const cnpjFormatted = cnpjClean.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+        const name = extractedData.fornecedor_nome;
 
-            setVerificationStatus('verifying');
-            setVerificationMessage('Verificando fornecedor...');
+        if (!cnpjClean || !profile?.company_id) {
+          if (!isCancelled) {
+            setVerificationStatus('error');
+            setVerificationMessage('CNPJ do fornecedor não foi extraído automaticamente. Selecione manualmente na lista.');
+          }
+          return;
+        }
 
-            try {
-                const { data: supplier, error: supplierError } = await (supabase as any)
-                    .from('suppliers')
-                    .select('id, name')
-                    .eq('company_id', profile.company_id)
-                    .in('cnpj', [cnpjClean, cnpjFormatted])
-                    .limit(1)
-                    .maybeSingle();
+        setVerificationStatus('verifying');
+        setVerificationMessage('Buscando fornecedor na base...');
 
-                if (supplierError) throw supplierError;
-                if (isCancelled) return;
+        try {
+          const { data: supplier, error: supplierError } = await (supabase as any)
+            .from('suppliers')
+            .select('id, name')
+            .eq('company_id', profile.company_id)
+            .in('cnpj', [cnpjClean, cnpjFormatted])
+            .limit(1)
+            .maybeSingle();
 
-                if (supplier) {
-                    setValue('supplier_id', supplier.id, { shouldValidate: true });
-                    setVerificationStatus('verified');
-                    setVerificationMessage(`Fornecedor "${supplier.name}" encontrado e selecionado.`);
-                } else {
-                    setVerificationStatus('supplier_not_found');
-                    setVerificationMessage(`Fornecedor com CNPJ ${cnpjFormatted} não encontrado.`);
-                    setInitialSupplierData({ name: name || 'Nome não extraído', cnpj: cnpjClean });
-                    setShowQuickAdd(true);
-                }
-            } catch (err) {
-                if (isCancelled) return;
-                setVerificationStatus('error');
-                const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
-                setVerificationMessage(`Erro na verificação: ${errorMessage}`);
-                console.error(err);
-            }
-        };
+          if (supplierError) throw supplierError;
+          if (isCancelled) return;
 
-        verifySupplier();
-        return () => {
-            isCancelled = true;
-        };
+          if (supplier) {
+            setValue('supplier_id', supplier.id, { shouldValidate: true });
+            setVerificationStatus('verified');
+            setVerificationMessage(`Fornecedor "${supplier.name}" identificado automaticamente pelo CNPJ.`);
+          } else {
+            setVerificationStatus('supplier_not_found');
+            setVerificationMessage(`Fornecedor com CNPJ ${cnpjFormatted} ainda não está cadastrado.`);
+            setInitialSupplierData({ name: name || 'Nome não extraído', cnpj: cnpjClean });
+            setShowQuickAdd(true);
+          }
+        } catch (err) {
+          if (isCancelled) return;
+          setVerificationStatus('error');
+          const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
+          setVerificationMessage(`Erro na verificação: ${errorMessage}`);
+        }
+      };
+
+      verifySupplier();
+      return () => {
+        isCancelled = true;
+      };
     }
   }, [extractedData, profile?.company_id, reset, setValue]);
   
   const handleQuickSupplierSave = (newSupplier: Supplier) => {
     setShowQuickAdd(false);
     
-    // Synchronously update the cache to ensure the UI reflects the new supplier immediately
     queryClient.setQueryData(['suppliers', profile?.company_id], (old: Supplier[] | undefined) => {
-        if (!old) return [newSupplier];
-        const updated = [...old, newSupplier];
-        return updated.sort((a, b) => a.name.localeCompare(b.name));
+      if (!old) return [newSupplier];
+      const updated = [...old, newSupplier];
+      return updated.sort((a, b) => a.name.localeCompare(b.name));
     });
 
-    // Also invalidate to ensure consistency with the server
     queryClient.invalidateQueries({ queryKey: ['suppliers', profile?.company_id] });
     
     setValue('supplier_id', newSupplier.id, { shouldValidate: true });
     setVerificationStatus('verified');
     setVerificationMessage(`Novo fornecedor "${newSupplier.name}" cadastrado e selecionado.`);
-};
+  };
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const watchedItems = useWatch({ control, name: 'items' });
   const watchedShippingValue = useWatch({ control, name: 'shipping_value' });
+  const watchedPaymentMethod = useWatch({ control, name: 'payment_method' });
   
-  const { subTotal } = useMemo(() => {
-    const calculatedSubTotal = (watchedItems || []).reduce((acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0), 0);
-    return { subTotal: calculatedSubTotal };
+  const subTotal = useMemo(() => {
+    return (watchedItems || []).reduce((acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0), 0);
   }, [watchedItems]);
 
   const prevShippingRef = React.useRef<number | null>(null);
 
   useEffect(() => {
-      const currentShipping = Number(watchedShippingValue) || 0;
-      
-      if (prevShippingRef.current === null) {
-          prevShippingRef.current = currentShipping;
-          return;
-      }
+    const currentShipping = Number(watchedShippingValue) || 0;
+    
+    if (prevShippingRef.current === null) {
+      prevShippingRef.current = currentShipping;
+      return;
+    }
 
-      if (prevShippingRef.current !== currentShipping) {
-          const diffShip = currentShipping - prevShippingRef.current;
-          
-          const currentTotal = Number(form.getValues('total_value')) || 0;
-          const newTotal = currentTotal + diffShip;
+    if (prevShippingRef.current !== currentShipping) {
+      const diffShip = currentShipping - prevShippingRef.current;
+      const currentTotal = Number(form.getValues('total_value')) || 0;
+      const newTotal = currentTotal + diffShip;
 
-          prevShippingRef.current = currentShipping;
-          
-          // Using Math.max(0, ...) to prevent negative totals
-          setValue('total_value', Math.max(0, newTotal), { shouldValidate: true });
-      }
+      prevShippingRef.current = currentShipping;
+      setValue('total_value', Math.max(0, newTotal), { shouldValidate: true });
+    }
   }, [watchedShippingValue, setValue, form]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: ManualNotaFormValues) => {
-        // Sanitize item data
-        const itemsPayload = data.items.map(item => ({
-            ...item,
-            description: item.description.trim(),
-            manufacturer: item.manufacturer?.trim() || null,
-            unit_of_measure: item.unit_of_measure?.trim() || null,
-            quantity: Number(item.quantity),
-            unit_price: Number(item.unit_price),
-            total_price: parseFloat(((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)).toFixed(2)),
-        }));
-        
-        const payload = {
-          p_project_id: data.project_id,
-          p_supplier_id: data.supplier_id,
-          p_invoice_number: data.invoice_number ? data.invoice_number.trim() : '',
-          p_issue_date: data.issue_date,
-          p_total_value: data.total_value,
-          p_shipping_value: Number(data.shipping_value) || 0,
-          p_payment_method: data.payment_method,
-          p_file_url: job?.storage_path || null,
-          p_itens_json: itemsPayload,
-        };
+      const itemsPayload = data.items.map(item => ({
+        ...item,
+        description: item.description.trim(),
+        manufacturer: item.manufacturer?.trim() || null,
+        unit_of_measure: item.unit_of_measure?.trim() || null,
+        quantity: Number(item.quantity),
+        unit_price: Number(item.unit_price),
+        total_price: parseFloat(((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)).toFixed(2)),
+      }));
       
-        const { data: newInvoiceId, error: rpcError } = await (supabase as any).rpc('salvar_nota_com_itens', payload);
-        if (rpcError) throw rpcError;
-        if (!newInvoiceId) throw new Error("Falha ao criar a nota fiscal.");
-        
-        // Save observations if present
-        if (data.observations && data.observations.trim() !== '') {
-             const { error: updateError } = await (supabase as any)
-                .from('notas_fiscais')
-                .update({ observations: data.observations.trim() })
-                .eq('id', newInvoiceId);
-             if(updateError) console.warn("Erro ao salvar observações:", updateError.message);
-        }
-        
-        const { data: { user } } = await supabase.auth.getUser();
+      const payload = {
+        p_project_id: data.project_id,
+        p_supplier_id: data.supplier_id,
+        p_invoice_number: data.invoice_number ? data.invoice_number.trim() : '',
+        p_issue_date: data.issue_date,
+        p_total_value: data.total_value,
+        p_shipping_value: Number(data.shipping_value) || 0,
+        p_payment_method: data.payment_method,
+        p_file_url: job?.storage_path || null,
+        p_itens_json: itemsPayload,
+      };
+    
+      const { data: newInvoiceId, error: rpcError } = await (supabase as any).rpc('salvar_nota_com_itens', payload);
+      if (rpcError) throw rpcError;
+      if (!newInvoiceId) throw new Error("Falha ao criar a nota fiscal.");
+      
+      if (data.observations && data.observations.trim() !== '') {
+        const { error: updateError } = await (supabase as any)
+          .from('notas_fiscais')
+          .update({ observations: data.observations.trim() })
+          .eq('id', newInvoiceId);
+        if (updateError) console.warn("Erro ao salvar observações:", updateError.message);
+      }
+      
+      const { data: { user } } = await supabase.auth.getUser();
 
-        await logAuditAction(
-            profile?.company_id,
-            user?.email,
-            'CRIAR',
-            `Nota Fiscal AI: ${data.invoice_number}`,
-            { id: newInvoiceId, amount: data.total_value }
-        );
+      await logAuditAction(
+        profile?.company_id,
+        user?.email,
+        'CRIAR',
+        `Nota Fiscal AI: ${data.invoice_number}`,
+        { id: newInvoiceId, amount: data.total_value }
+      );
 
-        return newInvoiceId;
+      return newInvoiceId;
     },
     onSuccess: async () => {
-        if (job?.id) {
-          const { error: updateError } = await (supabase as any)
-            .from('ai_process_jobs')
-            .update({ status: 'archived' })
-            .eq('id', job.id);
+      if (job?.id) {
+        const { error: updateError } = await (supabase as any)
+          .from('ai_process_jobs')
+          .update({ status: 'archived' })
+          .eq('id', job.id);
 
-          if (updateError) {
-            console.warn(`Failed to archive AI job ${job.id}:`, updateError.message);
-          }
+        if (updateError) {
+          console.warn(`Failed to archive AI job ${job.id}:`, updateError.message);
         }
-        onSuccess();
+      }
+      onSuccess();
     },
     onError: (err: unknown) => {
-        const errorMessage = formatApiError(err);
-        toast({ variant: 'destructive', title: 'Erro ao Salvar!', description: errorMessage });
+      const errorMessage = formatApiError(err);
+      toast({ variant: 'destructive', title: 'Erro ao Salvar!', description: errorMessage });
     }
   });
-
 
   const onSubmit = (data: ManualNotaFormValues) => {
     saveMutation.mutate(data);
   };
   
-    const renderVerificationStatus = () => {
-        const statusConfig = {
-            verifying: { icon: <ClockIcon className="h-5 w-5 text-blue-400 animate-pulse" />, color: 'bg-blue-900/40 border-blue-500/30' },
-            verified: { icon: <ShieldCheckIcon className="h-5 w-5 text-green-400" />, color: 'bg-green-900/40 border-green-500/30' },
-            supplier_not_found: { icon: <AlertTriangleIcon className="h-5 w-5 text-yellow-400" />, color: 'bg-yellow-900/40 border-yellow-500/30' },
-            error: { icon: <AlertTriangleIcon className="h-5 w-5 text-red-400" />, color: 'bg-red-900/40 border-red-500/30' },
-            idle: { icon: null, color: '' }
-        };
-
-        if (verificationStatus === 'idle') return null;
-
-        const { icon, color } = statusConfig[verificationStatus];
-
-        return (
-            <div className={`flex items-center gap-3 p-3 rounded-lg border text-sm ${color}`}>
-                {icon}
-                <div className="flex-grow">
-                    <p className="text-white font-medium">{verificationMessage}</p>
-                    {verificationStatus === 'supplier_not_found' && !showQuickAdd && (
-                        <Button type="button" variant="link" className="p-0 h-auto text-yellow-400" onClick={() => setShowQuickAdd(true)}>
-                            Cadastrar Fornecedor
-                        </Button>
-                    )}
-                </div>
-            </div>
-        );
+  const renderVerificationStatus = () => {
+    const statusConfig = {
+      verifying: { 
+        icon: <ClockIcon className="h-5 w-5 text-brand-blue-500 animate-pulse shrink-0" />, 
+        bg: 'bg-brand-blue-500/10 border-brand-blue-500/30 text-brand-blue-600 dark:text-brand-blue-300' 
+      },
+      verified: { 
+        icon: <ShieldCheckIcon className="h-5 w-5 text-emerald-500 shrink-0" />, 
+        bg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300' 
+      },
+      supplier_not_found: { 
+        icon: <AlertTriangleIcon className="h-5 w-5 text-amber-500 shrink-0" />, 
+        bg: 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300' 
+      },
+      error: { 
+        icon: <AlertTriangleIcon className="h-5 w-5 text-red-500 shrink-0" />, 
+        bg: 'bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-300' 
+      },
+      idle: { icon: null, bg: '' }
     };
 
-    const shouldShowError = (fieldName: keyof ManualNotaFormValues) => {
-        return isSubmitted || !!(touchedFields as any)[fieldName];
-    };
+    if (verificationStatus === 'idle') return null;
+
+    const { icon, bg } = statusConfig[verificationStatus];
+
+    return (
+      <div className={`flex items-center justify-between gap-3 p-3.5 rounded-xl border text-xs font-medium ${bg}`}>
+        <div className="flex items-center gap-2.5">
+          {icon}
+          <span>{verificationMessage}</span>
+        </div>
+        {verificationStatus === 'supplier_not_found' && !showQuickAdd && (
+          <Button 
+            type="button" 
+            size="sm"
+            variant="outline" 
+            className="h-7 text-xs border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 font-semibold shrink-0" 
+            onClick={() => setShowQuickAdd(true)}
+          >
+            Cadastrar Fornecedor
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  const setDateShortcut = (daysAgo: number) => {
+    const targetDate = new Date(Date.now() - (daysAgo * 86400000));
+    form.setValue('issue_date', targetDate.toISOString().split('T')[0], { shouldValidate: true });
+  };
 
   return (
     <>
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full w-full overflow-hidden">
-        {/* Conteúdo com Scroll */}
-        <div className="flex-1 overflow-y-auto p-5 bg-brand-dark-950/50 space-y-5 custom-scrollbar">
-            <div className="space-y-4">
-                {renderVerificationStatus()}
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 h-full overflow-hidden">
+        {/* Conteúdo com Master Split 65% / 35% */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50/60 dark:bg-brand-dark-950/50 space-y-4 custom-scrollbar">
+          
+          {/* Status Banner da IA */}
+          {renderVerificationStatus()}
 
-                <fieldset disabled={verificationStatus === 'verifying'}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                            <Controller name="supplier_id" control={control} render={({ field }) => ( <Combobox label={<>Fornecedor <span className="text-red-500">*</span></>} options={suppliers.map(s => ({ value: s.id, label: s.name }))} value={field.value} onChange={field.onChange} placeholder="Selecione o fornecedor..." error={shouldShowError('supplier_id') ? errors.supplier_id?.message as string : undefined}/> )} />
-                            <Controller name="project_id" control={control} render={({ field }) => ( <Combobox label={<>Obra <span className="text-red-500">*</span></>} options={projects.map(p => ({ value: p.id, label: p.name }))} value={field.value} onChange={field.onChange} placeholder="Selecione a obra..." error={shouldShowError('project_id') ? errors.project_id?.message as string : undefined} /> )} />
-                        </div>
-                        <div className="space-y-4">
-                            <InputGroup label="Número da Nota" error={shouldShowError('invoice_number') ? errors.invoice_number?.message as string : undefined}>
-                                <div className="flex gap-2">
-                                    <Input id="invoice_number" {...register('invoice_number')} placeholder="Ex: 123456" className="bg-brand-dark-950 border-gray-700 h-10 text-sm text-white flex-1" />
-                                    <Button 
-                                        type="button" 
-                                        variant="outline" 
-                                        size="icon"
-                                        onClick={() => form.setValue('invoice_number', `RECIBO-${Math.floor(Date.now() / 1000)}`, { shouldValidate: true })}
-                                        className="h-10 w-10 bg-brand-dark-950 border-gray-700 hover:bg-brand-dark-900 shrink-0"
-                                        title="Gerar número automático (Para recibos)"
-                                    >
-                                        <RefreshCcw className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </InputGroup>
-                            <InputGroup label="Data de Emissão *" error={shouldShowError('issue_date') ? errors.issue_date?.message as string : undefined}>
-                                <Input id="issue_date" type="date" {...register('issue_date')} className="bg-brand-dark-950 border-gray-700 h-10 text-sm text-white" />
-                            </InputGroup>
-                        </div>
+          <fieldset disabled={verificationStatus === 'verifying'} className="w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              
+              {/* COLUNA ESQUERDA (65%): Obra, Fornecedor, Identificação e Itens */}
+              <div className="lg:col-span-8 space-y-4">
+                
+                {/* Bloco 1: Centro de Custo & Origem */}
+                <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-800/80">
+                    <ConstructionIcon className="h-4 w-4 text-brand-blue-500" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                      1. Obra e Fornecedor
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Controller 
+                      name="project_id" 
+                      control={control} 
+                      render={({ field }) => ( 
+                        <Combobox 
+                          label={<>Obra Vinculada <span className="text-red-500">*</span></>} 
+                          options={projects.map(p => ({ value: p.id, label: p.name }))} 
+                          value={field.value} 
+                          onChange={field.onChange} 
+                          placeholder="Selecione o projeto/obra..." 
+                          error={errors.project_id?.message as string} 
+                        /> 
+                      )} 
+                    />
+
+                    <Controller 
+                      name="supplier_id" 
+                      control={control} 
+                      render={({ field }) => ( 
+                        <Combobox 
+                          label={<>Fornecedor Emitente <span className="text-red-500">*</span></>} 
+                          options={suppliers.map(s => ({ value: s.id, label: s.name }))} 
+                          value={field.value} 
+                          onChange={field.onChange} 
+                          placeholder="Selecione o fornecedor..." 
+                          error={errors.supplier_id?.message as string}
+                        /> 
+                      )} 
+                    />
+                  </div>
+                </div>
+
+                {/* Bloco 2: Identificação Fiscal & Emissão */}
+                <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-800/80">
+                    <FileTextIcon className="h-4 w-4 text-brand-blue-500" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                      2. Identificação da Fatura
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          Número da Nota / Recibo
+                        </Label>
+                        <button
+                          type="button"
+                          onClick={() => form.setValue('invoice_number', `RECIBO-${Math.floor(Date.now() / 1000)}`, { shouldValidate: true, shouldDirty: true })}
+                          className="text-[11px] font-semibold text-brand-blue-600 dark:text-brand-blue-400 hover:underline flex items-center gap-1"
+                        >
+                          <RefreshCwIcon className="h-3 w-3" /> Gerar Recibo
+                        </button>
+                      </div>
+                      <Input 
+                        id="invoice_number" 
+                        {...register('invoice_number')} 
+                        placeholder="Ex: NF-e 45281 ou Recibo"
+                        className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 font-mono"
+                      />
+                      {errors.invoice_number && <p className="text-[11px] text-red-500 mt-1">{errors.invoice_number.message}</p>}
                     </div>
 
-                    <div className="space-y-3 border-t border-gray-200 dark:border-gray-800 pt-6 mt-6">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-semibold flex items-center gap-2 text-white uppercase tracking-wider">
-                                <PackageIcon className="h-4 w-4 text-brand-blue-500"/> 
-                                Itens da Nota
-                            </h3>
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          Data de Emissão <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-1 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => setDateShortcut(0)}
+                            className="px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-dark-800 font-medium"
+                          >
+                            Hoje
+                          </button>
+                          <span>•</span>
+                          <button
+                            type="button"
+                            onClick={() => setDateShortcut(1)}
+                            className="px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-dark-800 font-medium"
+                          >
+                            Ontem
+                          </button>
                         </div>
-                        
-                        {/* Items Summary Card - Technical Look */}
-                        <div className="p-4 border border-gray-800 rounded-xl bg-gray-900/40 flex flex-col sm:flex-row justify-between items-center gap-4 transition-all hover:bg-gray-900/60">
-                            <div className="text-center sm:text-left space-y-1">
-                                <p className="font-bold text-white text-base tracking-tight">
-                                    {fields.length} {fields.length === 1 ? 'item lançado' : 'itens lançados'}
-                                </p>
-                                <div className="flex items-center gap-2 text-xs text-gray-400">
-                                    <span>Subtotal dos Itens:</span>
-                                    <span className="text-brand-blue-600 dark:text-brand-blue-400 font-mono font-semibold">{formatCurrency(subTotal)}</span>
-                                </div>
-                                {errors.items && <p className="text-[10px] text-red-500 mt-1 font-medium bg-red-500/10 px-2 py-0.5 rounded w-fit">Há erros nos itens. Clique em gerenciar para corrigir.</p>}
-                            </div>
-                            <Button type="button" variant="outline" size="sm" onClick={() => setShowItemsModal(true)} className="w-full sm:w-auto border-brand-blue-500/50 text-brand-blue-500 hover:bg-brand-blue-500 hover:text-white h-9 text-xs font-semibold uppercase tracking-wide px-4">
-                                <EditIcon className="w-3.5 h-3.5 mr-2"/> Gerenciar Itens
-                            </Button>
-                        </div>
+                      </div>
+                      <Input 
+                        id="issue_date" 
+                        type="date" 
+                        {...register('issue_date')} 
+                        className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800"
+                      />
+                      {errors.issue_date && <p className="text-[11px] text-red-500 mt-1">{errors.issue_date.message}</p>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bloco 3: Discriminação de Insumos */}
+                <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-100 dark:border-gray-800/80">
+                    <div className="flex items-center gap-2">
+                      <PackageIcon className="h-4 w-4 text-brand-blue-500" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                        3. Insumos Extraídos via IA
+                      </h3>
+                      <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-brand-blue-500/10 text-brand-blue-600 dark:text-brand-blue-400">
+                        {fields.length} {fields.length === 1 ? 'item' : 'itens'}
+                      </span>
                     </div>
                     
-                    {/* Toggle Optional Fields */}
-                    <div className="pt-2 mt-4">
-                        <button 
-                            type="button" 
-                            onClick={() => setShowOptionalFields(!showOptionalFields)}
-                            className="text-xs text-brand-blue-600 dark:text-brand-blue-400 font-semibold flex items-center gap-1.5 transition-colors group"
-                        >
-                            <span className="w-4 h-4 rounded-full border border-brand-blue-500/30 flex items-center justify-center group-hover:border-brand-blue-500 transition-colors">
-                                {showOptionalFields ? '-' : '+'}
-                            </span>
-                            {showOptionalFields ? 'Ocultar detalhes opcionais' : 'Adicionar detalhes opcionais (Frete, Obs...)'}
-                        </button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowItemsModal(true)}
+                        className="h-8 text-xs font-semibold gap-1.5 border-brand-blue-500/30 text-brand-blue-600 dark:text-brand-blue-400 hover:bg-brand-blue-500/10"
+                      >
+                        <EditIcon className="h-3.5 w-3.5" />
+                        Expandir Gestor
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => append({ 
+                          description: '', 
+                          quantity: 1, 
+                          unit_price: 0, 
+                          category: 'Estrutura e Fundação',
+                          manufacturer: '',
+                          unit_of_measure: ''
+                        })}
+                        className="h-8 text-xs font-semibold gap-1"
+                      >
+                        <PlusIcon className="h-3.5 w-3.5" /> Adicionar Linha
+                      </Button>
                     </div>
+                  </div>
 
-                    {showOptionalFields && (
-                        <div className="space-y-4 border-t border-gray-800 pt-6 mt-4 animate-in fade-in slide-in-from-top-4 duration-300">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <InputGroup label="Forma de Pagamento">
-                                    <select {...register('payment_method')} className="w-full rounded-lg border border-gray-700 bg-brand-dark-950 p-2 text-sm text-white focus:border-brand-blue-500 focus:ring-brand-blue-500 h-10 transition-all">
-                                        {Object.entries(PAYMENT_METHODS).map(([slug, name]) => (
-                                            <option key={slug} value={slug}>{name}</option>
-                                        ))}
-                                    </select>
-                                </InputGroup>
-                                <InputGroup label="Frete (R$)">
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <span className="text-gray-400 sm:text-sm">R$</span>
-                                        </div>
-                                        <CurrencyInput control={control} name="shipping_value" className="pl-9 h-10 text-sm" />
-                                    </div>
-                                </InputGroup>
-                            </div>
+                  {/* Tabela Rápida Inline de Itens */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[500px]">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-800 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                          <th className="py-2 px-2">Descrição do Material</th>
+                          <th className="py-2 px-2 w-36">Categoria</th>
+                          <th className="py-2 px-2 w-20 text-right">Qtd</th>
+                          <th className="py-2 px-2 w-28 text-right">Unitário (R$)</th>
+                          <th className="py-2 px-2 w-28 text-right">Total</th>
+                          <th className="py-2 px-1 w-8 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 text-xs">
+                        {fields.map((field, index) => {
+                          const currentQty = Number(watchedItems?.[index]?.quantity) || 0;
+                          const currentPrice = Number(watchedItems?.[index]?.unit_price) || 0;
+                          const lineTotal = currentQty * currentPrice;
 
-                            <InputGroup label="Observações">
-                                <Textarea id="observations" {...register('observations')} placeholder="Adicione anotações sobre esta nota fiscal..." className="bg-brand-dark-950 border-gray-700 min-h-[80px] text-sm text-white resize-none focus:ring-brand-blue-500"/>
-                            </InputGroup>
-                        </div>
-                    )}
+                          return (
+                            <tr key={field.id} className="hover:bg-gray-50/50 dark:hover:bg-brand-dark-800/30 transition-colors">
+                              <td className="py-2 px-2">
+                                <Input
+                                  {...register(`items.${index}.description` as const)}
+                                  placeholder="Descrição do material..."
+                                  className="h-8 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800"
+                                />
+                              </td>
+                              <td className="py-2 px-2">
+                                <select
+                                  {...register(`items.${index}.category` as const)}
+                                  className="w-full h-8 rounded-md border border-gray-300 dark:border-gray-800 bg-white dark:bg-brand-dark-950 px-2 text-[11px] text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-blue-500"
+                                >
+                                  {CATEGORIA_NOTA_ENUM.map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="py-2 px-2">
+                                <Input
+                                  type="number"
+                                  step="any"
+                                  min="0.001"
+                                  {...register(`items.${index}.quantity` as const, { valueAsNumber: true })}
+                                  className="h-8 text-xs text-right font-mono bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800"
+                                />
+                              </td>
+                              <td className="py-2 px-2">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  {...register(`items.${index}.unit_price` as const, { valueAsNumber: true })}
+                                  className="h-8 text-xs text-right font-mono bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800"
+                                />
+                              </td>
+                              <td className="py-2 px-2 text-right font-mono font-bold text-gray-900 dark:text-white">
+                                {formatCurrency(lineTotal)}
+                              </td>
+                              <td className="py-2 px-1 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => remove(index)}
+                                  disabled={fields.length <= 1}
+                                  className="p-1 rounded text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:hover:text-gray-400 transition-colors"
+                                  title="Remover item"
+                                >
+                                  <Trash2Icon className="h-3.5 w-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
 
-                    {/* Resumo Financeiro Final */}
-                    <div className="p-5 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-800 rounded-xl space-y-2 mt-6">
-                        <div className="flex justify-between text-xs uppercase tracking-widest font-medium">
-                            <span className="text-gray-400">Subtotal</span>
-                            <span className="text-gray-300 font-mono">{formatCurrency(subTotal)}</span>
-                        </div>
-                        {(Number(watchedShippingValue) > 0 || showOptionalFields) && (
-                            <div className="flex justify-between text-xs uppercase tracking-widest font-medium">
-                                <span className="text-gray-400">Frete</span>
-                                <span className="text-gray-300 font-mono">{formatCurrency(Number(watchedShippingValue) || 0)}</span>
-                            </div>
-                        )}
-                        <div className="flex justify-between items-center border-t border-gray-800 pt-3 mt-3">
-                            <span className="text-sm font-bold text-white uppercase tracking-wider">Valor da Nota (R$)</span>
-                            <div className="w-1/3">
-                                <CurrencyInput control={control} name="total_value" className="h-10 text-right text-lg font-bold bg-brand-dark-950 border-gray-700" />
-                                {errors.total_value && (
-                                    <p className="mt-1 text-xs text-red-500 text-right">{errors.total_value.message as string}</p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </fieldset>
-            </div>
-            
-            {Object.keys(errors).length > 0 && isSubmitted && (
-                <div className="text-sm text-red-500 text-left p-3 bg-red-500/10 rounded-md animate-in fade-in slide-in-from-top-2">
-                    Existem campos obrigatórios não preenchidos ou com erro. Verifique os dados.
+                  {errors.items && (
+                    <p className="text-xs text-red-500 font-medium">
+                      Verifique os itens da nota.
+                    </p>
+                  )}
                 </div>
-            )}
+
+              </div>
+
+              {/* COLUNA DIREITA (35% Sticky): Resumo Financeiro & Condições */}
+              <div className="lg:col-span-4 space-y-4 lg:sticky lg:top-0">
+                
+                {/* Card de Resumo Financeiro Principal */}
+                <div className="bg-white dark:bg-brand-dark-900 border-2 border-brand-blue-500/30 rounded-2xl p-5 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center gap-2">
+                      <DollarSignIcon className="h-4 w-4 text-brand-blue-500" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                        Resumo Financeiro
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-brand-blue-600 dark:text-brand-blue-400 bg-brand-blue-500/10 px-2 py-0.5 rounded-full">
+                      Validação IA
+                    </span>
+                  </div>
+
+                  {/* Subtotais detalhados */}
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                      <span>Subtotal dos Itens</span>
+                      <span className="font-mono font-medium text-gray-900 dark:text-gray-200">
+                        {formatCurrency(subTotal)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 pt-1 border-t border-dashed border-gray-200 dark:border-gray-800">
+                      <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                        <TruckIcon className="h-3.5 w-3.5" />
+                        <span>Frete / Transporte</span>
+                      </div>
+                      <div className="w-28">
+                        <CurrencyInput control={control} name="shipping_value" className="h-7 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* TOTAL GERAL DESTACADO */}
+                  <div className="pt-3 border-t-2 border-gray-100 dark:border-gray-800">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1">
+                      Valor Total da Nota (R$)
+                    </span>
+                    <div className="bg-gray-50 dark:bg-brand-dark-950 p-3 rounded-xl border border-gray-200 dark:border-gray-800">
+                      <CurrencyInput 
+                        control={control} 
+                        name="total_value" 
+                        className="h-10 text-xl sm:text-2xl font-black font-mono text-brand-blue-600 dark:text-brand-blue-400 bg-transparent border-none text-right focus:ring-0 p-0" 
+                      />
+                    </div>
+                    {errors.total_value && (
+                      <p className="text-xs text-red-500 mt-1 font-medium">{errors.total_value.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Card Forma de Pagamento */}
+                <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-3">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-800">
+                    <CreditCardIcon className="h-4 w-4 text-brand-blue-500" />
+                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                      Forma de Pagamento
+                    </Label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {PAYMENT_QUICK_OPTIONS.map((opt) => {
+                      const isSelected = watchedPaymentMethod === opt.slug;
+                      return (
+                        <button
+                          key={opt.slug}
+                          type="button"
+                          onClick={() => form.setValue('payment_method', opt.slug, { shouldValidate: true, shouldDirty: true })}
+                          className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium border transition-all text-left ${
+                            isSelected
+                              ? 'bg-brand-blue-500/10 border-brand-blue-500 text-brand-blue-600 dark:text-brand-blue-400 shadow-sm'
+                              : 'bg-gray-50/50 dark:bg-brand-dark-950 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
+                          }`}
+                        >
+                          <span>{opt.icon}</span>
+                          <span className="truncate">{opt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Card Observações */}
+                <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                    Observações Adicionais
+                  </Label>
+                  <Textarea 
+                    {...register('observations')} 
+                    placeholder="Adicione anotações sobre este documento extraído..."
+                    className="bg-gray-50/50 dark:bg-brand-dark-950 border-gray-200 dark:border-gray-800 min-h-[75px] text-xs text-gray-900 dark:text-white resize-none"
+                  />
+                </div>
+
+              </div>
+
+            </div>
+          </fieldset>
         </div>
 
         {/* Footer Fixo */}
-        <ResponsiveModalFooter className="shrink-0 p-4 border-t border-gray-800 bg-brand-dark-900 flex justify-end items-center gap-3">
-            <Button type="button" variant="outline" onClick={onClose} disabled={saveMutation.isPending} className="text-sm h-9">
-                Cancelar
+        <ResponsiveModalFooter className="px-6 py-4 flex-shrink-0 flex items-center justify-between border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">
+          <div className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">
+            Subtotal Itens: <span className="font-mono font-semibold text-gray-700 dark:text-gray-200">{formatCurrency(subTotal)}</span>
+          </div>
+          
+          <div className="flex items-center gap-3 ml-auto">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              disabled={saveMutation.isPending}
+              className="h-9 px-4 text-xs font-semibold"
+            >
+              Cancelar
             </Button>
-            <Button type="submit" isLoading={saveMutation.isPending} loadingText="Salvando..." className="text-sm h-9 px-6" disabled={verificationStatus !== 'verified'}>
-                Salvar Nota
+            <Button 
+              type="submit" 
+              isLoading={saveMutation.isPending} 
+              loadingText="Salvando..." 
+              disabled={verificationStatus !== 'verified'} 
+              className="h-9 px-6 text-xs font-bold uppercase tracking-wider bg-brand-blue-600 hover:bg-brand-blue-500 text-white"
+            >
+              Confirmar e Salvar
             </Button>
+          </div>
         </ResponsiveModalFooter>
-    </form>
-    
-    <Suspense fallback={<div/>}>
+      </form>
+      
+      <Suspense fallback={<div/>}>
         {showQuickAdd && initialSupplierData && (
-            <QuickSupplierModal 
-                isOpen={showQuickAdd}
-                onClose={() => setShowQuickAdd(false)}
-                onSuccess={handleQuickSupplierSave}
-                initialName={initialSupplierData.name}
-                initialCnpj={initialSupplierData.cnpj}
-            />
+          <QuickSupplierModal 
+            isOpen={showQuickAdd}
+            onClose={() => setShowQuickAdd(false)}
+            onSuccess={handleQuickSupplierSave}
+            initialName={initialSupplierData.name}
+            initialCnpj={initialSupplierData.cnpj}
+          />
         )}
         
         {showItemsModal && (
-            <ItemsManagerModal 
-                isOpen={showItemsModal}
-                onClose={() => setShowItemsModal(false)}
-                form={form}
-                fields={fields}
-                append={append}
-                remove={remove}
-            />
+          <ItemsManagerModal 
+            isOpen={showItemsModal}
+            onClose={() => setShowItemsModal(false)}
+            form={form}
+            fields={fields}
+            append={append}
+            remove={remove}
+          />
         )}
-    </Suspense>
+      </Suspense>
     </>
   );
 };
 
-// Reusable components
-const Combobox: React.FC<{label: React.ReactNode; options: { value: string; label: string }[]; value: string; onChange: (value: string) => void; placeholder: string; error?: string;}> = ({ label, options, value, onChange, placeholder, error }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [search, setSearch] = useState('');
-    
-    // Reset search when closed
-    useEffect(() => { if (!isOpen) setSearch(''); }, [isOpen]);
+const Combobox: React.FC<{
+  label: React.ReactNode; 
+  options: { value: string; label: string }[]; 
+  value: string; 
+  onChange: (value: string) => void; 
+  placeholder: string; 
+  error?: string;
+}> = ({ label, options, value, onChange, placeholder, error }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  
+  useEffect(() => { if (!isOpen) setSearch(''); }, [isOpen]);
 
-    const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
-    const filteredOptions = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
+  const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
+  const filteredOptions = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
 
-    return (
-        <InputGroup label={label} error={error}>
-            <Popover open={isOpen} onOpenChange={setIsOpen}>
-                <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" className={`w-full justify-between font-normal text-left h-9 px-3 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white ${!value && 'text-gray-400'}`}>
-                        <span className="truncate">{selectedLabel}</span>
-                        <ChevronsUpDownIcon className="ml-2 h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0 w-[--radix-popover-trigger-width] border-gray-200 dark:border-gray-700 bg-white dark:bg-brand-dark-900">
-                    <Command onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                        }
-                    }}>
-                        <CommandInput placeholder="Buscar..." value={search} onInput={(e) => setSearch(e.currentTarget.value)} className="border-none focus:ring-0 h-9 text-sm text-gray-900 dark:text-white" />
-                        <CommandList className="max-h-[200px] overflow-y-auto">
-                            <CommandEmpty className="py-2 text-center text-sm">Nenhum resultado.</CommandEmpty>
-                            {filteredOptions.map(option => (
-                                <CommandItem 
-                                    key={option.value} 
-                                    className="cursor-pointer aria-selected:bg-brand-blue-500/20 text-sm py-1.5 text-gray-700 dark:text-white" 
-                                    onSelect={() => { onChange(option.value); setIsOpen(false); }}
-                                >
-                                    {option.label}
-                                </CommandItem>
-                            ))}
-                        </CommandList>
-                    </Command>
-                </PopoverContent>
-            </Popover>
-        </InputGroup>
-    );
+  return (
+    <div className="space-y-1.5">
+      <Label className={`text-xs font-medium ${error ? "text-red-500" : "text-gray-700 dark:text-gray-300"}`}>{label}</Label>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button 
+            type="button" 
+            variant="outline" 
+            className={`w-full justify-between font-normal text-left h-9 px-3 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 ${!value ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}
+          >
+            <span className="truncate">{selectedLabel}</span>
+            <ChevronsUpDownIcon className="ml-2 h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="p-0 w-[--radix-popover-trigger-width] border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 shadow-xl">
+          <Command onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}>
+            <CommandInput placeholder="Buscar..." value={search} onInput={(e) => setSearch(e.currentTarget.value)} className="border-none focus:ring-0 h-9 text-xs" />
+            <CommandList className="max-h-[220px] overflow-y-auto custom-scrollbar">
+              <CommandEmpty className="py-3 text-center text-xs text-gray-400">Nenhum resultado encontrado.</CommandEmpty>
+              {filteredOptions.map(option => (
+                <CommandItem 
+                  key={option.value} 
+                  className="cursor-pointer aria-selected:bg-brand-blue-500/10 aria-selected:text-brand-blue-600 dark:aria-selected:text-brand-blue-400 text-xs py-2 px-3" 
+                  onSelect={() => { onChange(option.value); setIsOpen(false); }}
+                >
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {error && <p className="text-[10px] text-red-500 mt-1">{error}</p>}
+    </div>
+  );
 };
 
-const InputGroup: React.FC<{ label: React.ReactNode; error?: string; children: React.ReactNode }> = ({ label, error, children }) => (
-    <div>
-        <Label className={`text-xs font-medium ${error ? "text-red-500" : "text-gray-400"}`}>{label}</Label>
-        <div className="mt-1">{children}</div>
-        {error && <p className="text-[10px] text-red-500 mt-1 animate-in fade-in slide-in-from-top-1">{error}</p>}
-    </div>
-);
-
 const CurrencyInput: React.FC<{ control: any; name: string; className?: string; placeholder?: string }> = ({ control, name, className, placeholder }) => (
-    <Controller
-        name={name}
-        control={control}
-        render={({ field: { onChange, value, onBlur } }) => {
-            const displayValue = useMemo(() => {
-                if (value === null || value === undefined || value === '') return '';
-                // Ensure value is treated as number for formatting
-                const numValue = typeof value === 'string' ? parseFloat(value) : value;
-                if (isNaN(numValue)) return '';
-                return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(numValue);
-            }, [value]);
+  <Controller
+    name={name}
+    control={control}
+    render={({ field: { onChange, value, onBlur } }) => {
+      const displayValue = useMemo(() => {
+        if (value === null || value === undefined || value === '') return '';
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        if (isNaN(numValue)) return '';
+        return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(numValue);
+      }, [value]);
 
-            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                const rawValue = e.target.value.replace(/\D/g, ''); // Keep only digits
-                const numberValue = rawValue ? parseInt(rawValue, 10) / 100 : 0;
-                onChange(numberValue);
-            };
+      const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const rawValue = e.target.value.replace(/\D/g, '');
+        const numberValue = rawValue ? parseInt(rawValue, 10) / 100 : 0;
+        onChange(numberValue);
+      };
 
-            return (
-                <div className="relative">
-                    {!className?.includes('pl-') && (
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-gray-400 sm:text-sm">R$</span>
-                        </div>
-                    )}
-                    <Input 
-                        type="text" 
-                        inputMode="numeric" 
-                        value={displayValue} 
-                        onChange={handleChange} 
-                        onBlur={onBlur}
-                        className={`text-right bg-brand-dark-950 border-gray-700 text-white ${!className?.includes('pl-') ? 'pl-8' : ''} ${className}`} 
-                        placeholder={placeholder || "0,00"} 
-                    />
-                </div>
-            );
-        }}
-    />
+      return (
+        <Input 
+          type="text" 
+          inputMode="decimal" 
+          value={displayValue} 
+          onChange={handleChange} 
+          onBlur={onBlur}
+          className={`text-right ${className}`} 
+          placeholder={placeholder || "0,00"} 
+        />
+      );
+    }}
+  />
 );
 
 export default FormStep;

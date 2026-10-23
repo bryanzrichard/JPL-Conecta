@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter } from '../ui/ResponsiveModal';
+import { 
+  ResponsiveModal, 
+  ResponsiveModalContent, 
+  ResponsiveModalHeader, 
+  ResponsiveModalTitle, 
+  ResponsiveModalDescription, 
+  ResponsiveModalFooter 
+} from '../ui/ResponsiveModal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
@@ -14,7 +21,7 @@ import { formatApiError } from '../../lib/handleError';
 import { logAuditAction } from '../../lib/auditLogger';
 import { formatCnpj as formatCnpjMask } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
-import { TruckIcon } from '../../lib/icons';
+import { TruckIcon, BuildingIcon, PhoneIcon, StarIcon, EditIcon } from '../../lib/icons';
 
 interface SupplierModalProps {
   isOpen: boolean;
@@ -57,16 +64,15 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier
     control, 
     reset, 
     setValue, 
-    formState: { errors, isValid, touchedFields, isSubmitted } 
+    formState: { errors, touchedFields, isSubmitted, isDirty } 
   } = useForm<SupplierFormValues>({
     resolver: customResolver,
-    mode: 'onBlur', // Validate on blur to reduce noise and prevent immediate errors
-    defaultValues: defaultValues
+    mode: 'onBlur',
+    defaultValues
   });
   
   useEffect(() => {
     if (isOpen) {
-      // Reset form state when modal opens, clearing errors and touched states
       reset(defaultValues);
     }
   }, [isOpen, defaultValues, reset]);
@@ -78,19 +84,19 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier
       const cnpjClean = data.cnpj.replace(/\D/g, '');
       
       if (cnpjClean) {
-          const cnpjFormatted = formatCnpjMask(cnpjClean);
-          let query = supabase
-            .from('suppliers')
-            .select('id')
-            .eq('company_id', profile.company_id)
-            .in('cnpj', [cnpjClean, cnpjFormatted]);
-          if (isEditMode && supplier) {
-              query = query.neq('id', supplier.id);
-          }
-          const { data: existing } = await query.limit(1).maybeSingle();
-          if (existing) {
-              throw new Error("Este CNPJ já está cadastrado no sistema.");
-          }
+        const cnpjFormatted = formatCnpjMask(cnpjClean);
+        let query = supabase
+          .from('suppliers')
+          .select('id')
+          .eq('company_id', profile.company_id)
+          .in('cnpj', [cnpjClean, cnpjFormatted]);
+        if (isEditMode && supplier) {
+          query = query.neq('id', supplier.id);
+        }
+        const { data: existing } = await query.limit(1).maybeSingle();
+        if (existing) {
+          throw new Error("Este CNPJ já está cadastrado no sistema.");
+        }
       }
 
       const payload = { ...data, cnpj: cnpjClean || null };
@@ -100,25 +106,25 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier
             ...payload,
             company_id: profile.company_id,
             created_by: user.id,
-        });
+          });
       if (error) throw error;
 
       await logAuditAction(
-          profile?.company_id,
-          user?.email,
-          isEditMode ? 'EDITAR' : 'CRIAR',
-          `Fornecedor: ${payload.name}`,
-          { isEditMode, cnpj: payload.cnpj }
+        profile?.company_id,
+        user?.email,
+        isEditMode ? 'EDITAR' : 'CRIAR',
+        `Fornecedor: ${payload.name}`,
+        { isEditMode, cnpj: payload.cnpj }
       );
     },
     onSuccess: () => {
-      toast({ title: "Sucesso!", description: `Fornecedor ${isEditMode ? 'atualizado' : 'criado'} com sucesso.` });
+      toast({ title: "Sucesso!", description: `Fornecedor ${isEditMode ? 'atualizado' : 'cadastrado'} com sucesso.` });
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
       onClose();
     },
     onError: (err) => {
-        const errorMessage = formatApiError(err);
-        toast({ variant: 'destructive', title: 'Erro!', description: errorMessage });
+      const errorMessage = formatApiError(err);
+      toast({ variant: 'destructive', title: 'Erro ao Salvar Fornecedor', description: errorMessage });
     }
   });
 
@@ -133,132 +139,183 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier
     value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
     value = value.replace(/(\d{4})(\d)/, '$1-$2');
     
-    // Only update value, let 'onBlur' handle validation to prevent premature error messages
     setValue('cnpj', value, { shouldValidate: false, shouldDirty: true });
   };
 
-  const shouldShowError = (fieldName: keyof SupplierFormValues) => {
-      return isSubmitted || !!(touchedFields as any)[fieldName];
-  };
-
   return (
-    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="dialog">
-      <ResponsiveModalContent className="max-w-2xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-        <ResponsiveModalHeader className="px-6 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="dialog">
+      <ResponsiveModalContent size="md" className="max-w-2xl flex flex-col p-0">
+        
+        {/* Header Consistente */}
+        <ResponsiveModalHeader className="px-6 py-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
               <TruckIcon className="h-5 w-5" />
             </div>
             <div>
-              <ResponsiveModalTitle className="text-base text-white font-bold">
-                {isEditMode ? 'Editar Fornecedor' : 'Novo Fornecedor'}
+              <ResponsiveModalTitle className="text-base font-bold text-gray-900 dark:text-white">
+                {isEditMode ? 'Editar Fornecedor' : 'Novo Fornecedor / Fabricante'}
               </ResponsiveModalTitle>
-              <ResponsiveModalDescription className="text-xs text-gray-400 mt-0.5">
-                Cadastre ou atualize dados fiscais e contatos de fornecedores e prestadores.
+              <ResponsiveModalDescription className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Cadastre informações fiscais, contatos de vendas e avaliação de entrega.
               </ResponsiveModalDescription>
             </div>
           </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-gray-50/50 dark:bg-brand-dark-950/50">
-          <form id="supplier-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputGroup label="Razão Social / Nome Fantasia *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
-                  <Input {...register('name')} placeholder="Ex: Votorantim Cimentos" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-              </InputGroup>
-              
-              <InputGroup label="CNPJ *" error={shouldShowError('cnpj') ? errors.cnpj?.message as string : undefined}>
+        <form id="supplier-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50/60 dark:bg-brand-dark-950/50 space-y-4 custom-scrollbar">
+            
+            {/* Bloco 1: Identificação Fiscal */}
+            <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-800">
+                <BuildingIcon className="h-4 w-4 text-brand-blue-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                  1. Dados Cadastrais & CNPJ
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Razão Social / Nome Fantasia <span className="text-red-500">*</span>
+                  </Label>
+                  <Input 
+                    {...register('name')} 
+                    placeholder="Ex: Votorantim Cimentos S/A" 
+                    className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 font-medium" 
+                  />
+                  {errors.name && <p className="text-[11px] text-red-500">{errors.name.message}</p>}
+                </div>
+                
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    CNPJ <span className="text-red-500">*</span>
+                  </Label>
                   <Controller
                     name="cnpj"
                     control={control}
                     render={({ field }) => (
-                        <Input 
-                            {...field} 
-                            value={field.value ?? ''}
-                            onChange={handleCNPJChange} 
-                            placeholder="00.000.000/0000-00" 
-                            maxLength={18}
-                            onBlur={field.onBlur}
-                            className="h-9 text-xs font-mono bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500"
-                        />
+                      <Input 
+                        {...field} 
+                        value={field.value ?? ''}
+                        onChange={handleCNPJChange} 
+                        placeholder="00.000.000/0000-00" 
+                        maxLength={18}
+                        onBlur={field.onBlur}
+                        className="h-9 text-xs font-mono bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800"
+                      />
                     )}
                   />
-              </InputGroup>
+                  {errors.cnpj && <p className="text-[11px] text-red-500">{errors.cnpj.message}</p>}
+                </div>
+              </div>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputGroup label="Vendedor / Representante" error={shouldShowError('seller') ? errors.seller?.message as string : undefined}>
-                  <Input {...register('seller')} placeholder="Nome do contato comercial" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-              </InputGroup>
-              
-              <InputGroup label="Telefone / WhatsApp" error={shouldShowError('seller_contact') ? errors.seller_contact?.message as string : undefined}>
-                  <Input {...register('seller_contact')} placeholder="(11) 99999-9999" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-              </InputGroup>
-            </div>
-            
-            <div className="pt-2">
-              <div className="p-4 bg-white dark:bg-brand-dark-900/60 border border-gray-200 dark:border-gray-800 rounded-xl space-y-3 shadow-sm">
-                <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Desempenho & Avaliação</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Controller
-                      name="service_rating"
-                      control={control}
-                      render={({ field: { onChange, value } }) => (
-                          <InputGroup label="Qualidade do Atendimento / Material">
-                              <div className="mt-1">
-                                <StarRating rating={value ?? 0} onRatingChange={(r) => onChange(r)} />
-                              </div>
-                          </InputGroup>
-                      )}
+            {/* Bloco 2: Contato Comercial */}
+            <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-800">
+                <PhoneIcon className="h-4 w-4 text-brand-blue-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                  2. Atendimento Comercial
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Vendedor / Representante
+                  </Label>
+                  <Input 
+                    {...register('seller')} 
+                    placeholder="Nome do contato comercial" 
+                    className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
                   />
-                   <Controller
-                      name="delivery_rating"
-                      control={control}
-                      render={({ field: { onChange, value } }) => (
-                          <InputGroup label="Pontualidade na Entrega">
-                              <div className="mt-1">
-                                <StarRating rating={value ?? 0} onRatingChange={(r) => onChange(r)} />
-                              </div>
-                          </InputGroup>
-                      )}
+                </div>
+                
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Telefone / WhatsApp Comercial
+                  </Label>
+                  <Input 
+                    {...register('seller_contact')} 
+                    placeholder="(11) 99999-9999" 
+                    className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
                   />
                 </div>
               </div>
             </div>
-          </form>
-        </div>
+            
+            {/* Bloco 3: Desempenho e Avaliação */}
+            <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-800">
+                <StarIcon className="h-4 w-4 text-amber-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                  3. Avaliação Técnica & Pontualidade
+                </h3>
+              </div>
 
-        <ResponsiveModalFooter className="px-6 py-4 border-t border-gray-800 bg-brand-dark-900 flex justify-end gap-3">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onClose} 
-            disabled={mutation.isPending} 
-            className="text-xs h-9 px-4 border-gray-700 hover:bg-gray-800 text-gray-300"
-          >
-            Cancelar
-          </Button>
-          <Button 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Controller
+                  name="service_rating"
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <div className="space-y-1.5 p-3 rounded-xl bg-gray-50/50 dark:bg-brand-dark-950 border border-gray-200 dark:border-gray-800">
+                      <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Qualidade do Atendimento / Material
+                      </Label>
+                      <div className="pt-1">
+                        <StarRating rating={value ?? 0} onRatingChange={(r) => onChange(r)} />
+                      </div>
+                    </div>
+                  )}
+                />
+
+                <Controller
+                  name="delivery_rating"
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <div className="space-y-1.5 p-3 rounded-xl bg-gray-50/50 dark:bg-brand-dark-950 border border-gray-200 dark:border-gray-800">
+                      <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Pontualidade nas Entregas na Obra
+                      </Label>
+                      <div className="pt-1">
+                        <StarRating rating={value ?? 0} onRatingChange={(r) => onChange(r)} />
+                      </div>
+                    </div>
+                  )}
+                />
+              </div>
+            </div>
+
+          </div>
+
+          {/* Footer Fixo */}
+          <ResponsiveModalFooter className="px-6 py-4 flex-shrink-0 flex items-center justify-end border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 gap-3">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              disabled={mutation.isPending} 
+              className="text-xs h-9 px-4 font-semibold"
+            >
+              Cancelar
+            </Button>
+            <Button 
               type="submit" 
               form="supplier-form"
+              disabled={!isDirty && isEditMode}
               isLoading={mutation.isPending} 
-              loadingText="Salvando..."
-              className="text-xs h-9 px-6 bg-brand-blue-600 hover:bg-brand-blue-500 text-white font-medium"
-          >
-            {isEditMode ? 'Salvar Alterações' : 'Salvar Fornecedor'}
-          </Button>
-        </ResponsiveModalFooter>
+              loadingText="Salvando..." 
+              className="text-xs h-9 px-6 font-bold uppercase tracking-wider bg-brand-blue-600 hover:bg-brand-blue-500 text-white"
+            >
+              {isEditMode ? 'Salvar Alterações' : 'Cadastrar Fornecedor'}
+            </Button>
+          </ResponsiveModalFooter>
+        </form>
       </ResponsiveModalContent>
     </ResponsiveModal>
   );
 };
-
-const InputGroup: React.FC<{ label: string; error?: string; children: React.ReactNode }> = ({ label, error, children }) => (
-    <div>
-        <Label className={`text-xs font-medium text-gray-500 dark:text-gray-400 ${error ? "text-red-500" : ""}`}>{label}</Label>
-        <div className="mt-1">{children}</div>
-        {error && <p className="text-[10px] text-red-500 mt-1 font-medium animate-in fade-in slide-in-from-top-1">{error}</p>}
-    </div>
-);
 
 export default SupplierModal;

@@ -1,7 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter } from '../ui/ResponsiveModal';
+import { 
+  ResponsiveModal, 
+  ResponsiveModalContent, 
+  ResponsiveModalHeader, 
+  ResponsiveModalTitle, 
+  ResponsiveModalDescription, 
+  ResponsiveModalFooter 
+} from '../ui/ResponsiveModal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
@@ -12,7 +19,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { formatApiError } from '../../lib/handleError';
 import { logAuditAction } from '../../lib/auditLogger';
 import { useAuth } from '../../hooks/useAuth';
-import { SearchIcon, BuildingIcon, ChevronDownIcon, ChevronUpIcon } from '../../lib/icons';
+import { SearchIcon, BuildingIcon, MapPinIcon, CalendarIcon, ChevronDownIcon, ChevronUpIcon } from '../../lib/icons';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -30,69 +37,65 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [showAddress, setShowAddress] = useState(false);
 
-  // Memoize default values to ensure stability
   const defaultValues: ProjectFormValues = useMemo(() => {
-      if (project) {
-          return {
-            name: project.name || '',
-            status: project.status || 'Planejamento',
-            manager: project.manager || '',
-            start_date: project.start_date ? project.start_date.split('T')[0] : '',
-            end_date: project.end_date ? project.end_date.split('T')[0] : null,
-            address_zip: project.address_zip || '',
-            address_street: project.address_street || '',
-            address_number: project.address_number || '',
-            address_district: project.address_district || '',
-            address_city: project.address_city || '',
-            address_state: project.address_state || '',
-          };
-      }
+    if (project) {
       return {
-          name: '',
-          status: 'Planejamento',
-          manager: '',
-          start_date: '',
-          end_date: null,
-          address_zip: '',
-          address_street: '',
-          address_number: '',
-          address_district: '',
-          address_city: '',
-          address_state: '',
+        name: project.name || '',
+        status: project.status || 'Planejamento',
+        manager: project.manager || '',
+        start_date: project.start_date ? project.start_date.split('T')[0] : '',
+        end_date: project.end_date ? project.end_date.split('T')[0] : null,
+        address_zip: project.address_zip || '',
+        address_street: project.address_street || '',
+        address_number: project.address_number || '',
+        address_district: project.address_district || '',
+        address_city: project.address_city || '',
+        address_state: project.address_state || '',
       };
+    }
+    return {
+      name: '',
+      status: 'Planejamento',
+      manager: '',
+      start_date: '',
+      end_date: null,
+      address_zip: '',
+      address_street: '',
+      address_number: '',
+      address_district: '',
+      address_city: '',
+      address_state: '',
+    };
   }, [project]);
 
   const { 
-      register, 
-      handleSubmit, 
-      reset, 
-      watch, 
-      setValue, 
-      setFocus, 
-      formState: { errors, isSubmitted, touchedFields } 
+    register, 
+    handleSubmit, 
+    reset, 
+    watch, 
+    setValue, 
+    setFocus, 
+    formState: { errors, isSubmitted, touchedFields, isDirty } 
   } = useForm<ProjectFormValues>({
     resolver: customResolver,
-    mode: 'onBlur', // Validate on blur for better UX
+    mode: 'onBlur',
     defaultValues
   });
 
-  // Reset form when modal opens or project changes
   useEffect(() => {
     if (isOpen) {
-        reset(defaultValues);
-        // Auto-expand address if editing and has address data
-        if (isEditMode && (defaultValues.address_zip || defaultValues.address_street)) {
-            setShowAddress(true);
-        } else {
-            setShowAddress(false);
-        }
+      reset(defaultValues);
+      if (isEditMode && (defaultValues.address_zip || defaultValues.address_street)) {
+        setShowAddress(true);
+      } else {
+        setShowAddress(false);
+      }
     }
   }, [isOpen, project, reset, defaultValues, isEditMode]);
 
   const startDate = watch('start_date');
   const endDate = watch('end_date');
   
-  // Status calculation logic
   useEffect(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -103,15 +106,14 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
     let newStatus: ProjectStatus = 'Planejamento';
 
     if (end && end < today) {
-        newStatus = 'Concluído';
+      newStatus = 'Concluído';
     } else if (start && start <= today) {
-        newStatus = 'Em Andamento';
+      newStatus = 'Em Andamento';
     }
     
-    // Only update if value is different to avoid infinite loops, check actual form value not just calculated
     const currentStatus = watch('status');
     if (currentStatus !== newStatus) {
-        setValue('status', newStatus, { shouldDirty: true });
+      setValue('status', newStatus, { shouldDirty: true });
     }
   }, [startDate, endDate, setValue, watch]);
 
@@ -126,195 +128,270 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
             ...payload,
             company_id: profile.company_id,
             created_by: user.id
-        });
+          });
       if (error) throw error;
       
       await logAuditAction(
-          profile?.company_id,
-          user?.email,
-          isEditMode ? 'EDITAR' : 'CRIAR',
-          `Obra: ${payload.name}`,
-          { isEditMode, status: payload.status }
+        profile?.company_id,
+        user?.email,
+        isEditMode ? 'EDITAR' : 'CRIAR',
+        `Obra: ${payload.name}`,
+        { isEditMode, status: payload.status }
       );
     },
     onSuccess: () => {
-      toast({ title: "Sucesso!", description: `Obra ${isEditMode ? 'atualizada' : 'criada'} com sucesso.` });
+      toast({ title: "Sucesso!", description: `Obra ${isEditMode ? 'atualizada' : 'cadastrada'} com sucesso.` });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       onClose();
     },
     onError: (err) => {
-        const errorMessage = formatApiError(err);
-        toast({ variant: 'destructive', title: 'Erro!', description: errorMessage });
+      const errorMessage = formatApiError(err);
+      toast({ variant: 'destructive', title: 'Erro ao Salvar Obra', description: errorMessage });
     }
   });
 
   const onSubmit = (data: ProjectFormValues) => mutation.mutate(data);
 
   const handleCepBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
-      const cepValue = e.target.value.replace(/\D/g, '');
-      
-      if (cepValue.length === 8) {
-          setIsLoadingCep(true);
-          try {
-              const response = await fetch(`https://viacep.com.br/ws/${cepValue}/json/`);
-              const data = await response.json();
-              
-              if (data.erro) {
-                  toast({ variant: "destructive", title: "CEP não encontrado", description: "Verifique o número e tente novamente." });
-                  return;
-              }
+    const cepValue = e.target.value.replace(/\D/g, '');
+    
+    if (cepValue.length === 8) {
+      setIsLoadingCep(true);
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${cepValue}/json/`);
+        const data = await response.json();
+        
+        if (data.erro) {
+          toast({ variant: "destructive", title: "CEP não encontrado", description: "Verifique o número e tente novamente." });
+          return;
+        }
 
-              // Preenche os campos automaticamente
-              setValue('address_street', data.logradouro, { shouldDirty: true, shouldValidate: true });
-              setValue('address_district', data.bairro, { shouldDirty: true, shouldValidate: true });
-              setValue('address_city', data.localidade, { shouldDirty: true, shouldValidate: true });
-              setValue('address_state', data.uf, { shouldDirty: true, shouldValidate: true });
-              
-              // Foca no número para o usuário completar
-              setFocus('address_number');
-
-          } catch (error) {
-              console.error(error);
-              toast({ variant: "destructive", title: "Erro na busca", description: "Não foi possível buscar o CEP automaticamente." });
-          } finally {
-              setIsLoadingCep(false);
-          }
+        setValue('address_street', data.logradouro, { shouldDirty: true, shouldValidate: true });
+        setValue('address_district', data.bairro, { shouldDirty: true, shouldValidate: true });
+        setValue('address_city', data.localidade, { shouldDirty: true, shouldValidate: true });
+        setValue('address_state', data.uf, { shouldDirty: true, shouldValidate: true });
+        
+        setFocus('address_number');
+      } catch (error) {
+        toast({ variant: "destructive", title: "Erro na busca", description: "Não foi possível buscar o CEP automaticamente." });
+      } finally {
+        setIsLoadingCep(false);
       }
+    }
   };
 
-  const shouldShowError = (fieldName: keyof ProjectFormValues) => {
-      return isSubmitted || !!(touchedFields as any)[fieldName];
-  };
-
-  // Helper to merge refs/handlers for the CEP input
   const cepRegister = register('address_zip');
 
   return (
-    <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="dialog">
-      <ResponsiveModalContent className="max-w-2xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-        <ResponsiveModalHeader className="px-6 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="dialog">
+      <ResponsiveModalContent size="md" className="max-w-2xl flex flex-col p-0">
+        
+        {/* Header Consistente */}
+        <ResponsiveModalHeader className="px-6 py-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-brand-blue-400 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20 flex items-center justify-center text-brand-blue-600 dark:text-brand-blue-400 shrink-0">
               <BuildingIcon className="h-5 w-5" />
             </div>
             <div>
-              <ResponsiveModalTitle className="text-base text-white font-bold">
+              <ResponsiveModalTitle className="text-base font-bold text-gray-900 dark:text-white">
                 {isEditMode ? 'Editar Obra / Projeto' : 'Nova Obra / Projeto'}
               </ResponsiveModalTitle>
-              <ResponsiveModalDescription className="text-xs text-gray-400 mt-0.5">
-                Defina o planejamento, cronograma e localização física da construção.
+              <ResponsiveModalDescription className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Defina identificação, responsável técnico, cronograma e localização física.
               </ResponsiveModalDescription>
             </div>
           </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-gray-50/50 dark:bg-brand-dark-950/50">
-          <form id="project-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Status Field is hidden but maintained for logic */}
+        <form id="project-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50/60 dark:bg-brand-dark-950/50 space-y-4 custom-scrollbar">
             <input type="hidden" {...register('status')} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputGroup label="Nome da Obra *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
-                  <Input {...register('name')} placeholder="Ex: Residencial Flores do Campo" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-              </InputGroup>
-              
-              <InputGroup label="Mestre de Obra / Responsável" error={shouldShowError('manager') ? errors.manager?.message as string : undefined}>
-                  <Input {...register('manager')} placeholder="Nome do encarregado ou mestre" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-              </InputGroup>
-            </div>
+            {/* Bloco 1: Dados Gerais da Obra */}
+            <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-800">
+                <BuildingIcon className="h-4 w-4 text-brand-blue-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                  1. Identificação da Construção
+                </h3>
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-               <InputGroup label="Data de Início *" error={shouldShowError('start_date') ? errors.start_date?.message as string : undefined}>
-                   <Input type="date" {...register('start_date')} className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-               </InputGroup>
-               <InputGroup label="Previsão de Término" error={shouldShowError('end_date') ? errors.end_date?.message as string : undefined}>
-                  <Input type="date" {...register('end_date')} className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-              </InputGroup>
-            </div>
-            
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => setShowAddress(!showAddress)}
-                className="flex items-center gap-2 text-xs font-medium text-brand-blue-600 dark:text-brand-blue-400 hover:text-brand-blue-700 dark:hover:text-brand-blue-300 transition-colors"
-              >
-                {showAddress ? <ChevronUpIcon className="h-3 w-3" /> : <ChevronDownIcon className="h-3 w-3" />}
-                {showAddress ? 'Ocultar endereço' : 'Adicionar endereço da obra'}
-              </button>
-            </div>
-
-            {showAddress && (
-              <div className="p-4 bg-white dark:bg-brand-dark-900/50 border border-gray-200 dark:border-gray-800/50 rounded-xl space-y-3 shadow-sm animate-in fade-in slide-in-from-top-2">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300">Endereço</h3>
-                  {isLoadingCep && <span className="text-[10px] font-normal text-brand-blue-600 dark:text-brand-blue-400 animate-pulse flex items-center gap-1"><SearchIcon className="h-3 w-3"/> Buscando CEP...</span>}
-                </div>
-                
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-1">
-                        <InputGroup label="CEP" error={shouldShowError('address_zip') ? errors.address_zip?.message as string : undefined}>
-                            <Input 
-                                {...cepRegister}
-                                placeholder="00000-000" 
-                                maxLength={9} 
-                                onBlur={(e) => {
-                                    cepRegister.onBlur(e);
-                                    handleCepBlur(e);
-                                }}
-                                className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500"
-                            />
-                        </InputGroup>
-                    </div>
-                    <div className="col-span-2">
-                         <InputGroup label="Cidade" error={shouldShowError('address_city') ? errors.address_city?.message as string : undefined}>
-                             <Input {...register('address_city')} className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-                         </InputGroup>
-                    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Nome da Obra / Empreendimento <span className="text-red-500">*</span>
+                  </Label>
+                  <Input 
+                    {...register('name')} 
+                    placeholder="Ex: Residencial Flores do Campo" 
+                    className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 font-medium" 
+                  />
+                  {errors.name && <p className="text-[11px] text-red-500">{errors.name.message}</p>}
                 </div>
 
-                <div className="grid grid-cols-4 gap-3">
-                    <div className="col-span-3">
-                        <InputGroup label="Rua / Logradouro" error={shouldShowError('address_street') ? errors.address_street?.message as string : undefined}>
-                            <Input {...register('address_street')} className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-                        </InputGroup>
-                    </div>
-                    <div className="col-span-1">
-                        <InputGroup label="Número" error={shouldShowError('address_number') ? errors.address_number?.message as string : undefined}>
-                            <Input {...register('address_number')} placeholder="S/N" className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-                        </InputGroup>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <InputGroup label="Bairro" error={shouldShowError('address_district') ? errors.address_district?.message as string : undefined}>
-                        <Input {...register('address_district')} className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-                    </InputGroup>
-                    <InputGroup label="Estado (UF)" error={shouldShowError('address_state') ? errors.address_state?.message as string : undefined}>
-                        <Input {...register('address_state')} maxLength={2} className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
-                    </InputGroup>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Mestre de Obra / Engenheiro Responsável
+                  </Label>
+                  <Input 
+                    {...register('manager')} 
+                    placeholder="Nome do encarregado ou mestre" 
+                    className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
+                  />
                 </div>
               </div>
-            )}
-          </form>
-        </div>
+            </div>
 
-        <ResponsiveModalFooter className="p-4 border-t border-gray-800 bg-brand-dark-900 flex-shrink-0 flex justify-end gap-3">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending} className="text-sm h-9">Cancelar</Button>
-          <Button type="submit" form="project-form" isLoading={mutation.isPending} loadingText="Salvando..." className="text-sm h-9 px-6">
-            {isEditMode ? 'Salvar Alterações' : 'Salvar Obra'}
-          </Button>
-        </ResponsiveModalFooter>
+            {/* Bloco 2: Cronograma */}
+            <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-800">
+                <CalendarIcon className="h-4 w-4 text-brand-blue-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                  2. Cronograma de Execução
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Data de Início da Obra <span className="text-red-500">*</span>
+                  </Label>
+                  <Input 
+                    type="date" 
+                    {...register('start_date')} 
+                    className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
+                  />
+                  {errors.start_date && <p className="text-[11px] text-red-500">{errors.start_date.message}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Previsão de Entrega / Término
+                  </Label>
+                  <Input 
+                    type="date" 
+                    {...register('end_date')} 
+                    className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Bloco 3: Endereço do Canteiro */}
+            <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-2">
+                  <MapPinIcon className="h-4 w-4 text-brand-blue-500" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                    3. Localização Física & Endereço
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddress(!showAddress)}
+                  className="flex items-center gap-1 text-xs font-semibold text-brand-blue-600 dark:text-brand-blue-400 hover:underline"
+                >
+                  {showAddress ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
+                  {showAddress ? 'Recolher' : 'Expandir Endereço'}
+                </button>
+              </div>
+
+              {showAddress && (
+                <div className="space-y-3 pt-1 animate-in fade-in slide-in-from-top-2">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-1 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">CEP</Label>
+                        {isLoadingCep && <span className="text-[10px] text-brand-blue-600 animate-pulse">Buscando...</span>}
+                      </div>
+                      <Input 
+                        {...cepRegister}
+                        placeholder="00000-000" 
+                        maxLength={9} 
+                        onBlur={(e) => {
+                          cepRegister.onBlur(e);
+                          handleCepBlur(e);
+                        }}
+                        className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 font-mono"
+                      />
+                    </div>
+
+                    <div className="col-span-2 space-y-1.5">
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Cidade</Label>
+                      <Input 
+                        {...register('address_city')} 
+                        className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="col-span-3 space-y-1.5">
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Rua / Logradouro</Label>
+                      <Input 
+                        {...register('address_street')} 
+                        className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
+                      />
+                    </div>
+                    <div className="col-span-1 space-y-1.5">
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Número</Label>
+                      <Input 
+                        {...register('address_number')} 
+                        placeholder="S/N" 
+                        className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Bairro</Label>
+                      <Input 
+                        {...register('address_district')} 
+                        className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Estado (UF)</Label>
+                      <Input 
+                        {...register('address_state')} 
+                        maxLength={2} 
+                        className="h-9 text-xs uppercase bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+
+          {/* Footer Fixo */}
+          <ResponsiveModalFooter className="px-6 py-4 flex-shrink-0 flex items-center justify-end border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 gap-3">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              disabled={mutation.isPending} 
+              className="text-xs h-9 px-4 font-semibold"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="submit" 
+              form="project-form" 
+              disabled={!isDirty && isEditMode}
+              isLoading={mutation.isPending} 
+              loadingText="Salvando..." 
+              className="text-xs h-9 px-6 font-bold uppercase tracking-wider bg-brand-blue-600 hover:bg-brand-blue-500 text-white"
+            >
+              {isEditMode ? 'Salvar Alterações' : 'Cadastrar Obra'}
+            </Button>
+          </ResponsiveModalFooter>
+        </form>
       </ResponsiveModalContent>
     </ResponsiveModal>
   );
 };
-
-const InputGroup: React.FC<{ label: string; error?: string; children: React.ReactNode }> = ({ label, error, children }) => (
-    <div>
-        <Label className={`text-xs font-medium text-gray-500 dark:text-gray-400 ${error ? "text-red-500" : ""}`}>{label}</Label>
-        <div className="mt-1">{children}</div>
-        {error && <p className="text-[10px] text-red-500 mt-1 font-medium animate-in fade-in slide-in-from-top-1">{error}</p>}
-    </div>
-);
 
 export default ProjectModal;

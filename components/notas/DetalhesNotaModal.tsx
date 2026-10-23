@@ -1,367 +1,434 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { NotaFiscal, ItemNotaFiscal, PAYMENT_METHODS } from '../../types';
-import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter } from '../ui/ResponsiveModal';
+import { 
+  ResponsiveModal, 
+  ResponsiveModalContent, 
+  ResponsiveModalHeader, 
+  ResponsiveModalTitle, 
+  ResponsiveModalDescription, 
+  ResponsiveModalFooter 
+} from '../ui/ResponsiveModal';
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
-import { FileTextIcon, BuildingIcon, ConstructionIcon, CreditCardIcon, TrendingUpIcon, PaperclipIcon, ExternalLinkIcon } from '../../lib/icons';
+import { 
+  FileTextIcon, 
+  BuildingIcon, 
+  ConstructionIcon, 
+  CreditCardIcon, 
+  DollarSignIcon, 
+  PaperclipIcon, 
+  ExternalLinkIcon,
+  PackageIcon,
+  CalendarIcon,
+  CheckCircle2Icon
+} from '../../lib/icons';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, openStorageFile } from '../../lib/utils';
 
 interface DetalhesNotaModalProps {
-    nota: NotaFiscal | null;
-    isOpen: boolean;
-    onClose: () => void;
+  nota: NotaFiscal | null;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 25;
 
 const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return 'N/A';
-    try {
-        const [year, month, day] = dateStr.split('T')[0].split('-');
-        return `${day}/${month}/${year}`;
-    } catch {
-        return dateStr;
-    }
+  if (!dateStr) return 'N/A';
+  try {
+    const [year, month, day] = dateStr.split('T')[0].split('-');
+    return `${day}/${month}/${year}`;
+  } catch {
+    return dateStr;
+  }
 };
 
 const getCategoryBadgeClass = (category: string) => {
-    switch (category) {
-        case 'Estrutura':
-            return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
-        case 'Alvenaria':
-            return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
-        case 'Elétrica':
-            return 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30';
-        case 'Hidráulica':
-            return 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30';
-        case 'Pintura':
-            return 'bg-purple-500/15 text-purple-400 border-purple-500/30';
-        case 'Acabamento':
-            return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
-        case 'Ferramentas':
-            return 'bg-orange-500/15 text-orange-400 border-orange-500/30';
-        default:
-            return 'bg-gray-500/15 text-gray-400 border-gray-500/30';
-    }
+  switch (category) {
+    case 'Estrutura':
+    case 'Estrutura e Fundação':
+      return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+    case 'Alvenaria':
+    case 'Alvenaria e Vedações':
+      return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+    case 'Elétrica':
+    case 'Instalações Elétricas':
+      return 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20';
+    case 'Hidráulica':
+    case 'Instalações Hidrossanitárias':
+      return 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20';
+    case 'Pintura':
+      return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
+    case 'Acabamento':
+    case 'Acabamentos e Revestimentos':
+      return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+    case 'Ferramentas':
+    case 'Ferramentas e Equipamentos':
+      return 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20';
+    default:
+      return 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20';
+  }
 };
 
 const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onClose }) => {
-    const { toast } = useToast();
-    const [items, setItems] = useState<ItemNotaFiscal[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);
-    const [page, setPage] = useState(0);
-    const [hasMore, setHasMore] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const [items, setItems] = useState<ItemNotaFiscal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'resumo' | 'anexo'>('resumo');
 
-    const handleViewFile = async (path: string) => {
-        try {
-            await openStorageFile(path);
-        } catch (err) {
-            toast({ 
-                title: 'Erro ao acessar arquivo', 
-                description: 'Não foi possível gerar um link para este anexo.', 
-                variant: 'destructive' 
-            });
-        }
-    };
+  const handleViewFile = async (path: string) => {
+    try {
+      await openStorageFile(path);
+    } catch {
+      toast({ 
+        title: 'Erro ao acessar arquivo', 
+        description: 'Não foi possível gerar um link para este anexo.', 
+        variant: 'destructive' 
+      });
+    }
+  };
 
-    const fetchItems = useCallback(async (pageNum: number) => {
-        if (!nota) return;
+  const fetchItems = useCallback(async (pageNum: number) => {
+    if (!nota) return;
 
-        if (pageNum === 0) {
-            setLoading(true);
-        } else {
-            setLoadingMore(true);
-        }
-        setError(null);
+    if (pageNum === 0) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+    setError(null);
 
-        const from = pageNum * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
+    const from = pageNum * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
 
-        try {
-            const { data, error: queryError } = await supabase
-                .from('itens_nota_fiscal')
-                .select('*')
-                .eq('nota_fiscal_id', nota.id)
-                .order('description', { ascending: true })
-                .range(from, to);
+    try {
+      const { data, error: queryError } = await supabase
+        .from('itens_nota_fiscal')
+        .select('*')
+        .eq('nota_fiscal_id', nota.id)
+        .order('description', { ascending: true })
+        .range(from, to);
 
-            if (queryError) throw queryError;
-            
-            const fetchedItems = data || [];
+      if (queryError) throw queryError;
+      
+      const fetchedItems = data || [];
 
-            if (pageNum === 0) {
-                setItems(fetchedItems);
-            } else {
-                setItems(prev => [...prev, ...fetchedItems]);
-            }
-            
-            setHasMore(fetchedItems.length === PAGE_SIZE);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : "Falha ao carregar os itens da nota.";
-            setError(errorMessage);
-            console.error(err);
-        } finally {
-            if (pageNum === 0) {
-                setLoading(false);
-            } else {
-                setLoadingMore(false);
-            }
-        }
-    }, [nota]);
+      if (pageNum === 0) {
+        setItems(fetchedItems);
+      } else {
+        setItems(prev => [...prev, ...fetchedItems]);
+      }
+      
+      setHasMore(fetchedItems.length === PAGE_SIZE);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Falha ao carregar os itens da nota.";
+      setError(errorMessage);
+    } finally {
+      if (pageNum === 0) {
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
+    }
+  }, [nota]);
 
-    useEffect(() => {
-        if (isOpen && nota) {
-            setPage(0);
-            setItems([]);
-            fetchItems(0);
-        }
-    }, [isOpen, nota, fetchItems]);
+  useEffect(() => {
+    if (isOpen && nota) {
+      setPage(0);
+      setItems([]);
+      setActiveTab('resumo');
+      fetchItems(0);
+    }
+  }, [isOpen, nota, fetchItems]);
 
-    const handleLoadMore = () => {
-        if (!loadingMore) {
-            const nextPage = page + 1;
-            setPage(nextPage);
-            fetchItems(nextPage);
-        }
-    };
+  const handleLoadMore = () => {
+    if (!loadingMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchItems(nextPage);
+    }
+  };
 
-    if (!nota) return null;
+  if (!nota) return null;
 
-    const paymentLabel = (PAYMENT_METHODS as any)[nota.payment_method] || nota.payment_method || 'Não especificado';
+  const paymentLabel = (PAYMENT_METHODS as any)[nota.payment_method] || nota.payment_method || 'Não especificado';
 
-    return (
-        <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="drawer">
-            <ResponsiveModalContent className="max-w-4xl bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col h-[92vh] sm:h-full">
-                {/* Header */}
-                <ResponsiveModalHeader className="px-6 py-4 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20 flex items-center justify-center text-brand-blue-400 shrink-0">
-                                <FileTextIcon className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <ResponsiveModalTitle className="text-lg font-bold text-white flex items-center gap-2">
-                                    <span>NF-e #{nota.invoice_number || 'Sem Número'}</span>
-                                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-medium">
-                                        Registrada
-                                    </span>
-                                </ResponsiveModalTitle>
-                                <ResponsiveModalDescription className="text-xs text-gray-400 mt-0.5">
-                                    Emitida em {formatDate(nota.issue_date)} • Cadastrada em {formatDate(nota.created_at)}
-                                </ResponsiveModalDescription>
-                            </div>
-                        </div>
+  return (
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="drawer">
+      <ResponsiveModalContent size="xl" className="max-w-4xl flex flex-col p-0">
+        
+        {/* Header do Dossier */}
+        <ResponsiveModalHeader className="px-6 py-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20 flex items-center justify-center text-brand-blue-600 dark:text-brand-blue-400 shrink-0">
+                <FileTextIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <ResponsiveModalTitle className="text-base font-bold text-gray-900 dark:text-white">
+                    NF-e #{nota.invoice_number || 'Sem Número'}
+                  </ResponsiveModalTitle>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                    <CheckCircle2Icon className="h-3 w-3" /> Registrada
+                  </span>
+                </div>
+                <ResponsiveModalDescription className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Emissão: {formatDate(nota.issue_date)} • Cadastrada em: {formatDate(nota.created_at)}
+                </ResponsiveModalDescription>
+              </div>
+            </div>
 
-                        {nota.file_url && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleViewFile(nota.file_url!)}
-                                className="hidden sm:flex border-brand-blue-500/30 text-brand-blue-400 hover:bg-brand-blue-500/10 text-xs h-8 gap-1.5"
-                            >
-                                <PaperclipIcon className="h-3.5 w-3.5" />
-                                <span>Ver Anexo</span>
-                            </Button>
-                        )}
-                    </div>
-                </ResponsiveModalHeader>
-                
-                {/* Body Content */}
-                <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-gray-50/50 dark:bg-brand-dark-950/60 space-y-6">
-                    {/* Metadata Cards Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="bg-white dark:bg-brand-dark-900/80 border border-gray-200 dark:border-gray-800 p-3.5 rounded-xl shadow-sm">
-                            <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                                <BuildingIcon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" /> Fornecedor
-                            </span>
-                            <p className="text-sm font-bold text-gray-900 dark:text-white mt-1.5 truncate">
-                                {nota.suppliers?.name || 'Não informado'}
-                            </p>
-                        </div>
+            {nota.file_url && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleViewFile(nota.file_url!)}
+                className="h-8 text-xs font-semibold gap-1.5 border-brand-blue-500/30 text-brand-blue-600 dark:text-brand-blue-400 hover:bg-brand-blue-500/10"
+              >
+                <PaperclipIcon className="h-3.5 w-3.5" />
+                <span>Abrir Anexo</span>
+                <ExternalLinkIcon className="h-3 w-3 ml-0.5" />
+              </Button>
+            )}
+          </div>
 
-                        <div className="bg-white dark:bg-brand-dark-900/80 border border-gray-200 dark:border-gray-800 p-3.5 rounded-xl shadow-sm">
-                            <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                                <ConstructionIcon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" /> Obra / Projeto
-                            </span>
-                            <p className="text-sm font-bold text-gray-900 dark:text-white mt-1.5 truncate">
-                                {nota.projects?.name || 'Não vinculada'}
-                            </p>
-                        </div>
-
-                        <div className="bg-white dark:bg-brand-dark-900/80 border border-gray-200 dark:border-gray-800 p-3.5 rounded-xl shadow-sm">
-                            <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                                <CreditCardIcon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" /> Pagamento
-                            </span>
-                            <p className="text-sm font-bold text-gray-900 dark:text-white mt-1.5">
-                                {paymentLabel}
-                            </p>
-                        </div>
-
-                        <div className="bg-emerald-50/60 dark:bg-brand-dark-900/80 border border-emerald-200 dark:border-emerald-900/30 p-3.5 rounded-xl">
-                            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400/90 uppercase tracking-wider flex items-center gap-1.5">
-                                <TrendingUpIcon className="h-3.5 w-3.5 text-emerald-500" /> Valor Total
-                            </span>
-                            <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-1.5">
-                                {formatCurrency(nota.total_value)}
-                            </p>
-                            {Number(nota.shipping_value) > 0 && (
-                                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                    (Frete incluso: {formatCurrency(nota.shipping_value)})
-                                </p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Observations if available */}
-                    {nota.observations && (
-                        <div className="bg-white dark:bg-brand-dark-900/40 border border-gray-200 dark:border-gray-800/80 p-3.5 rounded-xl shadow-sm">
-                            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Observações:</span>
-                            <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 leading-relaxed whitespace-pre-wrap">{nota.observations}</p>
-                        </div>
+          {/* Abas Superiores de Navegação */}
+          <div className="flex items-center gap-2 pt-3 mt-3 border-t border-gray-100 dark:border-gray-800 text-xs">
+            <button
+              type="button"
+              onClick={() => setActiveTab('resumo')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                activeTab === 'resumo'
+                  ? 'bg-brand-blue-500 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-dark-800'
+              }`}
+            >
+              Resumo & Insumos ({items.length})
+            </button>
+            {nota.file_url && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('anexo')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'anexo'
+                    ? 'bg-brand-blue-500 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-dark-800'
+                }`}
+              >
+                <PaperclipIcon className="h-3.5 w-3.5" /> Comprovante Vinculado
+              </button>
+            )}
+          </div>
+        </ResponsiveModalHeader>
+        
+        {/* Corpo do Inspector Drawer */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50/60 dark:bg-brand-dark-950/50 space-y-5 custom-scrollbar">
+          
+          {activeTab === 'resumo' ? (
+            <>
+              {/* Banner de Destaque Financeiro */}
+              <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 sm:p-5 shadow-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  
+                  {/* KPI 1: Fornecedor */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                      <BuildingIcon className="h-3 w-3" /> Fornecedor
+                    </span>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                      {nota.suppliers?.name || 'Não informado'}
+                    </p>
+                    {nota.suppliers?.cnpj && (
+                      <p className="text-[11px] font-mono text-gray-500 dark:text-gray-400">
+                        CNPJ: {nota.suppliers.cnpj}
+                      </p>
                     )}
+                  </div>
 
-                    {/* Items Section */}
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wider flex items-center gap-2">
-                                <span>Itens da Nota Fiscal</span>
-                                {items.length > 0 && (
-                                    <span className="text-xs font-normal text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-brand-dark-800 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700">
-                                        {items.length} itens listados
-                                    </span>
-                                )}
-                            </h3>
-                        </div>
+                  {/* KPI 2: Obra */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                      <ConstructionIcon className="h-3 w-3" /> Obra Vinculada
+                    </span>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                      {nota.projects?.name || 'Não vinculada'}
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Centro de Custo
+                    </p>
+                  </div>
 
-                        {loading ? (
-                            <div className="flex flex-col items-center justify-center py-16 space-y-3 bg-white dark:bg-brand-dark-900/30 border border-gray-200 dark:border-gray-800 rounded-xl">
-                                <div className="w-8 h-8 border-2 border-brand-blue-500/30 border-t-brand-blue-500 rounded-full animate-spin" />
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Carregando itens da nota fiscal...</p>
-                            </div>
-                        ) : error ? (
-                            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
-                                <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
-                            </div>
-                        ) : items.length === 0 ? (
-                            <div className="text-center py-14 bg-white dark:bg-brand-dark-900/30 border border-dashed border-gray-300 dark:border-gray-800 rounded-xl">
-                                <FileTextIcon className="w-8 h-8 text-gray-400 dark:text-gray-600 mx-auto mb-2" />
-                                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Nenhum item associado a esta nota.</p>
-                            </div>
-                        ) : (
-                            <>
-                                {/* Desktop High-Density Table */}
-                                <div className="hidden sm:block overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900/40 shadow-sm">
-                                    <table className="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-brand-dark-900/90 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                <th className="py-3 px-4">Item & Descrição</th>
-                                                <th className="py-3 px-3">Categoria</th>
-                                                <th className="py-3 px-3 text-right">Qtd</th>
-                                                <th className="py-3 px-3 text-right">Preço Unit.</th>
-                                                <th className="py-3 px-4 text-right">Total</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 text-xs text-gray-700 dark:text-gray-200">
-                                            {items.map((item) => (
-                                                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-brand-dark-800/40 transition-colors">
-                                                    <td className="py-3 px-4">
-                                                        <p className="font-semibold text-gray-900 dark:text-white">{item.description}</p>
-                                                        {item.manufacturer && (
-                                                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Fabr: {item.manufacturer}</p>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-3 px-3">
-                                                        <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded-md border ${getCategoryBadgeClass(item.category)}`}>
-                                                            {item.category}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-3 px-3 text-right whitespace-nowrap">
-                                                        <span className="font-mono">{item.quantity}</span>
-                                                        <span className="text-gray-400 dark:text-gray-500 ml-1">{item.unit_of_measure || 'un'}</span>
-                                                    </td>
-                                                    <td className="py-3 px-3 text-right font-mono text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                                                        {formatCurrency(item.unit_price)}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-right font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
-                                                        {formatCurrency(item.total_price)}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                  {/* KPI 3: Forma Pagamento */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                      <CreditCardIcon className="h-3 w-3" /> Pagamento
+                    </span>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white capitalize">
+                      {paymentLabel}
+                    </p>
+                    {Number(nota.shipping_value) > 0 && (
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Frete: {formatCurrency(nota.shipping_value)}
+                      </p>
+                    )}
+                  </div>
 
-                                {/* Mobile Stacked Cards */}
-                                <div className="sm:hidden space-y-2.5">
-                                    {items.map((item) => (
-                                        <div key={item.id} className="p-3.5 bg-white dark:bg-brand-dark-900/60 border border-gray-200 dark:border-gray-800 rounded-xl space-y-2 shadow-sm">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <p className="font-semibold text-gray-900 dark:text-white text-sm">{item.description}</p>
-                                                <span className={`shrink-0 px-2 py-0.5 text-[10px] font-medium rounded border ${getCategoryBadgeClass(item.category)}`}>
-                                                    {item.category}
-                                                </span>
-                                            </div>
-                                            {item.manufacturer && (
-                                                <p className="text-[11px] text-gray-500 dark:text-gray-400">Fabricante: {item.manufacturer}</p>
-                                            )}
-                                            <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800/80 text-xs">
-                                                <span className="text-gray-500 dark:text-gray-400">
-                                                    {item.quantity} {item.unit_of_measure || 'un'} × {formatCurrency(item.unit_price)}
-                                                </span>
-                                                <span className="font-bold text-gray-900 dark:text-white font-mono">{formatCurrency(item.total_price)}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                  {/* KPI 4: Valor Total */}
+                  <div className="space-y-1 bg-emerald-50/60 dark:bg-brand-dark-950 p-3 rounded-xl border border-emerald-500/20">
+                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                      <DollarSignIcon className="h-3 w-3" /> Valor Total
+                    </span>
+                    <p className="text-xl font-black font-mono text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(nota.total_value)}
+                    </p>
+                  </div>
 
-                                {hasMore && (
-                                    <div className="pt-2">
-                                        <Button
-                                            variant="outline"
-                                            className="w-full h-9 text-xs border-gray-800 hover:bg-gray-800 text-gray-300"
-                                            onClick={handleLoadMore}
-                                            isLoading={loadingMore}
-                                            disabled={loadingMore}
-                                        >
-                                            Carregar mais itens
-                                        </Button>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
+                </div>
+              </div>
+
+              {/* Observações */}
+              {nota.observations && (
+                <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 p-4 rounded-xl shadow-sm space-y-1">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Observações e Notas
+                  </span>
+                  <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                    {nota.observations}
+                  </p>
+                </div>
+              )}
+
+              {/* Seção de Insumos */}
+              <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+                  <div className="flex items-center gap-2">
+                    <PackageIcon className="h-4 w-4 text-brand-blue-500" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                      Itens Discriminados
+                    </h3>
+                  </div>
+                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    {items.length} {items.length === 1 ? 'item' : 'itens'}
+                  </span>
                 </div>
 
-                {/* Footer */}
-                <ResponsiveModalFooter className="px-6 py-4 border-t border-gray-800 bg-brand-dark-900 flex justify-between items-center gap-3">
-                    {nota.file_url ? (
-                        <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="border-brand-blue-500/30 text-brand-blue-400 hover:bg-brand-blue-500/10 text-xs h-9 px-3 gap-1.5"
-                            onClick={() => handleViewFile(nota.file_url!)}
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                    <div className="w-8 h-8 border-2 border-brand-blue-500/30 border-t-brand-blue-500 rounded-full animate-spin" />
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Carregando itens da nota fiscal...</p>
+                  </div>
+                ) : error ? (
+                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
+                    <p className="text-xs text-red-500">{error}</p>
+                  </div>
+                ) : items.length === 0 ? (
+                  <div className="text-center py-10 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
+                    <PackageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2 opacity-50" />
+                    <p className="text-xs text-gray-500 font-medium">Nenhum item discriminado para esta nota fiscal.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[550px]">
+                        <thead>
+                          <tr className="border-b border-gray-200 dark:border-gray-800 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                            <th className="py-2.5 px-3">Item / Discriminação</th>
+                            <th className="py-2.5 px-3">Categoria</th>
+                            <th className="py-2.5 px-3 text-right">Qtd</th>
+                            <th className="py-2.5 px-3 text-right">Preço Unit.</th>
+                            <th className="py-2.5 px-3 text-right">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 text-xs">
+                          {items.map((item) => (
+                            <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-brand-dark-800/30 transition-colors">
+                              <td className="py-3 px-3">
+                                <p className="font-semibold text-gray-900 dark:text-white">{item.description}</p>
+                                {item.manufacturer && (
+                                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">Fabr: {item.manufacturer}</p>
+                                )}
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-md border ${getCategoryBadgeClass(item.category)}`}>
+                                  {item.category}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-right font-mono">
+                                <span>{item.quantity}</span>
+                                <span className="text-gray-400 ml-1 text-[11px]">{item.unit_of_measure || 'un'}</span>
+                              </td>
+                              <td className="py-3 px-3 text-right font-mono text-gray-600 dark:text-gray-300">
+                                {formatCurrency(item.unit_price)}
+                              </td>
+                              <td className="py-3 px-3 text-right font-mono font-bold text-gray-900 dark:text-white">
+                                {formatCurrency(item.total_price)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {hasMore && (
+                      <div className="pt-2 text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleLoadMore}
+                          isLoading={loadingMore}
+                          className="h-8 text-xs font-semibold px-4"
                         >
-                            <PaperclipIcon className="h-4 w-4" />
-                            <span>Abrir Comprovante</span>
+                          Carregar mais itens
                         </Button>
-                    ) : <div />}
-                    
-                    <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={onClose} 
-                        className="text-xs h-9 px-4 text-gray-300 hover:text-white hover:bg-brand-dark-800"
-                    >
-                        Fechar
-                    </Button>
-                </ResponsiveModalFooter>
-            </ResponsiveModalContent>
-        </ResponsiveModal>
-    );
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </>
+          ) : (
+            /* Tab Anexo */
+            <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center min-h-[350px] text-center space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-brand-blue-500/10 border border-brand-blue-500/20 flex items-center justify-center text-brand-blue-600 dark:text-brand-blue-400">
+                <PaperclipIcon className="h-7 w-7" />
+              </div>
+              <div className="max-w-md">
+                <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                  Documento Fiscal Digitalizado
+                </h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Este registro possui um anexo original armazenado com segurança no storage do projeto.
+                </p>
+              </div>
+              <Button
+                onClick={() => handleViewFile(nota.file_url!)}
+                className="gap-2 bg-brand-blue-600 hover:bg-brand-blue-500 text-white font-semibold text-xs h-9 px-5"
+              >
+                <ExternalLinkIcon className="h-4 w-4" /> Visualizar Documento Completo
+              </Button>
+            </div>
+          )}
+
+        </div>
+
+        {/* Footer */}
+        <ResponsiveModalFooter className="px-6 py-4 flex-shrink-0 flex items-center justify-end border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">
+          <Button 
+            variant="ghost" 
+            onClick={onClose} 
+            className="text-xs font-semibold h-9 px-4 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          >
+            Fechar
+          </Button>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
+  );
 };
 
 export default DetalhesNotaModal;
