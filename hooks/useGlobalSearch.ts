@@ -5,10 +5,13 @@ import { ServiceStatus, TaskStatus, TaskPriority, ProjectStatus } from '../types
 
 // ============================================================================
 // Tipos de Retorno Fortemente Tipados para Resultados da Busca Global
+// Com IDs explícitos para Deep Linking e Edição Direta
 // ============================================================================
 
 export interface GlobalSearchInvoiceItem {
   id: string;
+  item_id: string;
+  nota_id: string;
   nota_fiscal_id: string;
   description: string;
   manufacturer: string | null;
@@ -25,8 +28,19 @@ export interface GlobalSearchInvoiceItem {
   project_id: string | null;
 }
 
+export interface GlobalSearchNotaFiscal {
+  id: string;
+  nota_id: string;
+  invoice_number: string;
+  issue_date: string;
+  total_value: number;
+  supplier_name: string | null;
+  project_name: string | null;
+}
+
 export interface GlobalSearchService {
   id: string;
+  servico_id: string;
   description: string;
   status: ServiceStatus;
   start_date: string;
@@ -42,7 +56,9 @@ export interface GlobalSearchService {
 
 export interface GlobalSearchAdvance {
   id: string;
+  adiantamento_id: string;
   service_id: string;
+  servico_id: string;
   value: number;
   payment_date: string;
   description: string | null;
@@ -55,6 +71,7 @@ export interface GlobalSearchAdvance {
 
 export interface GlobalSearchTask {
   id: string;
+  tarefa_id: string;
   title: string;
   description: string;
   project_id: string;
@@ -71,6 +88,7 @@ export interface GlobalSearchTask {
 
 export interface GlobalSearchSupplier {
   id: string;
+  fornecedor_id: string;
   name: string;
   cnpj: string | null;
   seller: string | null;
@@ -81,6 +99,7 @@ export interface GlobalSearchSupplier {
 
 export interface GlobalSearchCollaborator {
   id: string;
+  colaborador_id: string;
   name: string;
   role: string | null;
   phone: string | null;
@@ -90,6 +109,7 @@ export interface GlobalSearchCollaborator {
 
 export interface GlobalSearchProject {
   id: string;
+  projeto_id: string;
   name: string;
   status: ProjectStatus;
   manager: string | null;
@@ -101,6 +121,7 @@ export interface GlobalSearchProject {
 
 export interface GlobalSearchCartorio {
   id: string;
+  cartorio_id: string;
   description: string;
   amount: number;
   issue_date: string;
@@ -111,17 +132,9 @@ export interface GlobalSearchCartorio {
   created_at: string;
 }
 
-export interface GlobalSearchNotaFiscal {
-  id: string;
-  invoice_number: string;
-  issue_date: string;
-  total_value: number;
-  supplier_name: string | null;
-  project_name: string | null;
-}
-
 export interface GlobalSearchResults {
   items: GlobalSearchInvoiceItem[];
+  notas: GlobalSearchNotaFiscal[];
   servicos: GlobalSearchService[];
   adiantamentos: GlobalSearchAdvance[];
   tasks: GlobalSearchTask[];
@@ -129,7 +142,6 @@ export interface GlobalSearchResults {
   collaborators: GlobalSearchCollaborator[];
   projects: GlobalSearchProject[];
   cartorio: GlobalSearchCartorio[];
-  notas: GlobalSearchNotaFiscal[];
   totalCount: number;
 }
 
@@ -147,6 +159,7 @@ export interface PriceRecord {
   projectName?: string;
   invoiceNumber?: string;
   description?: string;
+  nota_id?: string;
 }
 
 export interface PriceStats {
@@ -188,6 +201,7 @@ export interface UseGlobalSearchResult {
 
 const INITIAL_RESULTS: GlobalSearchResults = {
   items: [],
+  notas: [],
   servicos: [],
   adiantamentos: [],
   tasks: [],
@@ -195,12 +209,11 @@ const INITIAL_RESULTS: GlobalSearchResults = {
   collaborators: [],
   projects: [],
   cartorio: [],
-  notas: [],
   totalCount: 0,
 };
 
 // ============================================================================
-// Função Utilitária Interna para Calcular Inteligência de Preços
+// Função Utilitária para Calcular Inteligência de Preços
 // ============================================================================
 
 function calculatePriceStats(items: GlobalSearchInvoiceItem[]): PriceStats | null {
@@ -230,6 +243,7 @@ function calculatePriceStats(items: GlobalSearchInvoiceItem[]): PriceStats | nul
     projectName: latest.project_name || undefined,
     invoiceNumber: latest.invoice_number,
     description: latest.description,
+    nota_id: latest.nota_id,
   };
 
   // Ordenar por valor unitário crescente para lowestPrice e highestPrice
@@ -247,6 +261,7 @@ function calculatePriceStats(items: GlobalSearchInvoiceItem[]): PriceStats | nul
     projectName: lowest.project_name || undefined,
     invoiceNumber: lowest.invoice_number,
     description: lowest.description,
+    nota_id: lowest.nota_id,
   };
 
   const highestPrice: PriceRecord = {
@@ -259,6 +274,7 @@ function calculatePriceStats(items: GlobalSearchInvoiceItem[]): PriceStats | nul
     projectName: highest.project_name || undefined,
     invoiceNumber: highest.invoice_number,
     description: highest.description,
+    nota_id: highest.nota_id,
   };
 
   // Média Simples dos Preços Unitários
@@ -359,7 +375,7 @@ export function useGlobalSearch(
     setIsLoading(false);
   }, []);
 
-  // 2. Execução da Busca Global com Promise.all
+  // 2. Execução da Busca Global com Promise.all e Ordenação Cronológica Recente
   const executeSearch = useCallback(
     async (termToSearch: string) => {
       const cleanTerm = termToSearch.trim();
@@ -371,7 +387,7 @@ export function useGlobalSearch(
         return;
       }
 
-      // Sanitizar caracteres especiais que interferem com sintaxe de filtros PostgREST
+      // Sanitizar caracteres especiais para PostgREST
       const sanitizedTerm = cleanTerm.replace(/[,()]/g, ' ').trim();
       if (!sanitizedTerm) return;
 
@@ -380,9 +396,10 @@ export function useGlobalSearch(
       setError(null);
 
       try {
-        // Disparar buscas simultâneas com Promise.all utilizando ilike('%termo%')
+        // Disparar buscas simultâneas em todas as entidades com ordenação decrescente
         const [
           itemsResponse,
+          notasResponse,
           servicosResponse,
           adiantamentosResponse,
           tasksResponse,
@@ -390,7 +407,6 @@ export function useGlobalSearch(
           collaboratorsResponse,
           projectsResponse,
           cartorioResponse,
-          notasResponse,
         ] = await Promise.all([
           // 1. Itens de Notas Fiscais (JOIN com notas_fiscais e fornecedores)
           supabase
@@ -419,7 +435,24 @@ export function useGlobalSearch(
             .order('id', { ascending: false })
             .limit(50),
 
-          // 2. Serviços
+          // 2. Notas Fiscais (Busca direta por número ou observações)
+          supabase
+            .from('notas_fiscais')
+            .select(`
+              id,
+              invoice_number,
+              issue_date,
+              total_value,
+              company_id,
+              suppliers ( id, name ),
+              projects ( id, name )
+            `)
+            .eq('company_id', effectiveCompanyId)
+            .or(`invoice_number.ilike.%${sanitizedTerm}%,observations.ilike.%${sanitizedTerm}%`)
+            .order('issue_date', { ascending: false })
+            .limit(30),
+
+          // 3. Serviços (ordenação por start_date mais recente)
           supabase
             .from('servicos')
             .select(`
@@ -439,10 +472,10 @@ export function useGlobalSearch(
             `)
             .eq('company_id', effectiveCompanyId)
             .ilike('description', `%${sanitizedTerm}%`)
-            .order('created_at', { ascending: false })
+            .order('start_date', { ascending: false })
             .limit(30),
 
-          // 3. Adiantamentos
+          // 4. Adiantamentos (tabela de adiantamentos com ordenação por payment_date mais recente)
           supabase
             .from('adiantamentos')
             .select(`
@@ -466,7 +499,7 @@ export function useGlobalSearch(
             .order('payment_date', { ascending: false })
             .limit(30),
 
-          // 4. Tarefas
+          // 5. Tarefas (ordenação por created_at mais recente)
           supabase
             .from('tasks')
             .select(`
@@ -490,7 +523,7 @@ export function useGlobalSearch(
             .order('created_at', { ascending: false })
             .limit(30),
 
-          // 5. Cadastros: Fornecedores
+          // 6. Cadastros: Fornecedores (ordenação por created_at mais recente)
           supabase
             .from('suppliers')
             .select(`
@@ -501,14 +534,15 @@ export function useGlobalSearch(
               seller_contact,
               service_rating,
               delivery_rating,
-              company_id
+              company_id,
+              created_at
             `)
             .eq('company_id', effectiveCompanyId)
             .or(`name.ilike.%${sanitizedTerm}%,cnpj.ilike.%${sanitizedTerm}%,seller.ilike.%${sanitizedTerm}%`)
-            .order('name', { ascending: true })
+            .order('created_at', { ascending: false })
             .limit(30),
 
-          // 6. Cadastros: Colaboradores
+          // 7. Cadastros: Colaboradores (ordenação por created_at mais recente)
           supabase
             .from('collaborators')
             .select(`
@@ -518,14 +552,15 @@ export function useGlobalSearch(
               phone,
               document,
               rating,
-              company_id
+              company_id,
+              created_at
             `)
             .eq('company_id', effectiveCompanyId)
             .or(`name.ilike.%${sanitizedTerm}%,role.ilike.%${sanitizedTerm}%,document.ilike.%${sanitizedTerm}%`)
-            .order('name', { ascending: true })
+            .order('created_at', { ascending: false })
             .limit(30),
 
-          // 7. Cadastros: Obras / Projetos
+          // 8. Cadastros: Obras / Projetos (ordenação por created_at mais recente)
           supabase
             .from('projects')
             .select(`
@@ -537,14 +572,15 @@ export function useGlobalSearch(
               end_date,
               address_city,
               address_state,
-              company_id
+              company_id,
+              created_at
             `)
             .eq('company_id', effectiveCompanyId)
             .or(`name.ilike.%${sanitizedTerm}%,manager.ilike.%${sanitizedTerm}%`)
-            .order('name', { ascending: true })
+            .order('created_at', { ascending: false })
             .limit(30),
 
-          // 8. Cartório
+          // 9. Cartório (ordenação por issue_date mais recente)
           supabase
             .from('cartorio_records')
             .select(`
@@ -563,39 +599,24 @@ export function useGlobalSearch(
             .ilike('description', `%${sanitizedTerm}%`)
             .order('issue_date', { ascending: false })
             .limit(30),
-
-          // 9. Notas Fiscais (Busca direta por número da nota fiscal ou observações)
-          supabase
-            .from('notas_fiscais')
-            .select(`
-              id,
-              invoice_number,
-              issue_date,
-              total_value,
-              company_id,
-              suppliers ( id, name ),
-              projects ( id, name )
-            `)
-            .eq('company_id', effectiveCompanyId)
-            .or(`invoice_number.ilike.%${sanitizedTerm}%,observations.ilike.%${sanitizedTerm}%`)
-            .order('issue_date', { ascending: false })
-            .limit(30),
         ]);
 
-        // Se uma busca mais recente já foi iniciada, descartar resposta antiga
         if (currentRequestId !== requestIdRef.current) {
           return;
         }
 
-        // Mapear Itens de Notas Fiscais
+        // 1. Mapear Itens de Notas Fiscais
         const mappedItems: GlobalSearchInvoiceItem[] = (itemsResponse.data || []).map((raw: any) => {
           const nota = raw.notas_fiscais || {};
           const supplier = nota.suppliers || null;
           const project = nota.projects || null;
+          const notaId = raw.nota_fiscal_id || nota.id || raw.id;
 
           return {
             id: raw.id,
-            nota_fiscal_id: raw.nota_fiscal_id,
+            item_id: raw.id,
+            nota_id: notaId,
+            nota_fiscal_id: notaId,
             description: raw.description,
             manufacturer: raw.manufacturer || null,
             unit_of_measure: raw.unit_of_measure || null,
@@ -612,9 +633,21 @@ export function useGlobalSearch(
           };
         });
 
-        // Mapear Serviços
+        // 2. Mapear Notas Fiscais
+        const mappedNotas: GlobalSearchNotaFiscal[] = (notasResponse.data || []).map((raw: any) => ({
+          id: raw.id,
+          nota_id: raw.id,
+          invoice_number: raw.invoice_number,
+          issue_date: raw.issue_date,
+          total_value: Number(raw.total_value) || 0,
+          supplier_name: raw.suppliers?.name || null,
+          project_name: raw.projects?.name || null,
+        }));
+
+        // 3. Mapear Serviços
         const mappedServicos: GlobalSearchService[] = (servicosResponse.data || []).map((raw: any) => ({
           id: raw.id,
+          servico_id: raw.id,
           description: raw.description,
           status: raw.status,
           start_date: raw.start_date,
@@ -628,12 +661,14 @@ export function useGlobalSearch(
           created_at: raw.created_at,
         }));
 
-        // Mapear Adiantamentos
+        // 4. Mapear Adiantamentos
         const mappedAdiantamentos: GlobalSearchAdvance[] = (adiantamentosResponse.data || []).map((raw: any) => {
           const servico = raw.servicos || {};
           return {
             id: raw.id,
+            adiantamento_id: raw.id,
             service_id: raw.service_id,
+            servico_id: raw.service_id,
             value: Number(raw.value) || 0,
             payment_date: raw.payment_date,
             description: raw.description || null,
@@ -645,9 +680,10 @@ export function useGlobalSearch(
           };
         });
 
-        // Mapear Tarefas
+        // 5. Mapear Tarefas
         const mappedTasks: GlobalSearchTask[] = (tasksResponse.data || []).map((raw: any) => ({
           id: raw.id,
+          tarefa_id: raw.id,
           title: raw.title,
           description: raw.description,
           project_id: raw.project_id,
@@ -662,9 +698,10 @@ export function useGlobalSearch(
           created_at: raw.created_at,
         }));
 
-        // Mapear Fornecedores
+        // 6. Mapear Fornecedores
         const mappedSuppliers: GlobalSearchSupplier[] = (suppliersResponse.data || []).map((raw: any) => ({
           id: raw.id,
+          fornecedor_id: raw.id,
           name: raw.name,
           cnpj: raw.cnpj || null,
           seller: raw.seller || null,
@@ -673,9 +710,10 @@ export function useGlobalSearch(
           delivery_rating: Number(raw.delivery_rating) || 0,
         }));
 
-        // Mapear Colaboradores
+        // 7. Mapear Colaboradores
         const mappedCollaborators: GlobalSearchCollaborator[] = (collaboratorsResponse.data || []).map((raw: any) => ({
           id: raw.id,
+          colaborador_id: raw.id,
           name: raw.name,
           role: raw.role || null,
           phone: raw.phone || null,
@@ -683,9 +721,10 @@ export function useGlobalSearch(
           rating: Number(raw.rating) || 0,
         }));
 
-        // Mapear Projetos
+        // 8. Mapear Projetos / Obras
         const mappedProjects: GlobalSearchProject[] = (projectsResponse.data || []).map((raw: any) => ({
           id: raw.id,
+          projeto_id: raw.id,
           name: raw.name,
           status: raw.status,
           manager: raw.manager || null,
@@ -695,9 +734,10 @@ export function useGlobalSearch(
           end_date: raw.end_date || null,
         }));
 
-        // Mapear Cartório
+        // 9. Mapear Cartório
         const mappedCartorio: GlobalSearchCartorio[] = (cartorioResponse.data || []).map((raw: any) => ({
           id: raw.id,
+          cartorio_id: raw.id,
           description: raw.description,
           amount: Number(raw.amount) || 0,
           issue_date: raw.issue_date,
@@ -708,29 +748,20 @@ export function useGlobalSearch(
           created_at: raw.created_at,
         }));
 
-        // Mapear Notas Fiscais
-        const mappedNotas: GlobalSearchNotaFiscal[] = (notasResponse.data || []).map((raw: any) => ({
-          id: raw.id,
-          invoice_number: raw.invoice_number,
-          issue_date: raw.issue_date,
-          total_value: Number(raw.total_value) || 0,
-          supplier_name: raw.suppliers?.name || null,
-          project_name: raw.projects?.name || null,
-        }));
-
         const totalCount =
           mappedItems.length +
+          mappedNotas.length +
           mappedServicos.length +
           mappedAdiantamentos.length +
           mappedTasks.length +
           mappedSuppliers.length +
           mappedCollaborators.length +
           mappedProjects.length +
-          mappedCartorio.length +
-          mappedNotas.length;
+          mappedCartorio.length;
 
         setResults({
           items: mappedItems,
+          notas: mappedNotas,
           servicos: mappedServicos,
           adiantamentos: mappedAdiantamentos,
           tasks: mappedTasks,
@@ -738,7 +769,6 @@ export function useGlobalSearch(
           collaborators: mappedCollaborators,
           projects: mappedProjects,
           cartorio: mappedCartorio,
-          notas: mappedNotas,
           totalCount,
         });
 

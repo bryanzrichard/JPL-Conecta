@@ -87,6 +87,7 @@ function App() {
                   <Route path="/servicos" element={<Servicos />} />
                   <Route path="/historico" element={<Historico />} />
                   <Route path="/registro" element={<Registros />} />
+                  <Route path="/registros" element={<Navigate to="/registro" replace />} />
                   <Route path="/cartorio" element={<Cartorio />} />
                   <Route path="/tarefas" element={<Tarefas />} />
                   {/* Catch-all for authenticated users, redirects to home */}

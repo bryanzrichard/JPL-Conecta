@@ -5,8 +5,8 @@ import {
   SearchIcon, XIcon, FileTextIcon, ConstructionIcon, 
   ClipboardListIcon, BuildingIcon, UsersIcon, HistoryIcon, 
   TrendingDownIcon, TrendingUpIcon, DollarSignIcon, TagIcon,
-  SparklesIcon, ArrowRightIcon, ShoppingBagIcon, CheckCircleIcon,
-  ChevronRightIcon
+  SparklesIcon, ShoppingBagIcon, ChevronRightIcon, EditIcon,
+  CreditCardIcon
 } from '../lib/icons';
 
 interface GlobalSearchModalProps {
@@ -15,7 +15,7 @@ interface GlobalSearchModalProps {
   initialQuery?: string;
 }
 
-type SearchTab = 'all' | 'items' | 'servicos' | 'tasks' | 'cadastros' | 'cartorio';
+type SearchTab = 'all' | 'items' | 'servicos' | 'adiantamentos' | 'tasks' | 'cadastros' | 'cartorio';
 
 const SUGGESTIONS = [
   'Cimento',
@@ -96,17 +96,20 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     return {
       all: results.totalCount,
       items: results.items.length + results.notas.length,
-      servicos: results.servicos.length + results.adiantamentos.length,
+      servicos: results.servicos.length,
+      adiantamentos: results.adiantamentos.length,
       tasks: results.tasks.length,
       cadastros: results.suppliers.length + results.collaborators.length + results.projects.length,
       cartorio: results.cartorio.length,
     };
   }, [results]);
 
-  // Navegações rápidas
-  const handleNavigate = (path: string, state?: any) => {
+  // Deep Linking Navigation: Redireciona com parâmetro de edição na URL
+  const handleDeepLink = (path: string, params: Record<string, string>) => {
     onClose();
-    navigate(path, { state });
+    const query = new URLSearchParams(params).toString();
+    const targetUrl = query ? `${path}?${query}` : path;
+    navigate(targetUrl);
   };
 
   if (!isOpen) return null;
@@ -165,7 +168,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
         </div>
 
         {/* ========================================================= */}
-        {/* TABS DE FILTRO                                            */}
+        {/* TABS DE FILTRO (Com Adiantamentos em Destaque)             */}
         {/* ========================================================= */}
         <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900/30 overflow-x-auto custom-scrollbar shrink-0 text-xs">
           <button
@@ -214,6 +217,24 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             {hasSearched && tabCounts.servicos > 0 && (
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'servicos' ? 'bg-white/20 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
                 {tabCounts.servicos}
+              </span>
+            )}
+          </button>
+
+          {/* ABA DEDICADA PARA ADIANTAMENTOS */}
+          <button
+            onClick={() => setActiveTab('adiantamentos')}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'adiantamentos'
+                ? 'bg-brand-blue-600 text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-dark-800'
+            }`}
+          >
+            <CreditCardIcon className="h-3.5 w-3.5" />
+            <span>Adiantamentos</span>
+            {hasSearched && tabCounts.adiantamentos > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'adiantamentos' ? 'bg-white/20 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
+                {tabCounts.adiantamentos}
               </span>
             )}
           </button>
@@ -286,7 +307,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   Busca Global & Inteligência de Preços
                 </h3>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                  Pesquise itens de compras para comparar preços históricos, ou encontre contratos de serviços, tarefas, fornecedores e documentos em instantes.
+                  Pesquise insumos para comparar preços históricos, ou encontre contratos de serviços, adiantamentos, tarefas, fornecedores e documentos para edição direta.
                 </p>
               </div>
 
@@ -344,9 +365,13 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               {/* 3 CARDS DE INTELIGÊNCIA DE PREÇOS */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* 1. Último Preço Pago */}
-                <div className="p-3.5 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between">
+                <div 
+                  onClick={() => priceStats.lastPurchase?.nota_id && handleDeepLink('/notas', { editar: priceStats.lastPurchase.nota_id })}
+                  className="p-3.5 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between cursor-pointer hover:border-brand-blue-500/50 transition-all group"
+                  title="Clique para abrir esta Nota Fiscal"
+                >
                   <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-xs">
-                    <span className="font-medium">Último Preço Pago</span>
+                    <span className="font-medium group-hover:text-brand-blue-500 transition-colors">Último Preço Pago</span>
                     <HistoryIcon className="h-3.5 w-3.5 text-brand-blue-500" />
                   </div>
                   <div className="my-1.5">
@@ -366,7 +391,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 </div>
 
                 {/* 2. Menor Preço Histórico (🟢 Verde em Destaque) */}
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/30 shadow-sm flex flex-col justify-between">
+                <div 
+                  onClick={() => priceStats.lowestPrice?.nota_id && handleDeepLink('/notas', { editar: priceStats.lowestPrice.nota_id })}
+                  className="p-3.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/30 shadow-sm flex flex-col justify-between cursor-pointer hover:border-emerald-500 transition-all group"
+                  title="Clique para abrir esta Nota Fiscal de melhor preço"
+                >
                   <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400 text-xs">
                     <span className="font-semibold flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -426,7 +455,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   Itens Comprados & Insumos ({results.items.length})
                 </h4>
                 <button
-                  onClick={() => handleNavigate('/notas')}
+                  onClick={() => handleDeepLink('/notas', {})}
                   className="text-xs text-brand-blue-600 dark:text-brand-blue-400 hover:underline flex items-center gap-1 font-medium"
                 >
                   Ver em Notas <ChevronRightIcon className="h-3 w-3" />
@@ -442,7 +471,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   return (
                     <div
                       key={item.id}
-                      onClick={() => handleNavigate('/notas')}
+                      onClick={() => handleDeepLink('/notas', { editar: item.nota_id || item.nota_fiscal_id })}
                       className="p-3.5 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 hover:shadow-md transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       <div className="space-y-1 min-w-0 flex-1">
@@ -490,8 +519,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Valores Financeiros em Destaque */}
-                      <div className="flex items-center sm:flex-col sm:items-end justify-between border-t sm:border-t-0 pt-2 sm:pt-0 border-gray-100 dark:border-gray-800 shrink-0">
+                      {/* Valores Financeiros e Ação de Edição */}
+                      <div className="flex items-center sm:flex-col sm:items-end justify-between border-t sm:border-t-0 pt-2 sm:pt-0 border-gray-100 dark:border-gray-800 shrink-0 gap-1.5">
                         <div className="text-left sm:text-right">
                           <p className="text-[10px] uppercase font-semibold text-gray-400">Valor Unitário</p>
                           <p className="text-base font-bold text-brand-blue-600 dark:text-brand-blue-400">
@@ -501,9 +530,14 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                             </span>
                           </p>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Qtde: <strong className="text-gray-700 dark:text-gray-300">{item.quantity}</strong> • Total: <strong className="text-gray-900 dark:text-white">{formatCurrency(item.total_price)}</strong>
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Qtde: <strong className="text-gray-700 dark:text-gray-300">{item.quantity}</strong> • Total: <strong className="text-gray-900 dark:text-white">{formatCurrency(item.total_price)}</strong>
+                          </p>
+                          <span className="hidden group-hover:inline-flex items-center gap-1 text-[11px] font-semibold text-brand-blue-500 bg-brand-blue-500/10 px-2 py-0.5 rounded-md">
+                            <EditIcon className="h-3 w-3" /> Editar
+                          </span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -513,17 +547,17 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           )}
 
           {/* ======================================================= */}
-          {/* SEÇÃO: SERVIÇOS & ADIANTAMENTOS                         */}
+          {/* SEÇÃO: SERVIÇOS                                         */}
           {/* ======================================================= */}
-          {(activeTab === 'all' || activeTab === 'servicos') && (results.servicos.length > 0 || results.adiantamentos.length > 0) && (
+          {(activeTab === 'all' || activeTab === 'servicos') && results.servicos.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
                   <ConstructionIcon className="h-3.5 w-3.5 text-brand-blue-500" />
-                  Serviços & Adiantamentos ({results.servicos.length + results.adiantamentos.length})
+                  Serviços ({results.servicos.length})
                 </h4>
                 <button
-                  onClick={() => handleNavigate('/servicos')}
+                  onClick={() => handleDeepLink('/servicos', {})}
                   className="text-xs text-brand-blue-600 dark:text-brand-blue-400 hover:underline flex items-center gap-1 font-medium"
                 >
                   Ver em Serviços <ChevronRightIcon className="h-3 w-3" />
@@ -534,7 +568,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 {results.servicos.map((servico) => (
                   <div
                     key={servico.id}
-                    onClick={() => handleNavigate('/servicos')}
+                    onClick={() => handleDeepLink('/servicos', { editar: servico.servico_id || servico.id })}
                     className="p-3.5 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 hover:shadow-md transition-all cursor-pointer group space-y-2"
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -554,18 +588,47 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                       <span>Prestador: <strong className="text-gray-700 dark:text-gray-300 font-medium">{servico.collaborator_name || 'N/A'}</strong></span>
                       <span className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(servico.total_value)}</span>
                     </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-1.5">
+                      <span>Início: {formatDate(servico.start_date)}</span>
+                      <span className="text-brand-blue-500 font-medium group-hover:underline flex items-center gap-1">
+                        <EditIcon className="h-3 w-3" /> Editar Serviço
+                      </span>
+                    </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
 
+          {/* ======================================================= */}
+          {/* SEÇÃO: ADIANTAMENTOS                                    */}
+          {/* ======================================================= */}
+          {(activeTab === 'all' || activeTab === 'adiantamentos') && results.adiantamentos.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                  <CreditCardIcon className="h-3.5 w-3.5 text-brand-blue-500" />
+                  Adiantamentos ({results.adiantamentos.length})
+                </h4>
+                <button
+                  onClick={() => handleDeepLink('/servicos', {})}
+                  className="text-xs text-brand-blue-600 dark:text-brand-blue-400 hover:underline flex items-center gap-1 font-medium"
+                >
+                  Ver em Serviços <ChevronRightIcon className="h-3 w-3" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {results.adiantamentos.map((adv) => (
                   <div
                     key={adv.id}
-                    onClick={() => handleNavigate('/servicos')}
+                    onClick={() => handleDeepLink('/servicos', { editarAdiantamento: adv.adiantamento_id || adv.id })}
                     className="p-3.5 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 hover:shadow-md transition-all cursor-pointer group space-y-2"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-brand-blue-500 transition-colors line-clamp-1">
-                        Adiantamento: {adv.description || adv.service_description || 'Sem descrição'}
+                        {adv.description || adv.service_description || 'Adiantamento sem descrição'}
                       </span>
                       <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 shrink-0">
                         Adiantamento
@@ -575,6 +638,13 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-1">
                       <span>Data: {formatDate(adv.payment_date)}</span>
                       <span className="text-sm font-bold text-sky-600 dark:text-sky-400">{formatCurrency(adv.value)}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-1.5">
+                      <span>Prestador: {adv.collaborator_name || 'N/A'}</span>
+                      <span className="text-brand-blue-500 font-medium group-hover:underline flex items-center gap-1">
+                        <EditIcon className="h-3 w-3" /> Editar Adiantamento
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -593,7 +663,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   Tarefas de Obra ({results.tasks.length})
                 </h4>
                 <button
-                  onClick={() => handleNavigate('/tarefas')}
+                  onClick={() => handleDeepLink('/tarefas', {})}
                   className="text-xs text-brand-blue-600 dark:text-brand-blue-400 hover:underline flex items-center gap-1 font-medium"
                 >
                   Ver em Tarefas <ChevronRightIcon className="h-3 w-3" />
@@ -604,7 +674,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 {results.tasks.map((task) => (
                   <div
                     key={task.id}
-                    onClick={() => handleNavigate('/tarefas')}
+                    onClick={() => handleDeepLink('/tarefas', { editar: task.tarefa_id || task.id })}
                     className="p-3.5 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 hover:shadow-md transition-all cursor-pointer group space-y-2"
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -624,9 +694,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                       {task.description || 'Sem detalhes adicionais.'}
                     </p>
 
-                    <div className="flex items-center justify-between text-[11px] text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center justify-between text-[11px] text-gray-400 pt-1.5 border-t border-gray-100 dark:border-gray-800">
                       <span>Status: <strong className="text-gray-700 dark:text-gray-300 font-medium">{task.status}</strong></span>
-                      {task.project_name && <span>Obra: {task.project_name}</span>}
+                      <span className="text-brand-blue-500 font-medium group-hover:underline flex items-center gap-1">
+                        <EditIcon className="h-3 w-3" /> Editar Tarefa
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -645,7 +717,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   Cadastros Gerais ({results.suppliers.length + results.projects.length + results.collaborators.length})
                 </h4>
                 <button
-                  onClick={() => handleNavigate('/registro')}
+                  onClick={() => handleDeepLink('/registro', {})}
                   className="text-xs text-brand-blue-600 dark:text-brand-blue-400 hover:underline flex items-center gap-1 font-medium"
                 >
                   Ver em Cadastros <ChevronRightIcon className="h-3 w-3" />
@@ -656,12 +728,12 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 {results.suppliers.map((sup) => (
                   <div
                     key={sup.id}
-                    onClick={() => handleNavigate('/registro')}
-                    className="p-3 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 transition-all cursor-pointer group space-y-1"
+                    onClick={() => handleDeepLink('/registro', { editar: `fornecedor_${sup.fornecedor_id || sup.id}` })}
+                    className="p-3 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 transition-all cursor-pointer group space-y-1.5"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-semibold text-brand-blue-600 dark:text-brand-blue-400 uppercase">Fornecedor</span>
-                      <BuildingIcon className="h-3 w-3 text-gray-400" />
+                      <EditIcon className="h-3 w-3 text-gray-400 group-hover:text-brand-blue-500 transition-colors" />
                     </div>
                     <p className="font-semibold text-sm text-gray-900 dark:text-white truncate group-hover:text-brand-blue-500">{sup.name}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">CNPJ: {sup.cnpj || '-'}</p>
@@ -671,12 +743,12 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 {results.projects.map((proj) => (
                   <div
                     key={proj.id}
-                    onClick={() => handleNavigate('/registro')}
-                    className="p-3 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 transition-all cursor-pointer group space-y-1"
+                    onClick={() => handleDeepLink('/registro', { editar: `obra_${proj.projeto_id || proj.id}` })}
+                    className="p-3 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 transition-all cursor-pointer group space-y-1.5"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">Obra</span>
-                      <ConstructionIcon className="h-3 w-3 text-gray-400" />
+                      <EditIcon className="h-3 w-3 text-gray-400 group-hover:text-brand-blue-500 transition-colors" />
                     </div>
                     <p className="font-semibold text-sm text-gray-900 dark:text-white truncate group-hover:text-brand-blue-500">{proj.name}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{proj.status} • {proj.address_city || 'Local não informado'}</p>
@@ -686,12 +758,12 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 {results.collaborators.map((collab) => (
                   <div
                     key={collab.id}
-                    onClick={() => handleNavigate('/registro')}
-                    className="p-3 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 transition-all cursor-pointer group space-y-1"
+                    onClick={() => handleDeepLink('/registro', { editar: `colaborador_${collab.colaborador_id || collab.id}` })}
+                    className="p-3 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 transition-all cursor-pointer group space-y-1.5"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 uppercase">Colaborador</span>
-                      <UsersIcon className="h-3 w-3 text-gray-400" />
+                      <EditIcon className="h-3 w-3 text-gray-400 group-hover:text-brand-blue-500 transition-colors" />
                     </div>
                     <p className="font-semibold text-sm text-gray-900 dark:text-white truncate group-hover:text-brand-blue-500">{collab.name}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{collab.role || 'Sem função'} • {collab.phone || '-'}</p>
@@ -712,7 +784,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   Cartório & Emolumentos ({results.cartorio.length})
                 </h4>
                 <button
-                  onClick={() => handleNavigate('/cartorio')}
+                  onClick={() => handleDeepLink('/cartorio', {})}
                   className="text-xs text-brand-blue-600 dark:text-brand-blue-400 hover:underline flex items-center gap-1 font-medium"
                 >
                   Ver em Cartório <ChevronRightIcon className="h-3 w-3" />
@@ -723,8 +795,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 {results.cartorio.map((cart) => (
                   <div
                     key={cart.id}
-                    onClick={() => handleNavigate('/cartorio')}
-                    className="p-3.5 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 hover:shadow-md transition-all cursor-pointer group space-y-1.5"
+                    onClick={() => handleDeepLink('/cartorio', { editar: cart.cartorio_id || cart.id })}
+                    className="p-3.5 rounded-xl bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 hover:border-brand-blue-500/50 hover:shadow-md transition-all cursor-pointer group space-y-2"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-brand-blue-500 transition-colors line-clamp-1">
@@ -738,6 +810,12 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                       <span>Data: {formatDate(cart.issue_date)}</span>
                       {cart.project_name && <span>Obra: {cart.project_name}</span>}
+                    </div>
+
+                    <div className="flex items-center justify-end text-[11px] text-brand-blue-500 font-medium group-hover:underline pt-1 border-t border-gray-100 dark:border-gray-800">
+                      <span className="flex items-center gap-1">
+                        <EditIcon className="h-3 w-3" /> Editar Registro
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -756,7 +834,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[10px]">K</kbd> para abrir em qualquer tela
             </span>
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[10px]">ESC</kbd> para fechar
+              Clique no item para abrir o modal de edição correspondente
             </span>
           </div>
 
@@ -769,4 +847,5 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     </div>
   );
 };
+
 export default GlobalSearchModal;
