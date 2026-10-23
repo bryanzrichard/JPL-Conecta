@@ -469,12 +469,6 @@ const Servicos: React.FC = () => {
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nenhum serviço em andamento</h3>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Todos os serviços estão concluídos ou nenhum foi registrado ainda.</p>
                 </div>
-                    <div className="mx-auto p-3 bg-gray-800 rounded-full w-fit mb-4">
-                        <BriefcaseIcon className="h-8 w-8 text-brand-blue-500" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-white">Nenhum serviço em andamento</h3>
-                    <p className="mt-1 text-sm text-gray-400">Todos os serviços estão concluídos ou nenhum foi registrado ainda.</p>
-                </div>
             ) :
             <>
                 {/* Mobile: Cards */}
