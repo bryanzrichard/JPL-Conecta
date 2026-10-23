@@ -51,7 +51,7 @@ const ManagedCurrencyInput = ({ control, name, error }: { control: any; name: st
         <Input 
             value={displayValue} 
             onChange={handleChange} 
-            className={`text-right h-9 text-sm bg-brand-dark-950 border-gray-700 text-white ${error ? 'border-red-500 focus:ring-red-500' : ''}`} 
+            className={`text-right h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white ${error ? 'border-red-500 focus:ring-red-500' : ''}`} 
             placeholder="0,00" 
             inputMode="decimal"
         />
@@ -81,13 +81,13 @@ const ItemsManagerModal: React.FC<ItemsManagerModalProps> = ({ isOpen, onClose, 
           </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-brand-dark-950/50 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-gray-50/50 dark:bg-brand-dark-950/50 custom-scrollbar">
             {fields.map((field, index) => {
                 const itemErrors = errors.items?.[index];
                 return (
-                <div key={field.id} className="p-5 bg-gray-900/80 rounded-xl border border-gray-800 shadow-sm relative group transition-all hover:border-brand-blue-500/30 hover:bg-gray-900/90">
+                <div key={field.id} className="p-5 bg-white dark:bg-gray-900/80 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm relative group transition-all hover:border-brand-blue-500/30 hover:bg-gray-50 dark:hover:bg-gray-900/90">
                     {/* Micro-label for Index */}
-                    <div className="absolute -top-2.5 -left-2.5 w-7 h-7 rounded-full bg-brand-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow-lg border-2 border-brand-dark-900 z-10">
+                    <div className="absolute -top-2.5 -left-2.5 w-7 h-7 rounded-full bg-brand-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow-lg border-2 border-white dark:border-brand-dark-900 z-10">
                         {String(index + 1).padStart(2, '0')}
                     </div>
 
@@ -98,7 +98,7 @@ const ItemsManagerModal: React.FC<ItemsManagerModalProps> = ({ isOpen, onClose, 
                                 type="button" 
                                 variant="outline" 
                                 size="icon" 
-                                className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/20 border-red-900/30 rounded-lg -mr-1 -mt-1" 
+                                className="h-8 w-8 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-900/30 rounded-lg -mr-1 -mt-1" 
                                 onClick={() => remove(index)}
                                 title="Remover item"
                             >
@@ -111,14 +111,14 @@ const ItemsManagerModal: React.FC<ItemsManagerModalProps> = ({ isOpen, onClose, 
                         {/* Line 1: Description (Full width on mobile, 6 cols on desk) */}
                         <div className="md:col-span-6">
                             <InputGroup label="Descrição do Item *" error={itemErrors?.description?.message}>
-                                <Input {...register(`items.${index}.description`)} placeholder="Ex: Cimento CPII" className="bg-brand-dark-950 border-gray-700 h-10 text-sm text-white" />
+                                <Input {...register(`items.${index}.description`)} placeholder="Ex: Cimento CPII" className="bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 h-10 text-sm text-gray-900 dark:text-white" />
                             </InputGroup>
                         </div>
                         
                         {/* Line 1: Category (6 cols) */}
                         <div className="md:col-span-6 pr-8">
                             <InputGroup label="Categoria *" error={itemErrors?.category?.message}>
-                                <select {...register(`items.${index}.category`)} className="w-full rounded-lg border border-gray-700 bg-brand-dark-950 p-2 text-sm text-white focus:border-brand-blue-500 focus:ring-brand-blue-500 h-10 transition-all">
+                                <select {...register(`items.${index}.category`)} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-brand-dark-950 p-2 text-sm text-gray-900 dark:text-white focus:border-brand-blue-500 focus:ring-brand-blue-500 h-10 transition-all">
                                     {CATEGORIA_NOTA_ENUM.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                                 </select>
                             </InputGroup>
@@ -126,13 +126,13 @@ const ItemsManagerModal: React.FC<ItemsManagerModalProps> = ({ isOpen, onClose, 
                         
                         <div className="md:col-span-12 grid grid-cols-2 md:grid-cols-4 gap-4">
                             <InputGroup label="Fabricante">
-                                <Input {...register(`items.${index}.manufacturer`)} placeholder="Opcional" className="bg-brand-dark-950 border-gray-700 h-10 text-sm text-white" />
+                                <Input {...register(`items.${index}.manufacturer`)} placeholder="Opcional" className="bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 h-10 text-sm text-gray-900 dark:text-white" />
                             </InputGroup>
                             <InputGroup label="Un. Medida">
-                                <Input {...register(`items.${index}.unit_of_measure`)} placeholder="Ex: Un" className="bg-brand-dark-950 border-gray-700 h-10 text-sm text-white" />
+                                <Input {...register(`items.${index}.unit_of_measure`)} placeholder="Ex: Un" className="bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 h-10 text-sm text-gray-900 dark:text-white" />
                             </InputGroup>
                             <InputGroup label="Qtd *" error={itemErrors?.quantity?.message}>
-                                <Input type="text" inputMode="decimal" {...register(`items.${index}.quantity`)} className="text-right bg-brand-dark-950 border-gray-700 h-10 text-sm text-white font-mono" />
+                                <Input type="text" inputMode="decimal" {...register(`items.${index}.quantity`)} className="text-right bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 h-10 text-sm text-gray-900 dark:text-white font-mono" />
                             </InputGroup>
                             <InputGroup label="Valor Unit. *" error={itemErrors?.unit_price?.message}>
                                 <ManagedCurrencyInput control={control} name={`items.${index}.unit_price`} error={itemErrors?.unit_price} />
@@ -140,9 +140,9 @@ const ItemsManagerModal: React.FC<ItemsManagerModalProps> = ({ isOpen, onClose, 
                         </div>
                         
                         {/* Total Display */}
-                        <div className="md:col-span-12 flex items-center justify-end gap-3 pt-3 border-t border-gray-800">
-                            <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Total do Item</span>
-                            <div className="text-base font-mono font-bold text-brand-blue-400">
+                        <div className="md:col-span-12 flex items-center justify-end gap-3 pt-3 border-t border-gray-200 dark:border-gray-800">
+                            <span className="text-[10px] uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold">Total do Item</span>
+                            <div className="text-base font-mono font-bold text-brand-blue-600 dark:text-brand-blue-400">
                                 <ItemTotalDisplay control={control} index={index}/>
                             </div>
                         </div>
@@ -150,7 +150,7 @@ const ItemsManagerModal: React.FC<ItemsManagerModalProps> = ({ isOpen, onClose, 
                 </div>
             )})}
             {fields.length === 0 && (
-                <div className="text-center py-10 text-gray-400 bg-gray-900/30 rounded-lg border border-dashed border-gray-700 text-sm">
+                <div className="text-center py-10 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-sm">
                     <p>Nenhum item adicionado.</p>
                 </div>
             )}

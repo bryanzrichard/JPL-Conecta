@@ -147,10 +147,10 @@ const QuickSupplierModal: React.FC<QuickSupplierModalProps> = ({ isOpen, onClose
           </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50">
+        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-gray-50/50 dark:bg-brand-dark-950/50">
           <form id="quick-supplier-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <InputGroup label="Nome / Razão Social *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
-              <Input {...register('name')} placeholder="Nome do Fornecedor" className="bg-brand-dark-950 border-gray-700" />
+              <Input {...register('name')} placeholder="Nome do Fornecedor" className="bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white" />
             </InputGroup>
             
             <InputGroup label="CNPJ *" error={shouldShowError('cnpj') ? errors.cnpj?.message as string : undefined}>
@@ -165,7 +165,7 @@ const QuickSupplierModal: React.FC<QuickSupplierModalProps> = ({ isOpen, onClose
                           placeholder="00.000.000/0000-00" 
                           maxLength={18}
                           onBlur={field.onBlur}
-                          className="bg-brand-dark-950 border-gray-700"
+                          className="bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
                           title="Verifique e corrija o CNPJ se necessário."
                       />
                   )}

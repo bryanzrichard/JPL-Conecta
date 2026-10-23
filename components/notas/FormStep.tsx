@@ -410,7 +410,7 @@ const FormStep: React.FC<FormStepProps> = ({ job, onSuccess, onClose, suppliers,
                     )}
 
                     {/* Resumo Financeiro Final */}
-                    <div className="p-5 bg-black/40 border border-gray-800 rounded-xl space-y-2 mt-6">
+                    <div className="p-5 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-800 rounded-xl space-y-2 mt-6">
                         <div className="flex justify-between text-xs uppercase tracking-widest font-medium">
                             <span className="text-gray-400">Subtotal</span>
                             <span className="text-gray-300 font-mono">{formatCurrency(subTotal)}</span>
@@ -493,24 +493,24 @@ const Combobox: React.FC<{label: React.ReactNode; options: { value: string; labe
         <InputGroup label={label} error={error}>
             <Popover open={isOpen} onOpenChange={setIsOpen}>
                 <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" className={`w-full justify-between font-normal text-left h-9 px-3 text-sm bg-brand-dark-950 border-gray-700 hover:bg-gray-800 text-white ${!value && 'text-gray-400'}`}>
+                    <Button type="button" variant="outline" className={`w-full justify-between font-normal text-left h-9 px-3 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white ${!value && 'text-gray-400'}`}>
                         <span className="truncate">{selectedLabel}</span>
                         <ChevronsUpDownIcon className="ml-2 h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="p-0 w-[--radix-popover-trigger-width] border-gray-700 bg-brand-dark-900">
+                <PopoverContent className="p-0 w-[--radix-popover-trigger-width] border-gray-200 dark:border-gray-700 bg-white dark:bg-brand-dark-900">
                     <Command onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                             e.preventDefault();
                         }
                     }}>
-                        <CommandInput placeholder="Buscar..." value={search} onInput={(e) => setSearch(e.currentTarget.value)} className="border-none focus:ring-0 h-9 text-sm text-white" />
+                        <CommandInput placeholder="Buscar..." value={search} onInput={(e) => setSearch(e.currentTarget.value)} className="border-none focus:ring-0 h-9 text-sm text-gray-900 dark:text-white" />
                         <CommandList className="max-h-[200px] overflow-y-auto">
                             <CommandEmpty className="py-2 text-center text-sm">Nenhum resultado.</CommandEmpty>
                             {filteredOptions.map(option => (
                                 <CommandItem 
                                     key={option.value} 
-                                    className="cursor-pointer aria-selected:bg-brand-blue-500/20 text-sm py-1.5 text-white" 
+                                    className="cursor-pointer aria-selected:bg-brand-blue-500/20 text-sm py-1.5 text-gray-700 dark:text-white" 
                                     onSelect={() => { onChange(option.value); setIsOpen(false); }}
                                 >
                                     {option.label}

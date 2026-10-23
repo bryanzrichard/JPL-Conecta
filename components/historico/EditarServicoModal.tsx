@@ -158,12 +158,12 @@ const EditarServicoModal: React.FC<EditarServicoModalProps> = ({ isOpen, onClose
         </ResponsiveModalHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full w-full overflow-hidden">
-            <div className="flex-grow overflow-y-auto custom-scrollbar p-5 bg-brand-dark-950/50 space-y-5">
+            <div className="flex-grow overflow-y-auto custom-scrollbar p-5 bg-gray-50/50 dark:bg-brand-dark-950/50 space-y-5">
                 
                 <InputGroup label="Descrição *" error={shouldShowError('description') ? errors.description?.message as string : undefined}>
                     <Textarea 
                         {...register('description')} 
-                        className="bg-brand-dark-950 border-gray-700 min-h-[80px]"
+                        className="bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white min-h-[80px]"
                     />
                 </InputGroup>
 
@@ -202,29 +202,29 @@ const EditarServicoModal: React.FC<EditarServicoModalProps> = ({ isOpen, onClose
                     <InputGroup label="Status *" error={shouldShowError('status') ? errors.status?.message as string : undefined}>
                         <select 
                             {...register('status')} 
-                            className="h-9 w-full rounded-md border border-gray-700 bg-brand-dark-950 px-3 py-1 text-sm text-white focus:border-brand-blue-500 focus:ring-brand-blue-500"
+                            className="h-9 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-brand-dark-950 px-3 py-1 text-sm text-gray-900 dark:text-white focus:border-brand-blue-500 focus:ring-brand-blue-500"
                         >
                             {SERVICE_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
                         </select>
                     </InputGroup>
                     <InputGroup label="Data de Início *" error={shouldShowError('start_date') ? errors.start_date?.message as string : undefined}>
-                        <Input type="date" {...register('start_date')} className="h-9 bg-brand-dark-950 border-gray-700" />
+                        <Input type="date" {...register('start_date')} className="h-9 bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white" />
                     </InputGroup>
                     <InputGroup label="Data de Fim *" error={shouldShowError('end_date') ? errors.end_date?.message as string : undefined}>
-                        <Input type="date" {...register('end_date')} className="h-9 bg-brand-dark-950 border-gray-700" />
+                        <Input type="date" {...register('end_date')} className="h-9 bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white" />
                     </InputGroup>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InputGroup label="Valor Total (R$) *" error={shouldShowError('total_value') ? errors.total_value?.message as string : undefined}>
-                        <CurrencyInput control={control} name="total_value" className="h-9 bg-brand-dark-950 border-gray-700" />
+                        <CurrencyInput control={control} name="total_value" className="h-9 bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white" />
                     </InputGroup>
                 </div>
                 
                 <InputGroup label="Observações">
                     <Textarea 
                         {...register('observations')} 
-                        className="min-h-[80px] bg-brand-dark-950 border-gray-700"
+                        className="min-h-[80px] bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
                     />
                 </InputGroup>
 
@@ -315,14 +315,14 @@ const Combobox: React.FC<{label: string; options: { value: string; label: string
         <InputGroup label={label} error={error}>
             <Popover open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) setSearch(''); }}>
                 <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" className={`w-full justify-between font-normal text-left h-9 px-3 text-sm bg-brand-dark-950 border-gray-700 hover:bg-gray-800 ${!value && 'text-gray-400'}`}>
+                    <Button type="button" variant="outline" className={`w-full justify-between font-normal text-left h-9 px-3 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white ${!value && 'text-gray-400'}`}>
                         <span className="truncate">{selectedLabel}</span>
                         <ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="p-0 w-[--radix-popover-trigger-width] border-gray-700 bg-brand-dark-900">
+                <PopoverContent className="p-0 w-[--radix-popover-trigger-width] border-gray-200 dark:border-gray-700 bg-white dark:bg-brand-dark-900">
                     <Command>
-                        <CommandInput placeholder="Buscar..." value={search} onInput={(e) => setSearch(e.currentTarget.value)} className="border-none focus:ring-0 h-9 text-sm" />
+                        <CommandInput placeholder="Buscar..." value={search} onInput={(e) => setSearch(e.currentTarget.value)} className="border-none focus:ring-0 h-9 text-sm text-gray-900 dark:text-white" />
                         <CommandList className="max-h-[200px] overflow-y-auto custom-scrollbar">
                             <CommandEmpty className="py-2 text-center text-sm text-gray-400">Nenhum resultado.</CommandEmpty>
                             <CommandItem className="cursor-pointer text-sm py-1.5 px-2" onSelect={() => { onChange(null); setIsOpen(false); }}>-- Nenhum --</CommandItem>

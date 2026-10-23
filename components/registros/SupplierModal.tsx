@@ -160,11 +160,11 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier
           </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50">
+        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-gray-50/50 dark:bg-brand-dark-950/50">
           <form id="supplier-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InputGroup label="Razão Social / Nome Fantasia *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
-                  <Input {...register('name')} placeholder="Ex: Votorantim Cimentos" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                  <Input {...register('name')} placeholder="Ex: Votorantim Cimentos" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
               </InputGroup>
               
               <InputGroup label="CNPJ *" error={shouldShowError('cnpj') ? errors.cnpj?.message as string : undefined}>
@@ -179,7 +179,7 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier
                             placeholder="00.000.000/0000-00" 
                             maxLength={18}
                             onBlur={field.onBlur}
-                            className="h-9 text-xs font-mono bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500"
+                            className="h-9 text-xs font-mono bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500"
                         />
                     )}
                   />
@@ -188,17 +188,17 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InputGroup label="Vendedor / Representante" error={shouldShowError('seller') ? errors.seller?.message as string : undefined}>
-                  <Input {...register('seller')} placeholder="Nome do contato comercial" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                  <Input {...register('seller')} placeholder="Nome do contato comercial" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
               </InputGroup>
               
               <InputGroup label="Telefone / WhatsApp" error={shouldShowError('seller_contact') ? errors.seller_contact?.message as string : undefined}>
-                  <Input {...register('seller_contact')} placeholder="(11) 99999-9999" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                  <Input {...register('seller_contact')} placeholder="(11) 99999-9999" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
               </InputGroup>
             </div>
             
             <div className="pt-2">
-              <div className="p-4 bg-brand-dark-900/60 border border-gray-800 rounded-xl space-y-3">
-                <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Desempenho & Avaliação</h3>
+              <div className="p-4 bg-white dark:bg-brand-dark-900/60 border border-gray-200 dark:border-gray-800 rounded-xl space-y-3 shadow-sm">
+                <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Desempenho & Avaliação</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Controller
                       name="service_rating"

@@ -100,7 +100,7 @@ export const PopoverContent = ({ children, className, align = 'start' }: { child
 
   return (
     <div 
-        className={`absolute z-[70] w-full top-full mt-1 bg-brand-dark-900 border border-gray-700 rounded-lg shadow-lg animate-in fade-in-0 zoom-in-95 ${alignClasses[align]} ${className}`}
+        className={`absolute z-[70] w-full top-full mt-1 bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl animate-in fade-in-0 zoom-in-95 ${alignClasses[align]} ${className}`}
         onClick={stopPropagation}
         onMouseDown={stopPropagation}
     >

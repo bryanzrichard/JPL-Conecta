@@ -192,40 +192,40 @@ const EditarAdiantamentoModal: React.FC<EditarAdiantamentoModalProps> = ({ isOpe
           </div>
         </ResponsiveModalHeader>
 
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50">
+        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-gray-50/50 dark:bg-brand-dark-950/50">
           <form id="edit-advance-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div className="p-3.5 bg-brand-dark-900 border border-gray-800 rounded-xl flex items-center justify-between">
+                <div className="p-3.5 bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-between shadow-sm">
                     <div>
-                        <p className="text-[10px] text-gray-400 uppercase font-semibold">Serviço Vinculado</p>
-                        <p className="text-sm font-bold text-white mt-0.5">{advance.service_description || 'Serviço'}</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Serviço Vinculado</p>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">{advance.service_description || 'Serviço'}</p>
                     </div>
                     {advance.collaborator_name && (
                         <div className="text-right">
-                            <p className="text-[10px] text-gray-400 uppercase font-semibold">Colaborador</p>
-                            <p className="text-xs font-medium text-gray-300 mt-0.5">{advance.collaborator_name}</p>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Colaborador</p>
+                            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mt-0.5">{advance.collaborator_name}</p>
                         </div>
                     )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <InputGroup label="Valor (R$) *" error={shouldShowError('value') ? errors.value?.message as string : undefined}>
-                        <CurrencyInput control={control} name="value" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500 font-mono" />
+                        <CurrencyInput control={control} name="value" className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500 font-mono" />
                     </InputGroup>
                     
                     <InputGroup label="Data de Pagamento *" error={shouldShowError('payment_date') ? errors.payment_date?.message as string : undefined}>
-                        <Input type="date" {...register('payment_date')} className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                        <Input type="date" {...register('payment_date')} className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
                     </InputGroup>
                 </div>
                 
                 <InputGroup label="Descrição">
                     <Textarea 
                         {...register('description')} 
-                        className="h-20 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500 resize-none"
+                        className="h-20 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500 resize-none"
                     />
                 </InputGroup>
 
                 <InputGroup label="Comprovante (Opcional)">
-                   <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-800 border-dashed rounded-md bg-brand-dark-900 relative hover:border-gray-700 transition-colors">
+                   <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-800 border-dashed rounded-md bg-white dark:bg-brand-dark-900 relative hover:border-gray-400 dark:hover:border-gray-700 transition-colors">
                        <div className="space-y-1 text-center w-full">
                            {receiptFile ? (
                                <div className="flex flex-col items-center gap-2">

@@ -208,27 +208,27 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
           </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50">
+        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-gray-50/50 dark:bg-brand-dark-950/50">
           <form id="project-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Status Field is hidden but maintained for logic */}
             <input type="hidden" {...register('status')} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InputGroup label="Nome da Obra *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
-                  <Input {...register('name')} placeholder="Ex: Residencial Flores do Campo" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                  <Input {...register('name')} placeholder="Ex: Residencial Flores do Campo" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
               </InputGroup>
               
               <InputGroup label="Mestre de Obra / Responsável" error={shouldShowError('manager') ? errors.manager?.message as string : undefined}>
-                  <Input {...register('manager')} placeholder="Nome do encarregado ou mestre" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                  <Input {...register('manager')} placeholder="Nome do encarregado ou mestre" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
               </InputGroup>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                <InputGroup label="Data de Início *" error={shouldShowError('start_date') ? errors.start_date?.message as string : undefined}>
-                   <Input type="date" {...register('start_date')} className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                   <Input type="date" {...register('start_date')} className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
                </InputGroup>
                <InputGroup label="Previsão de Término" error={shouldShowError('end_date') ? errors.end_date?.message as string : undefined}>
-                  <Input type="date" {...register('end_date')} className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                  <Input type="date" {...register('end_date')} className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
               </InputGroup>
             </div>
             
@@ -236,7 +236,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
               <button
                 type="button"
                 onClick={() => setShowAddress(!showAddress)}
-                className="flex items-center gap-2 text-xs font-medium text-brand-blue-400 hover:text-brand-blue-300 transition-colors"
+                className="flex items-center gap-2 text-xs font-medium text-brand-blue-600 dark:text-brand-blue-400 hover:text-brand-blue-700 dark:hover:text-brand-blue-300 transition-colors"
               >
                 {showAddress ? <ChevronUpIcon className="h-3 w-3" /> : <ChevronDownIcon className="h-3 w-3" />}
                 {showAddress ? 'Ocultar endereço' : 'Adicionar endereço da obra'}
@@ -244,10 +244,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
             </div>
 
             {showAddress && (
-              <div className="p-4 bg-brand-dark-900/50 border border-gray-800/50 rounded-xl space-y-3 animate-in fade-in slide-in-from-top-2">
+              <div className="p-4 bg-white dark:bg-brand-dark-900/50 border border-gray-200 dark:border-gray-800/50 rounded-xl space-y-3 shadow-sm animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-xs font-semibold text-gray-300">Endereço</h3>
-                  {isLoadingCep && <span className="text-[10px] font-normal text-brand-blue-400 animate-pulse flex items-center gap-1"><SearchIcon className="h-3 w-3"/> Buscando CEP...</span>}
+                  <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300">Endereço</h3>
+                  {isLoadingCep && <span className="text-[10px] font-normal text-brand-blue-600 dark:text-brand-blue-400 animate-pulse flex items-center gap-1"><SearchIcon className="h-3 w-3"/> Buscando CEP...</span>}
                 </div>
                 
                 <div className="grid grid-cols-3 gap-3">
@@ -261,13 +261,13 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
                                     cepRegister.onBlur(e);
                                     handleCepBlur(e);
                                 }}
-                                className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500"
+                                className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500"
                             />
                         </InputGroup>
                     </div>
                     <div className="col-span-2">
                          <InputGroup label="Cidade" error={shouldShowError('address_city') ? errors.address_city?.message as string : undefined}>
-                             <Input {...register('address_city')} className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                             <Input {...register('address_city')} className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
                          </InputGroup>
                     </div>
                 </div>
@@ -275,22 +275,22 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
                 <div className="grid grid-cols-4 gap-3">
                     <div className="col-span-3">
                         <InputGroup label="Rua / Logradouro" error={shouldShowError('address_street') ? errors.address_street?.message as string : undefined}>
-                            <Input {...register('address_street')} className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                            <Input {...register('address_street')} className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
                         </InputGroup>
                     </div>
                     <div className="col-span-1">
                         <InputGroup label="Número" error={shouldShowError('address_number') ? errors.address_number?.message as string : undefined}>
-                            <Input {...register('address_number')} placeholder="S/N" className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                            <Input {...register('address_number')} placeholder="S/N" className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
                         </InputGroup>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                     <InputGroup label="Bairro" error={shouldShowError('address_district') ? errors.address_district?.message as string : undefined}>
-                        <Input {...register('address_district')} className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                        <Input {...register('address_district')} className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
                     </InputGroup>
                     <InputGroup label="Estado (UF)" error={shouldShowError('address_state') ? errors.address_state?.message as string : undefined}>
-                        <Input {...register('address_state')} maxLength={2} className="h-9 text-sm bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                        <Input {...register('address_state')} maxLength={2} className="h-9 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
                     </InputGroup>
                 </div>
               </div>

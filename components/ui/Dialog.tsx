@@ -92,19 +92,19 @@ export function DialogContent({ children, className, onInteractOutside }: { chil
 
   return (
     <div 
-      className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-black/75 backdrop-blur-sm animate-in fade-in-0 p-3 sm:p-6" 
+      className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-black/60 dark:bg-black/75 backdrop-blur-sm animate-in fade-in-0 p-3 sm:p-6" 
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
     >
       <div 
-        className={`relative bg-brand-dark-900 border border-gray-800 rounded-2xl shadow-2xl shadow-black/60 w-full ${hasCustomMax ? '' : 'max-w-md '}my-auto ${hasCustomPadding ? '' : 'p-6 '}animate-in fade-in-0 zoom-in-95 duration-200 ${className || ''}`}
+        className={`relative bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl dark:shadow-2xl dark:shadow-black/60 text-gray-900 dark:text-white w-full ${hasCustomMax ? '' : 'max-w-md '}my-auto ${hasCustomPadding ? '' : 'p-6 '}animate-in fade-in-0 zoom-in-95 duration-200 ${className || ''}`}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
         <button 
           onClick={() => setIsOpen(false)} 
-          className="absolute top-4 right-4 z-20 p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-brand-dark-800/80 transition-colors"
+          className="absolute top-4 right-4 z-20 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-brand-dark-800/80 transition-colors"
           title="Fechar (Esc)"
         >
           <XIcon className="h-5 w-5" />
@@ -124,13 +124,13 @@ export function DialogHeader({ children, className }: { children?: React.ReactNo
 // FIX: Changed from a const arrow function to a function declaration to resolve component typing errors.
 // FIX: Made children optional to resolve a TypeScript error where it was incorrectly reported as missing.
 export function DialogTitle({ children, className }: { children?: React.ReactNode, className?: string }) {
-  return <h2 className={`text-xl font-semibold text-white ${className}`}>{children}</h2>;
+  return <h2 className={`text-xl font-semibold text-gray-900 dark:text-white ${className}`}>{children}</h2>;
 }
 
 // FIX: Changed from a const arrow function to a function declaration to resolve component typing errors.
 // FIX: Made children optional to resolve a TypeScript error where it was incorrectly reported as missing.
 export function DialogDescription({ children, className }: { children?: React.ReactNode, className?: string }) {
-  return <p className={`text-sm text-gray-400 mt-1 ${className}`}>{children}</p>;
+  return <p className={`text-sm text-gray-500 dark:text-gray-400 mt-1 ${className}`}>{children}</p>;
 }
 
 // FIX: Changed from a const arrow function to a function declaration to resolve component typing errors.

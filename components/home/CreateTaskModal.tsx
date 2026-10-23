@@ -225,13 +225,13 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, task
                         
                         {/* 1. Contexto da Obra - Helpers Visuais */}
                         {!isEditMode && (
-                            <div className="bg-gray-800/40 p-4 rounded-xl border border-gray-700/50 space-y-3">
-                                <Label className="text-brand-blue-400 text-xs uppercase font-bold tracking-wider">Contexto da Atividade</Label>
+                            <div className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-xl border border-gray-200 dark:border-gray-700/50 space-y-3 shadow-sm">
+                                <Label className="text-brand-blue-600 dark:text-brand-blue-400 text-xs uppercase font-bold tracking-wider">Contexto da Atividade</Label>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <Label className="text-xs text-gray-400 mb-1">Disciplina / Especialidade</Label>
+                                        <Label className="text-xs text-gray-500 dark:text-gray-400 mb-1">Disciplina / Especialidade</Label>
                                         <select 
-                                            className="w-full rounded-md border border-gray-800 bg-brand-dark-950 p-2 text-sm text-white focus:ring-1 focus:ring-brand-blue-500 h-9"
+                                            className="w-full rounded-md border border-gray-300 dark:border-gray-800 bg-white dark:bg-brand-dark-950 p-2 text-sm text-gray-900 dark:text-white focus:ring-1 focus:ring-brand-blue-500 h-9"
                                             value={discipline}
                                             onChange={(e) => setDiscipline(e.target.value)}
                                         >
@@ -240,11 +240,11 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, task
                                         </select>
                                     </div>
                                     <div>
-                                        <Label className="text-xs text-gray-400 mb-1">Local Específico na Obra</Label>
+                                        <Label className="text-xs text-gray-500 dark:text-gray-400 mb-1">Local Específico na Obra</Label>
                                         <div className="relative">
-                                            <MapPinIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500"/>
+                                            <MapPinIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500"/>
                                             <Input 
-                                                className="pl-9 h-9 bg-brand-dark-950 border-gray-800 text-sm focus:border-brand-blue-500" 
+                                                className="pl-9 h-9 bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white text-sm focus:border-brand-blue-500" 
                                                 placeholder="Ex: Apto 302, Banheiro..." 
                                                 value={location}
                                                 onChange={(e) => setLocation(e.target.value)}
@@ -416,9 +416,9 @@ const Combobox: React.FC<{label: string; options: { id: string; name: string }[]
         <InputGroup label={label} error={error}>
             <Popover open={isOpen} onOpenChange={setIsOpen}>
                 <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" className={`w-full justify-between font-normal text-left h-auto bg-brand-dark-900 border-gray-700 ${!value ? 'text-gray-400' : 'text-white'}`} disabled={disabled}><span className="truncate">{selectedLabel}</span><ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" /></Button>
+                    <Button type="button" variant="outline" className={`w-full justify-between font-normal text-left h-auto bg-white dark:bg-brand-dark-900 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 ${!value ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`} disabled={disabled}><span className="truncate">{selectedLabel}</span><ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" /></Button>
                 </PopoverTrigger>
-                <PopoverContent className="p-0 w-[--radix-popover-trigger-width] bg-brand-dark-900 border-gray-700">
+                <PopoverContent className="p-0 w-[--radix-popover-trigger-width] bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-700">
                     <Command onKeyDown={(e) => {
                         // Prevent form submission on Enter inside combobox
                         if (e.key === 'Enter') e.preventDefault();
@@ -481,27 +481,27 @@ const CurrencyInput: React.FC<{ control: any; name: string; className?: string }
 );
 
 const ResourceSection = ({ title, subtitle, icon, name, fields, register, errors, remove, append, placeholder }: any) => (
-    <div className="flex flex-col h-full bg-gray-800/30 rounded-xl border border-gray-700/50 overflow-hidden">
-        <div className="p-3 bg-gray-800/50 border-b border-gray-700/50 flex justify-between items-center">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-800/30 rounded-xl border border-gray-200 dark:border-gray-700/50 overflow-hidden shadow-sm">
+        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700/50 flex justify-between items-center">
             <div>
-                <Label className="flex items-center gap-2 text-sm font-semibold text-white">{icon} {title}</Label>
-                <p className="text-[10px] text-gray-400 mt-0.5">{subtitle}</p>
+                <Label className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">{icon} {title}</Label>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{subtitle}</p>
             </div>
             <Button 
                 type="button" 
                 size="sm" 
                 variant="ghost" 
-                className="h-7 w-7 p-0 rounded-full hover:bg-gray-700" 
+                className="h-7 w-7 p-0 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" 
                 onClick={append}
                 title="Adicionar Item"
             >
-                <PlusIcon className="h-4 w-4 text-brand-blue-400" />
+                <PlusIcon className="h-4 w-4 text-brand-blue-500 dark:text-brand-blue-400" />
             </Button>
         </div>
         
         <div className="p-3 space-y-2 flex-grow min-h-[100px]">
             {fields.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-xs text-gray-500 italic py-4">
+                <div className="h-full flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 italic py-4">
                     Nenhum item adicionado.
                 </div>
             ) : (
@@ -513,7 +513,7 @@ const ResourceSection = ({ title, subtitle, icon, name, fields, register, errors
                                 <Input 
                                     {...register(`${name}.${index}.nome`)} 
                                     placeholder={placeholder} 
-                                    className={`bg-brand-dark-900 border-gray-700 h-9 text-sm ${itemError ? "border-red-500 focus:border-red-500" : "focus:border-brand-blue-500"}`}
+                                    className={`bg-white dark:bg-brand-dark-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white h-9 text-sm ${itemError ? "border-red-500 focus:border-red-500" : "focus:border-brand-blue-500"}`}
                                 />
                                 {itemError && <p className="text-[9px] text-red-500 ml-1 mt-0.5">{itemError.message}</p>}
                             </div>

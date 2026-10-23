@@ -37,7 +37,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           </div>
         </ResponsiveModalHeader>
 
-        <div className="p-6 text-sm text-gray-300 leading-relaxed bg-brand-dark-950/50">
+        <div className="p-6 text-sm text-gray-700 dark:text-gray-300 leading-relaxed bg-gray-50/50 dark:bg-brand-dark-950/50">
           {description}
         </div>
         
@@ -47,7 +47,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             variant="ghost" 
             onClick={onClose} 
             disabled={isLoading} 
-            className="text-gray-400 hover:text-white hover:bg-brand-dark-800"
+            className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-brand-dark-800"
           >
             Cancelar
           </Button>

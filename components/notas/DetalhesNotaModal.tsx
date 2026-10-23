@@ -171,45 +171,45 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onC
                 </ResponsiveModalHeader>
                 
                 {/* Body Content */}
-                <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/60 space-y-6">
+                <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-gray-50/50 dark:bg-brand-dark-950/60 space-y-6">
                     {/* Metadata Cards Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="bg-brand-dark-900/80 border border-gray-800 p-3.5 rounded-xl">
-                            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                                <BuildingIcon className="h-3.5 w-3.5 text-gray-500" /> Fornecedor
+                        <div className="bg-white dark:bg-brand-dark-900/80 border border-gray-200 dark:border-gray-800 p-3.5 rounded-xl shadow-sm">
+                            <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <BuildingIcon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" /> Fornecedor
                             </span>
-                            <p className="text-sm font-bold text-white mt-1.5 truncate">
+                            <p className="text-sm font-bold text-gray-900 dark:text-white mt-1.5 truncate">
                                 {nota.suppliers?.name || 'Não informado'}
                             </p>
                         </div>
 
-                        <div className="bg-brand-dark-900/80 border border-gray-800 p-3.5 rounded-xl">
-                            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                                <ConstructionIcon className="h-3.5 w-3.5 text-gray-500" /> Obra / Projeto
+                        <div className="bg-white dark:bg-brand-dark-900/80 border border-gray-200 dark:border-gray-800 p-3.5 rounded-xl shadow-sm">
+                            <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <ConstructionIcon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" /> Obra / Projeto
                             </span>
-                            <p className="text-sm font-bold text-white mt-1.5 truncate">
+                            <p className="text-sm font-bold text-gray-900 dark:text-white mt-1.5 truncate">
                                 {nota.projects?.name || 'Não vinculada'}
                             </p>
                         </div>
 
-                        <div className="bg-brand-dark-900/80 border border-gray-800 p-3.5 rounded-xl">
-                            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                                <CreditCardIcon className="h-3.5 w-3.5 text-gray-500" /> Pagamento
+                        <div className="bg-white dark:bg-brand-dark-900/80 border border-gray-200 dark:border-gray-800 p-3.5 rounded-xl shadow-sm">
+                            <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <CreditCardIcon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" /> Pagamento
                             </span>
-                            <p className="text-sm font-bold text-white mt-1.5">
+                            <p className="text-sm font-bold text-gray-900 dark:text-white mt-1.5">
                                 {paymentLabel}
                             </p>
                         </div>
 
-                        <div className="bg-brand-dark-900/80 border border-emerald-900/30 p-3.5 rounded-xl bg-gradient-to-br from-brand-dark-900/90 to-emerald-950/20">
-                            <span className="text-[11px] font-semibold text-emerald-400/90 uppercase tracking-wider flex items-center gap-1.5">
+                        <div className="bg-emerald-50/60 dark:bg-brand-dark-900/80 border border-emerald-200 dark:border-emerald-900/30 p-3.5 rounded-xl">
+                            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400/90 uppercase tracking-wider flex items-center gap-1.5">
                                 <TrendingUpIcon className="h-3.5 w-3.5 text-emerald-500" /> Valor Total
                             </span>
-                            <p className="text-base font-extrabold text-emerald-400 mt-1.5">
+                            <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-1.5">
                                 {formatCurrency(nota.total_value)}
                             </p>
                             {Number(nota.shipping_value) > 0 && (
-                                <p className="text-[10px] text-gray-400 mt-0.5">
+                                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
                                     (Frete incluso: {formatCurrency(nota.shipping_value)})
                                 </p>
                             )}
@@ -218,19 +218,19 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onC
 
                     {/* Observations if available */}
                     {nota.observations && (
-                        <div className="bg-brand-dark-900/40 border border-gray-800/80 p-3.5 rounded-xl">
-                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Observações:</span>
-                            <p className="text-xs text-gray-300 mt-1 leading-relaxed whitespace-pre-wrap">{nota.observations}</p>
+                        <div className="bg-white dark:bg-brand-dark-900/40 border border-gray-200 dark:border-gray-800/80 p-3.5 rounded-xl shadow-sm">
+                            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Observações:</span>
+                            <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 leading-relaxed whitespace-pre-wrap">{nota.observations}</p>
                         </div>
                     )}
 
                     {/* Items Section */}
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wider flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wider flex items-center gap-2">
                                 <span>Itens da Nota Fiscal</span>
                                 {items.length > 0 && (
-                                    <span className="text-xs font-normal text-gray-400 bg-brand-dark-800 px-2 py-0.5 rounded-full border border-gray-700">
+                                    <span className="text-xs font-normal text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-brand-dark-800 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700">
                                         {items.length} itens listados
                                     </span>
                                 )}
@@ -238,26 +238,26 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onC
                         </div>
 
                         {loading ? (
-                            <div className="flex flex-col items-center justify-center py-16 space-y-3 bg-brand-dark-900/30 border border-gray-800 rounded-xl">
+                            <div className="flex flex-col items-center justify-center py-16 space-y-3 bg-white dark:bg-brand-dark-900/30 border border-gray-200 dark:border-gray-800 rounded-xl">
                                 <div className="w-8 h-8 border-2 border-brand-blue-500/30 border-t-brand-blue-500 rounded-full animate-spin" />
-                                <p className="text-xs text-gray-400">Carregando itens da nota fiscal...</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Carregando itens da nota fiscal...</p>
                             </div>
                         ) : error ? (
                             <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
-                                <p className="text-sm text-red-400">{error}</p>
+                                <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
                             </div>
                         ) : items.length === 0 ? (
-                            <div className="text-center py-14 bg-brand-dark-900/30 border border-dashed border-gray-800 rounded-xl">
-                                <FileTextIcon className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                                <p className="text-sm text-gray-400 font-medium">Nenhum item associado a esta nota.</p>
+                            <div className="text-center py-14 bg-white dark:bg-brand-dark-900/30 border border-dashed border-gray-300 dark:border-gray-800 rounded-xl">
+                                <FileTextIcon className="w-8 h-8 text-gray-400 dark:text-gray-600 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Nenhum item associado a esta nota.</p>
                             </div>
                         ) : (
                             <>
                                 {/* Desktop High-Density Table */}
-                                <div className="hidden sm:block overflow-hidden rounded-xl border border-gray-800 bg-brand-dark-900/40">
+                                <div className="hidden sm:block overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900/40 shadow-sm">
                                     <table className="w-full text-left border-collapse">
                                         <thead>
-                                            <tr className="border-b border-gray-800 bg-brand-dark-900/90 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                                            <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-brand-dark-900/90 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                                 <th className="py-3 px-4">Item & Descrição</th>
                                                 <th className="py-3 px-3">Categoria</th>
                                                 <th className="py-3 px-3 text-right">Qtd</th>
@@ -265,13 +265,13 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onC
                                                 <th className="py-3 px-4 text-right">Total</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-800/60 text-xs text-gray-200">
+                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 text-xs text-gray-700 dark:text-gray-200">
                                             {items.map((item) => (
-                                                <tr key={item.id} className="hover:bg-brand-dark-800/40 transition-colors">
+                                                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-brand-dark-800/40 transition-colors">
                                                     <td className="py-3 px-4">
-                                                        <p className="font-semibold text-white">{item.description}</p>
+                                                        <p className="font-semibold text-gray-900 dark:text-white">{item.description}</p>
                                                         {item.manufacturer && (
-                                                            <p className="text-[11px] text-gray-400 mt-0.5">Fabr: {item.manufacturer}</p>
+                                                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Fabr: {item.manufacturer}</p>
                                                         )}
                                                     </td>
                                                     <td className="py-3 px-3">
@@ -281,12 +281,12 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onC
                                                     </td>
                                                     <td className="py-3 px-3 text-right whitespace-nowrap">
                                                         <span className="font-mono">{item.quantity}</span>
-                                                        <span className="text-gray-500 ml-1">{item.unit_of_measure || 'un'}</span>
+                                                        <span className="text-gray-400 dark:text-gray-500 ml-1">{item.unit_of_measure || 'un'}</span>
                                                     </td>
-                                                    <td className="py-3 px-3 text-right font-mono text-gray-300 whitespace-nowrap">
+                                                    <td className="py-3 px-3 text-right font-mono text-gray-600 dark:text-gray-300 whitespace-nowrap">
                                                         {formatCurrency(item.unit_price)}
                                                     </td>
-                                                    <td className="py-3 px-4 text-right font-mono font-bold text-white whitespace-nowrap">
+                                                    <td className="py-3 px-4 text-right font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
                                                         {formatCurrency(item.total_price)}
                                                     </td>
                                                 </tr>
@@ -298,21 +298,21 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onC
                                 {/* Mobile Stacked Cards */}
                                 <div className="sm:hidden space-y-2.5">
                                     {items.map((item) => (
-                                        <div key={item.id} className="p-3.5 bg-brand-dark-900/60 border border-gray-800 rounded-xl space-y-2">
+                                        <div key={item.id} className="p-3.5 bg-white dark:bg-brand-dark-900/60 border border-gray-200 dark:border-gray-800 rounded-xl space-y-2 shadow-sm">
                                             <div className="flex items-start justify-between gap-2">
-                                                <p className="font-semibold text-white text-sm">{item.description}</p>
+                                                <p className="font-semibold text-gray-900 dark:text-white text-sm">{item.description}</p>
                                                 <span className={`shrink-0 px-2 py-0.5 text-[10px] font-medium rounded border ${getCategoryBadgeClass(item.category)}`}>
                                                     {item.category}
                                                 </span>
                                             </div>
                                             {item.manufacturer && (
-                                                <p className="text-[11px] text-gray-400">Fabricante: {item.manufacturer}</p>
+                                                <p className="text-[11px] text-gray-500 dark:text-gray-400">Fabricante: {item.manufacturer}</p>
                                             )}
-                                            <div className="flex items-center justify-between pt-2 border-t border-gray-800/80 text-xs">
-                                                <span className="text-gray-400">
+                                            <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800/80 text-xs">
+                                                <span className="text-gray-500 dark:text-gray-400">
                                                     {item.quantity} {item.unit_of_measure || 'un'} × {formatCurrency(item.unit_price)}
                                                 </span>
-                                                <span className="font-bold text-white font-mono">{formatCurrency(item.total_price)}</span>
+                                                <span className="font-bold text-gray-900 dark:text-white font-mono">{formatCurrency(item.total_price)}</span>
                                             </div>
                                         </div>
                                     ))}

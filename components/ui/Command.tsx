@@ -18,7 +18,7 @@ const CommandInput = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <input
     ref={ref}
-    className={`w-full bg-gray-800 border-b border-gray-700 px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none ${className}`}
+    className={`w-full bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none ${className}`}
     {...props}
   />
 ));
@@ -42,7 +42,7 @@ const CommandEmpty = React.forwardRef<
 >((props, ref) => (
   <div
     ref={ref}
-    className="py-4 text-center text-sm text-gray-400"
+    className="py-4 text-center text-sm text-gray-500 dark:text-gray-400"
     {...props}
   />
 ));
@@ -70,7 +70,7 @@ const CommandItem = React.forwardRef<
 >(({ className, onSelect, ...props }, ref) => (
     <li 
         ref={ref}
-        className={`px-3 py-2 text-sm rounded-md text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer ${className}`}
+        className={`px-3 py-2 text-sm rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer ${className}`}
         onClick={onSelect}
         {...props}
     />
@@ -83,7 +83,7 @@ const CommandSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <hr
     ref={ref}
-    className={`border-gray-700 my-1 ${className}`}
+    className={`border-gray-200 dark:border-gray-700 my-1 ${className}`}
     {...props}
   />
 ));

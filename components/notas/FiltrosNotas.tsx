@@ -52,7 +52,7 @@ const FiltrosNotas: React.FC<FiltrosNotasProps> = ({ filters, onFiltersChange, s
         <div className="space-y-5">
             {/* Invoice Number Filter */}
             <div className="space-y-2">
-                <Label htmlFor="invoice_number_filter" className="text-xs font-medium text-gray-300">Número da Nota</Label>
+                <Label htmlFor="invoice_number_filter" className="text-xs font-medium text-gray-700 dark:text-gray-300">Número da Nota</Label>
                 <Input
                     id="invoice_number_filter"
                     type="text"
@@ -66,7 +66,7 @@ const FiltrosNotas: React.FC<FiltrosNotasProps> = ({ filters, onFiltersChange, s
 
             {/* Supplier Filter */}
             <div className="space-y-2">
-                <Label className="text-xs font-medium text-gray-300">Fornecedor</Label>
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Fornecedor</Label>
                 <Popover open={isSupplierPopoverOpen} onOpenChange={setIsSupplierPopoverOpen}>
                     <PopoverTrigger asChild>
                         <Button variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm">
@@ -105,12 +105,12 @@ const FiltrosNotas: React.FC<FiltrosNotasProps> = ({ filters, onFiltersChange, s
 
             {/* Payment Method Filter */}
             <div className="space-y-2">
-                <Label htmlFor="payment_method_filter" className="text-xs font-medium text-gray-300">Forma de Pagamento</Label>
+                <Label htmlFor="payment_method_filter" className="text-xs font-medium text-gray-700 dark:text-gray-300">Forma de Pagamento</Label>
                 <select
                     id="payment_method_filter"
                     value={filters.payment_method || ''}
                     onChange={(e) => handleInputChange('payment_method', e.target.value || null)}
-                    className="w-full rounded-lg border border-gray-800 bg-brand-dark-950 px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/50"
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-800 bg-white dark:bg-brand-dark-950 px-3 py-2 text-sm text-gray-900 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/50"
                 >
                     <option value="">Todas</option>
                     {Object.entries(PAYMENT_METHODS).map(([slug, name]) => (
@@ -120,7 +120,7 @@ const FiltrosNotas: React.FC<FiltrosNotasProps> = ({ filters, onFiltersChange, s
             </div>
             
             <div className="space-y-2">
-                <Label className="text-xs font-medium text-gray-300">Período de Emissão</Label>
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Período de Emissão</Label>
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                         <Label htmlFor="start_date_filter" className="text-[10px] uppercase tracking-wider text-gray-500">Início</Label>

@@ -85,11 +85,18 @@ const DRAWER_WIDTH: Record<ModalSize, string> = { sm: 'max-w-md', md: 'max-w-xl'
 
 // Estilo padrão dos campos dentro de qualquer modal
 const BODY_STANDARD = [
-  '[&_label]:text-xs [&_label]:font-medium [&_label]:text-gray-300',
+  '[&_label]:text-xs [&_label]:font-medium [&_label]:text-gray-700 dark:[&_label]:text-gray-300',
   '[&_input]:text-sm [&_select]:text-sm [&_textarea]:text-sm',
   '[&_input:not([type=checkbox]):not([type=radio]):not([type=file])]:h-9 [&_select]:h-9',
-  '[&_input:not([type=checkbox]):not([type=radio]):not([type=file])]:bg-brand-dark-950 [&_select]:bg-brand-dark-950 [&_textarea]:bg-brand-dark-950',
-  '[&_input:not([type=checkbox]):not([type=radio]):not([type=file])]:border-gray-800 [&_select]:border-gray-800 [&_textarea]:border-gray-800',
+  '[&_input:not([type=checkbox]):not([type=radio]):not([type=file])]:bg-white dark:[&_input:not([type=checkbox]):not([type=radio]):not([type=file])]:bg-brand-dark-950',
+  '[&_select]:bg-white dark:[&_select]:bg-brand-dark-950',
+  '[&_textarea]:bg-white dark:[&_textarea]:bg-brand-dark-950',
+  '[&_input:not([type=checkbox]):not([type=radio]):not([type=file])]:border-gray-300 dark:[&_input:not([type=checkbox]):not([type=radio]):not([type=file])]:border-gray-800',
+  '[&_select]:border-gray-300 dark:[&_select]:border-gray-800',
+  '[&_textarea]:border-gray-300 dark:[&_textarea]:border-gray-800',
+  '[&_input:not([type=checkbox]):not([type=radio]):not([type=file])]:text-gray-900 dark:[&_input:not([type=checkbox]):not([type=radio]):not([type=file])]:text-white',
+  '[&_select]:text-gray-900 dark:[&_select]:text-white',
+  '[&_textarea]:text-gray-900 dark:[&_textarea]:text-white',
 ].join(' ');
 
 export function ResponsiveModalContent({
@@ -112,7 +119,7 @@ export function ResponsiveModalContent({
   };
 
   const resolvedSize = size ?? inferSize(className);
-  const base = `bg-brand-dark-950 border border-gray-800 p-0 overflow-hidden flex flex-col text-white ${BODY_STANDARD}`;
+  const base = `bg-white dark:bg-brand-dark-950 border border-gray-200 dark:border-gray-800 p-0 overflow-hidden flex flex-col text-gray-900 dark:text-white shadow-xl dark:shadow-2xl dark:shadow-black/60 ${BODY_STANDARD}`;
 
   if (isDesktop && displayMode === 'drawer') {
     return (
@@ -149,8 +156,8 @@ export function ResponsiveModalContent({
       side="bottom"
       className={`${base} max-h-[92vh] ${resolvedSize === 'sm' ? '' : 'h-[92vh]'}`}
     >
-      <div className="w-full flex justify-center pt-3 pb-2 shrink-0 bg-brand-dark-900">
-        <div className="h-1.5 w-12 rounded-full bg-gray-700" />
+      <div className="w-full flex justify-center pt-3 pb-2 shrink-0 bg-gray-50 dark:bg-brand-dark-900">
+        <div className="h-1.5 w-12 rounded-full bg-gray-300 dark:bg-gray-700" />
       </div>
       <div className="flex-1 w-full flex flex-col min-h-0 overflow-hidden">{children}</div>
     </SheetContent>
@@ -159,7 +166,7 @@ export function ResponsiveModalContent({
 
 export function ResponsiveModalHeader({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`px-6 py-4 pr-14 border-b border-gray-800 bg-brand-dark-900 shrink-0 text-left ${className || ''}`}>
+    <div className={`px-6 py-4 pr-14 border-b border-gray-200 dark:border-gray-800 bg-gray-50/90 dark:bg-brand-dark-900 shrink-0 text-left ${stripStyle(className)}`}>
       {children}
     </div>
   );
@@ -167,19 +174,19 @@ export function ResponsiveModalHeader({ children, className }: { children: React
 
 export function ResponsiveModalTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <h2 className={`text-base font-semibold text-white tracking-tight ${stripTypography(className)}`}>{children}</h2>
+    <h2 className={`text-base font-semibold text-gray-900 dark:text-white tracking-tight ${stripTypography(className)}`}>{children}</h2>
   );
 }
 
 export function ResponsiveModalDescription({ children, className }: { children: React.ReactNode; className?: string }) {
   const hidden = /\bhidden\b/.test(className || '') ? 'hidden' : '';
-  return <p className={`text-xs text-gray-400 mt-0.5 ${hidden}`}>{children}</p>;
+  return <p className={`text-xs text-gray-500 dark:text-gray-400 mt-0.5 ${hidden}`}>{children}</p>;
 }
 
 export function ResponsiveModalFooter({ children, className }: { children: React.ReactNode; className?: string }) {
   const justify = /\bjustify-between\b/.test(className || '') ? 'justify-between' : 'justify-end';
   return (
-    <div className={`px-6 py-4 border-t border-gray-800 bg-brand-dark-900 shrink-0 pb-safe flex flex-row items-center ${justify} gap-3 [&>button]:h-9 [&>button]:text-sm [&>button]:px-4 [&>button]:w-auto`}>
+    <div className={`px-6 py-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50/90 dark:bg-brand-dark-900 shrink-0 pb-safe flex flex-row items-center ${justify} gap-3 [&>button]:h-9 [&>button]:text-sm [&>button]:px-4 [&>button]:w-auto ${stripStyle(className)}`}>
       {children}
     </div>
   );

@@ -310,7 +310,7 @@ const EditarNotaModal: React.FC<EditarNotaModalProps> = ({ isOpen, onClose, onSu
                     )}
 
                     {/* Resumo Financeiro Final */}
-                    <div className="p-5 bg-black/40 border border-gray-800 rounded-xl space-y-2 mt-4">
+                    <div className="p-5 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-800 rounded-xl space-y-2 mt-4">
                         <div className="flex justify-between text-xs uppercase tracking-widest font-medium">
                             <span className="text-gray-400">Subtotal</span>
                             <span className="text-gray-300 font-mono">{formatCurrency(subTotal)}</span>

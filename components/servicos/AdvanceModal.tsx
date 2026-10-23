@@ -179,31 +179,31 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
           </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50 space-y-5">
+        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-gray-50/50 dark:bg-brand-dark-950/50 space-y-5">
           {service && (
-            <div className="bg-brand-dark-900 border border-gray-800 p-4 rounded-xl space-y-3">
-                <div className="flex items-center justify-between text-xs text-gray-400">
-                    <span className="truncate">Obra: <strong className="text-gray-200">{service.project_name || 'Geral'}</strong></span>
-                    <span className="truncate">Prestador: <strong className="text-gray-200">{service.collaborator_name || 'Não informado'}</strong></span>
+            <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 p-4 rounded-xl space-y-3 shadow-sm">
+                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span className="truncate">Obra: <strong className="text-gray-800 dark:text-gray-200">{service.project_name || 'Geral'}</strong></span>
+                    <span className="truncate">Prestador: <strong className="text-gray-800 dark:text-gray-200">{service.collaborator_name || 'Não informado'}</strong></span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-800/80 text-center">
-                    <div className="bg-brand-dark-950/80 p-2 rounded-lg border border-gray-800">
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100 dark:border-gray-800/80 text-center">
+                    <div className="bg-gray-50 dark:bg-brand-dark-950/80 p-2 rounded-lg border border-gray-200 dark:border-gray-800">
                         <span className="text-[10px] text-gray-500 uppercase font-semibold">Valor Contrato</span>
-                        <p className="text-xs font-bold text-gray-300 mt-0.5">{formatCurrency(service.total_value)}</p>
+                        <p className="text-xs font-bold text-gray-800 dark:text-gray-300 mt-0.5">{formatCurrency(service.total_value)}</p>
                     </div>
-                    <div className="bg-brand-dark-950/80 p-2 rounded-lg border border-gray-800">
+                    <div className="bg-gray-50 dark:bg-brand-dark-950/80 p-2 rounded-lg border border-gray-200 dark:border-gray-800">
                         <span className="text-[10px] text-gray-500 uppercase font-semibold">Saldo Disponível</span>
-                        <p className="text-xs font-bold text-emerald-400 mt-0.5">{formatCurrency(service.remaining_value)}</p>
+                        <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{formatCurrency(service.remaining_value)}</p>
                     </div>
-                    <div className="bg-brand-dark-950/80 p-2 rounded-lg border border-gray-800">
+                    <div className="bg-gray-50 dark:bg-brand-dark-950/80 p-2 rounded-lg border border-gray-200 dark:border-gray-800">
                         <span className="text-[10px] text-gray-500 uppercase font-semibold">Saldo Posterior</span>
-                        <p className={`text-xs font-bold mt-0.5 ${willComplete ? 'text-blue-400' : 'text-gray-300'}`}>
+                        <p className={`text-xs font-bold mt-0.5 ${willComplete ? 'text-blue-500 dark:text-blue-400' : 'text-gray-800 dark:text-gray-300'}`}>
                             {formatCurrency(newRemaining)}
                         </p>
                     </div>
                 </div>
                 {willComplete && (
-                    <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1.5 animate-in fade-in">
+                    <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5 animate-in fade-in">
                         <span>✓ Este adiantamento liquidará o saldo total e marcará o serviço como <b>Concluído</b>.</span>
                     </div>
                 )}

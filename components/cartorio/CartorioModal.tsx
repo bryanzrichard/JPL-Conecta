@@ -269,13 +269,13 @@ const CartorioModal: React.FC<CartorioModalProps> = ({ isOpen, onClose, record }
                 </ResponsiveModalHeader>
                 
                 <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
-                    <div className="flex-1 overflow-y-auto p-6 bg-brand-dark-950/50 space-y-5 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 dark:bg-brand-dark-950/50 space-y-5 custom-scrollbar">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <Label className="text-xs font-medium text-gray-300">Obra / Projeto Vinculado *</Label>
+                                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Obra / Projeto Vinculado *</Label>
                                 <select
                                     {...register('project_id')}
-                                    className="mt-1.5 bg-brand-dark-950 border border-gray-800 h-9 w-full text-white px-3 py-1.5 rounded-lg text-xs font-medium focus:border-brand-blue-500 focus:outline-none"
+                                    className="mt-1.5 bg-white dark:bg-brand-dark-950 border border-gray-300 dark:border-gray-800 h-9 w-full text-gray-900 dark:text-white px-3 py-1.5 rounded-lg text-xs font-medium focus:border-brand-blue-500 focus:outline-none"
                                 >
                                     <option value="" disabled>Selecione uma obra</option>
                                     {projectsData?.map(project => (
@@ -284,35 +284,35 @@ const CartorioModal: React.FC<CartorioModalProps> = ({ isOpen, onClose, record }
                                         </option>
                                     ))}
                                 </select>
-                                {errors.project_id && <p className="text-red-400 text-xs mt-1 animate-in fade-in">{String(errors.project_id.message)}</p>}
+                                {errors.project_id && <p className="text-red-500 text-xs mt-1 animate-in fade-in">{String(errors.project_id.message)}</p>}
                             </div>
 
                             <div>
-                                <Label className="text-xs font-medium text-gray-300">Data do Documento / Registro *</Label>
-                                <Input type="date" {...register('issue_date')} className="mt-1.5 bg-brand-dark-950 border-gray-800 h-9 text-xs w-full focus:border-brand-blue-500" />
-                                {errors.issue_date && <p className="text-red-400 text-xs mt-1 animate-in fade-in">{String(errors.issue_date.message)}</p>}
+                                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Data do Documento / Registro *</Label>
+                                <Input type="date" {...register('issue_date')} className="mt-1.5 bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 h-9 text-xs w-full text-gray-900 dark:text-white focus:border-brand-blue-500" />
+                                {errors.issue_date && <p className="text-red-500 text-xs mt-1 animate-in fade-in">{String(errors.issue_date.message)}</p>}
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div className="sm:col-span-2">
-                                <Label className="text-xs font-medium text-gray-300">Descrição do Documento ou Ato Notarial *</Label>
+                                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Descrição do Documento ou Ato Notarial *</Label>
                                 <Input 
                                     {...register('description')} 
-                                    className="mt-1.5 bg-brand-dark-950 border-gray-800 h-9 text-xs focus:border-brand-blue-500" 
+                                    className="mt-1.5 bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 h-9 text-xs text-gray-900 dark:text-white focus:border-brand-blue-500" 
                                     placeholder="Ex: Matrícula Atualizada do Imóvel, Certidão Negativa..." 
                                 />
-                                {errors.description && <p className="text-red-400 text-xs mt-1 animate-in fade-in">{String(errors.description.message)}</p>}
+                                {errors.description && <p className="text-red-500 text-xs mt-1 animate-in fade-in">{String(errors.description.message)}</p>}
                             </div>
 
                             <div>
-                                <Label className="text-xs font-medium text-gray-300">Valor das Custas / Emolumento</Label>
+                                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Valor das Custas / Emolumento</Label>
                                 <Input
                                     type="text"
                                     inputMode="numeric"
                                     value={formatCurrencyStr(amountValue)}
                                     onChange={handleAmountChange}
-                                    className="mt-1.5 bg-brand-dark-950 border-gray-800 h-9 text-xs text-right w-full font-mono text-emerald-400 font-bold focus:border-brand-blue-500"
+                                    className="mt-1.5 bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 h-9 text-xs text-right w-full font-mono text-emerald-600 dark:text-emerald-400 font-bold focus:border-brand-blue-500"
                                     placeholder="R$ 0,00"
                                 />
                                 {errors.amount && <p className="text-red-400 text-xs mt-1 animate-in fade-in">{String(errors.amount.message)}</p>}
@@ -326,14 +326,14 @@ const CartorioModal: React.FC<CartorioModalProps> = ({ isOpen, onClose, record }
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {/* Anexo 1: Documento */}
-                                <div className="p-3.5 bg-brand-dark-900/60 border border-gray-800 rounded-xl space-y-2">
+                                <div className="p-3.5 bg-white dark:bg-brand-dark-900/60 border border-gray-200 dark:border-gray-800 rounded-xl space-y-2 shadow-sm">
                                     <div className="flex items-center justify-between">
-                                        <Label className="text-xs font-medium text-gray-300">Documento / Matrícula</Label>
+                                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Documento / Matrícula</Label>
                                         {record?.document_file_url && (
                                             <button 
                                                 type="button" 
                                                 onClick={() => handleOpenAttachment(record.document_file_url!)}
-                                                className="text-[11px] text-brand-blue-400 hover:underline flex items-center gap-1"
+                                                className="text-[11px] text-brand-blue-500 dark:text-brand-blue-400 hover:underline flex items-center gap-1"
                                             >
                                                 <PaperclipIcon className="h-3 w-3" /> Ver Atual
                                             </button>
@@ -341,12 +341,12 @@ const CartorioModal: React.FC<CartorioModalProps> = ({ isOpen, onClose, record }
                                     </div>
                                     <label 
                                         htmlFor="document-file-upload"
-                                        className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-800 hover:border-gray-700 rounded-lg cursor-pointer bg-brand-dark-950/60 transition-colors"
+                                        className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-700 rounded-lg cursor-pointer bg-gray-50/50 dark:bg-brand-dark-950/60 transition-colors"
                                     >
-                                        <FileTextIcon className="w-5 h-5 text-gray-500 mb-1" />
-                                        <p className="text-xs text-gray-400 text-center px-2">
+                                        <FileTextIcon className="w-5 h-5 text-gray-400 dark:text-gray-500 mb-1" />
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center px-2">
                                             {documentFile ? (
-                                                <span className="font-semibold text-brand-blue-400 truncate max-w-[200px] inline-block">{documentFile.name}</span>
+                                                <span className="font-semibold text-brand-blue-500 dark:text-brand-blue-400 truncate max-w-[200px] inline-block">{documentFile.name}</span>
                                             ) : (
                                                 <span>Clique para enviar PDF ou foto</span>
                                             )}
@@ -361,7 +361,7 @@ const CartorioModal: React.FC<CartorioModalProps> = ({ isOpen, onClose, record }
                                     </label>
                                     {documentFile && (
                                         <div className="flex justify-end">
-                                            <button type="button" onClick={() => setDocumentFile(null)} className="text-[11px] text-red-400 hover:underline">
+                                            <button type="button" onClick={() => setDocumentFile(null)} className="text-[11px] text-red-500 hover:underline">
                                                 Remover novo arquivo
                                             </button>
                                         </div>
@@ -369,14 +369,14 @@ const CartorioModal: React.FC<CartorioModalProps> = ({ isOpen, onClose, record }
                                 </div>
                                 
                                 {/* Anexo 2: Recibo */}
-                                <div className="p-3.5 bg-brand-dark-900/60 border border-gray-800 rounded-xl space-y-2">
+                                <div className="p-3.5 bg-white dark:bg-brand-dark-900/60 border border-gray-200 dark:border-gray-800 rounded-xl space-y-2 shadow-sm">
                                     <div className="flex items-center justify-between">
-                                        <Label className="text-xs font-medium text-gray-300">Comprovante / Recibo</Label>
+                                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Comprovante / Recibo</Label>
                                         {record?.file_url && (
                                             <button 
                                                 type="button" 
                                                 onClick={() => handleOpenAttachment(record.file_url!)}
-                                                className="text-[11px] text-brand-blue-400 hover:underline flex items-center gap-1"
+                                                className="text-[11px] text-brand-blue-500 dark:text-brand-blue-400 hover:underline flex items-center gap-1"
                                             >
                                                 <PaperclipIcon className="h-3 w-3" /> Ver Atual
                                             </button>
@@ -384,10 +384,10 @@ const CartorioModal: React.FC<CartorioModalProps> = ({ isOpen, onClose, record }
                                     </div>
                                     <label 
                                         htmlFor="invoice-file-upload"
-                                        className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-800 hover:border-gray-700 rounded-lg cursor-pointer bg-brand-dark-950/60 transition-colors"
+                                        className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-700 rounded-lg cursor-pointer bg-gray-50/50 dark:bg-brand-dark-950/60 transition-colors"
                                     >
-                                        <FileTextIcon className="w-5 h-5 text-gray-500 mb-1" />
-                                        <p className="text-xs text-gray-400 text-center px-2">
+                                        <FileTextIcon className="w-5 h-5 text-gray-400 dark:text-gray-500 mb-1" />
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center px-2">
                                             {invoiceFile ? (
                                                 <span className="font-semibold text-brand-blue-400 truncate max-w-[200px] inline-block">{invoiceFile.name}</span>
                                             ) : (

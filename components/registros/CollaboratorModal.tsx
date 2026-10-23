@@ -143,24 +143,24 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, 
           </div>
         </ResponsiveModalHeader>
         
-        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-brand-dark-950/50">
+        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 bg-gray-50/50 dark:bg-brand-dark-950/50">
           <form id="collaborator-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InputGroup label="Nome Completo *" error={shouldShowError('name') ? errors.name?.message as string : undefined}>
-                  <Input {...register('name')} placeholder="Ex: Carlos Alberto da Silva" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                  <Input {...register('name')} placeholder="Ex: Carlos Alberto da Silva" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
               </InputGroup>
               
               <InputGroup label="CPF / Documento" error={shouldShowError('document') ? errors.document?.message as string : undefined}>
-                  <Input {...register('document')} placeholder="000.000.000-00" className="h-9 text-xs font-mono bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                  <Input {...register('document')} placeholder="000.000.000-00" className="h-9 text-xs font-mono bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
               </InputGroup>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InputGroup label="Cargo / Função" error={shouldShowError('role') ? errors.role?.message as string : undefined}>
-                  <Input {...register('role')} placeholder="Ex: Eletricista, Encanador, Pedreiro" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                  <Input {...register('role')} placeholder="Ex: Eletricista, Encanador, Pedreiro" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
               </InputGroup>
               <InputGroup label="Telefone / WhatsApp" error={shouldShowError('phone') ? errors.phone?.message as string : undefined}>
-                  <Input {...register('phone')} placeholder="(11) 98765-4321" className="h-9 text-xs bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500" />
+                  <Input {...register('phone')} placeholder="(11) 98765-4321" className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500" />
               </InputGroup>
             </div>
             
@@ -168,7 +168,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, 
               <button
                 type="button"
                 onClick={() => setShowDetails(!showDetails)}
-                className="flex items-center gap-2 text-xs font-medium text-brand-blue-400 hover:text-brand-blue-300 transition-colors"
+                className="flex items-center gap-2 text-xs font-medium text-brand-blue-600 dark:text-brand-blue-400 hover:text-brand-blue-700 dark:hover:text-brand-blue-300 transition-colors"
               >
                 {showDetails ? <ChevronUpIcon className="h-3 w-3" /> : <ChevronDownIcon className="h-3 w-3" />}
                 {showDetails ? 'Ocultar detalhes' : 'Adicionar avaliação e observações'}
@@ -176,7 +176,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, 
             </div>
 
             {showDetails && (
-              <div className="p-4 bg-brand-dark-900/50 border border-gray-800/50 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2">
+              <div className="p-4 bg-white dark:bg-brand-dark-900/50 border border-gray-200 dark:border-gray-800/50 rounded-xl space-y-4 shadow-sm animate-in fade-in slide-in-from-top-2">
                 <Controller
                   name="rating"
                   control={control}
@@ -188,7 +188,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, 
                 />
                 
                 <InputGroup label="Observações" error={shouldShowError('observations') ? errors.observations?.message as string : undefined}>
-                    <Textarea {...register('observations')} placeholder="Informações adicionais, histórico, etc..." className="bg-brand-dark-950 border-gray-800 focus:border-brand-blue-500 min-h-[80px] text-sm resize-none" />
+                    <Textarea {...register('observations')} placeholder="Informações adicionais, histórico, etc..." className="bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white focus:border-brand-blue-500 min-h-[80px] text-sm resize-none" />
                 </InputGroup>
               </div>
             )}
