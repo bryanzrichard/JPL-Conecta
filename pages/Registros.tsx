@@ -1,5 +1,6 @@
 
-import React, { useState, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
@@ -63,6 +64,7 @@ interface ListSectionProps<T extends { id: string; name: string }> {
   IconComponent: React.FC<React.SVGProps<SVGSVGElement>>;
   tableHeaders: string[];
   renderTableRow: (item: T, onEdit: (item: T) => void, onDelete: (item: T) => void) => React.ReactNode;
+  autoEditId?: string | null;
 }
 
 const ListSection = <T extends { id: string; name: string }>({
@@ -76,7 +78,8 @@ const ListSection = <T extends { id: string; name: string }>({
   propName,
   IconComponent,
   tableHeaders,
-  renderTableRow
+  renderTableRow,
+  autoEditId
 }: ListSectionProps<T>) => {
   const { profile, user } = useAuth();
   const { toast } = useToast();
@@ -89,6 +92,44 @@ const ListSection = <T extends { id: string; name: string }>({
   const [isModalOpen, setModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<T | null>(null);
+
+  // Interceptar autoEditId para abrir modal de edição
+  useEffect(() => {
+    if (!autoEditId || !profile?.company_id) return;
+    
+    let isCurrent = true;
+
+    const loadItemForEdit = async () => {
+      const found = data?.data.find(d => d.id === autoEditId);
+      if (found && isCurrent) {
+        setSelectedItem(found);
+        setModalOpen(true);
+        return;
+      }
+
+      try {
+        const { data: item } = await (supabase as any)
+          .from(tableName)
+          .select('*')
+          .eq('id', autoEditId)
+          .eq('company_id', profile.company_id)
+          .maybeSingle();
+
+        if (item && isCurrent) {
+          setSelectedItem(item);
+          setModalOpen(true);
+        }
+      } catch (err) {
+        console.error(`Erro ao carregar ${entityName} para edição:`, err);
+      }
+    };
+
+    loadItemForEdit();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [autoEditId, profile?.company_id, data]);
 
   React.useEffect(() => {
       const handler = setTimeout(() => {
@@ -298,6 +339,33 @@ const Registros: React.FC = () => {
     const { user, profile, signOut } = useAuth();
     const { isDark, toggleTheme } = useTheme();
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const location = useLocation();
+
+    const [activeTab, setActiveTab] = useState<'suppliers' | 'projects' | 'collaborators'>('suppliers');
+    const [editSupplierId, setEditSupplierId] = useState<string | null>(null);
+    const [editProjectId, setEditProjectId] = useState<string | null>(null);
+    const [editCollabId, setEditCollabId] = useState<string | null>(null);
+
+    // Interceptar ?editar={tipo}_{id}
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const editParam = searchParams.get('editar') || (location.state as any)?.editId;
+        if (!editParam) return;
+
+        if (editParam.startsWith('fornecedor_')) {
+            const id = editParam.replace('fornecedor_', '');
+            setActiveTab('suppliers');
+            setEditSupplierId(id);
+        } else if (editParam.startsWith('obra_')) {
+            const id = editParam.replace('obra_', '');
+            setActiveTab('projects');
+            setEditProjectId(id);
+        } else if (editParam.startsWith('colaborador_')) {
+            const id = editParam.replace('colaborador_', '');
+            setActiveTab('collaborators');
+            setEditCollabId(id);
+        }
+    }, [location.search, location.state]);
 
     const formatDate = (dateString: string | null | undefined) => {
         if (!dateString) return 'Vitalícia';
@@ -370,7 +438,7 @@ const Registros: React.FC = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="suppliers" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3 md:w-fit md:inline-grid md:min-w-[460px]">
           <TabsTrigger value="suppliers"><BuildingIcon className="w-4 h-4 mr-2 hidden sm:inline"/>Fornecedores</TabsTrigger>
           <TabsTrigger value="projects"><ConstructionIcon className="w-4 h-4 mr-2 hidden sm:inline"/>Obras</TabsTrigger>
@@ -387,6 +455,7 @@ const Registros: React.FC = () => {
                 entityName="Fornecedor"
                 entityNamePlural="Fornecedores"
                 propName="supplier"
+                autoEditId={editSupplierId}
                 IconComponent={BuildingIcon}
                 tableHeaders={['Nome / Razão Social', 'CNPJ', 'Vendedor', 'Contato', 'Avaliação', 'Ações']}
                 renderTableRow={(supplier, onEdit, onDelete) => (
@@ -420,6 +489,7 @@ const Registros: React.FC = () => {
                 entityName="Obra"
                 entityNamePlural="Obras"
                 propName="project"
+                autoEditId={editProjectId}
                 IconComponent={ConstructionIcon}
                 tableHeaders={['Nome da Obra', 'Status', 'Mestre de Obra', 'Período', 'Localização', 'Ações']}
                 renderTableRow={(project, onEdit, onDelete) => (
@@ -461,6 +531,7 @@ const Registros: React.FC = () => {
                 entityName="Colaborador"
                 entityNamePlural="Colaboradores"
                 propName="collaborator"
+                autoEditId={editCollabId}
                 IconComponent={UsersIcon}
                 tableHeaders={['Nome', 'Função', 'Contato', 'Documento', 'Avaliação', 'Ações']}
                 renderTableRow={(collab, onEdit, onDelete) => (

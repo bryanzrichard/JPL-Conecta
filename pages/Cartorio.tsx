@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
@@ -72,6 +73,41 @@ const Cartorio: React.FC = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState<CartorioRecord | null>(null);
+    const location = useLocation();
+
+    // Interceptar ?editar={id} para abrir modal de edição de cartório automaticamente
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const editCartorioId = searchParams.get('editar') || (location.state as any)?.editId;
+
+        if (!editCartorioId || !profile?.company_id) return;
+
+        let isCurrent = true;
+
+        const loadRecordForEdit = async () => {
+            try {
+                const { data } = await supabase
+                    .from('cartorio_records')
+                    .select('*, projects(name)')
+                    .eq('id', editCartorioId)
+                    .eq('company_id', profile.company_id)
+                    .maybeSingle();
+
+                if (data && isCurrent) {
+                    setSelectedRecord(data as any);
+                    setIsEditModalOpen(true);
+                }
+            } catch (err) {
+                console.error('Erro ao carregar registro de cartório para edição:', err);
+            }
+        };
+
+        loadRecordForEdit();
+
+        return () => {
+            isCurrent = false;
+        };
+    }, [location.search, location.state, profile?.company_id]);
 
     React.useEffect(() => {
         const handler = setTimeout(() => {

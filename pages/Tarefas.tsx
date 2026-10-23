@@ -112,6 +112,68 @@ const Tarefas: React.FC = () => {
         }
     }, [location, navigate]);
 
+    // Interceptar ?editar={id} para abrir modal de edição da tarefa automaticamente
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const editTaskId = searchParams.get('editar') || (location.state as any)?.editId;
+
+        if (!editTaskId || !profile?.company_id) return;
+
+        let isCurrent = true;
+
+        const loadTaskForEdit = async () => {
+            // 1. Procurar nas tarefas já carregadas
+            const found = (tasks || []).find(t => t.id === editTaskId);
+            if (found && isCurrent) {
+                setTaskToEdit(found);
+                setCreateModalOpen(true);
+                return;
+            }
+
+            // 2. Buscar diretamente no Supabase por ID
+            try {
+                const { data } = await supabase
+                    .from('tasks')
+                    .select(`
+                        id,
+                        title,
+                        description,
+                        project_id,
+                        company_id,
+                        data_inicio_prevista,
+                        data_fim_prevista,
+                        status,
+                        prioridade,
+                        responsavel_execucao_id,
+                        created_by,
+                        materiais_previstos,
+                        equipamentos_utilizados,
+                        observacoes,
+                        custo_real,
+                        created_at,
+                        projects(name),
+                        collaborators:responsavel_execucao_id(name)
+                    `)
+                    .eq('id', editTaskId)
+                    .eq('company_id', profile.company_id)
+                    .maybeSingle();
+
+                if (data && isCurrent) {
+                    setTaskToEdit(data as any);
+                    setCreateModalOpen(true);
+                }
+            } catch (err) {
+                console.error('Erro ao carregar tarefa para edição:', err);
+            }
+        };
+
+        loadTaskForEdit();
+
+        return () => {
+            isCurrent = false;
+        };
+    }, [location.search, location.state, profile?.company_id, tasks]);
+
     // Queries
     const { data: tasks, isLoading: isLoadingTasks } = useQuery({
         queryKey: ['tasks', profile?.company_id],

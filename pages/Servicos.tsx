@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabaseClient';
 import { ServiceWithDetails, Collaborator, Project, SERVICE_STATUSES } from '../types';
@@ -70,6 +71,70 @@ const Servicos: React.FC = () => {
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
     const [isAdvanceModalOpen, setAdvanceModalOpen] = useState(false);
     const requestIdRef = useRef(0);
+    const location = useLocation();
+
+    // Interceptar ?editar={id} ou ?editarAdiantamento={id} para abrir modal automaticamente
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const editServiceId = searchParams.get('editar') || (location.state as any)?.editId;
+        const editAdvanceId = searchParams.get('editarAdiantamento') || (location.state as any)?.editAdvanceId;
+
+        if ((!editServiceId && !editAdvanceId) || !profile?.company_id) return;
+
+        let isCurrent = true;
+
+        const loadServiceForDisplay = async () => {
+            let targetServiceId = editServiceId;
+
+            // Se for adiantamento, buscar o ID do serviço associado
+            if (editAdvanceId && !targetServiceId) {
+                try {
+                    const { data: adv } = await supabase
+                        .from('adiantamentos')
+                        .select('service_id')
+                        .eq('id', editAdvanceId)
+                        .maybeSingle();
+                    if (adv?.service_id) {
+                        targetServiceId = adv.service_id;
+                    }
+                } catch (err) {
+                    console.error('Erro ao buscar serviço do adiantamento:', err);
+                }
+            }
+
+            if (!targetServiceId) return;
+
+            // 1. Procurar nos serviços já carregados na página
+            const found = services.find(s => s.id === targetServiceId);
+            if (found && isCurrent) {
+                setSelectedService(found);
+                setAdvanceModalOpen(true);
+                return;
+            }
+
+            // 2. Buscar detalhes completos do serviço via RPC fn_get_services_with_details
+            try {
+                const { data } = await supabase.rpc('fn_get_services_with_details', {
+                    p_company_id: profile.company_id,
+                });
+                if (data && isCurrent) {
+                    const matched = (data as ServiceWithDetails[]).find(s => s.id === targetServiceId);
+                    if (matched) {
+                        setSelectedService(matched);
+                        setAdvanceModalOpen(true);
+                    }
+                }
+            } catch (err) {
+                console.error('Erro ao abrir detalhes do serviço:', err);
+            }
+        };
+
+        loadServiceForDisplay();
+
+        return () => {
+            isCurrent = false;
+        };
+    }, [location.search, location.state, profile?.company_id, services]);
 
     const applyQuickPeriod = (shortcut: typeof QUICK_PERIOD_SHORTCUTS[number]) => {
         const today = new Date();

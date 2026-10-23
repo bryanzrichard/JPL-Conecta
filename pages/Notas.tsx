@@ -122,6 +122,73 @@ const Notas: React.FC = () => {
         }
     }, [location.state, navigate]);
 
+    // Interceptar ?editar={id} para abrir modal de exibição e detalhes automaticamente
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const editNotaId = searchParams.get('editar') || (location.state as any)?.editId;
+
+        if (!editNotaId || !profile?.company_id) return;
+
+        let isCurrent = true;
+
+        const loadNotaForDisplay = async () => {
+            // 1. Verificar se já está carregada na lista de notas
+            const found = notas.find(n => n.id === editNotaId);
+            if (found) {
+                setSelectedNota(found);
+                setIsDetailsModalOpen(true);
+                return;
+            }
+
+            // 2. Buscar diretamente no Supabase por nota_id
+            try {
+                const { data: notaData } = await supabase
+                    .from('notas_fiscais')
+                    .select('*, projects(name), suppliers(name)')
+                    .eq('id', editNotaId)
+                    .eq('company_id', profile.company_id)
+                    .maybeSingle();
+
+                if (!isCurrent) return;
+
+                if (notaData) {
+                    setSelectedNota(notaData as any);
+                    setIsDetailsModalOpen(true);
+                    return;
+                }
+
+                // 3. Se não encontrou por nota_id, pode ser o ID de um item da nota
+                const { data: itemData } = await supabase
+                    .from('itens_nota_fiscal')
+                    .select('nota_fiscal_id')
+                    .eq('id', editNotaId)
+                    .maybeSingle();
+
+                if (itemData?.nota_fiscal_id && isCurrent) {
+                    const { data: notaFromItem } = await supabase
+                        .from('notas_fiscais')
+                        .select('*, projects(name), suppliers(name)')
+                        .eq('id', itemData.nota_fiscal_id)
+                        .eq('company_id', profile.company_id)
+                        .maybeSingle();
+
+                    if (notaFromItem && isCurrent) {
+                        setSelectedNota(notaFromItem as any);
+                        setIsDetailsModalOpen(true);
+                    }
+                }
+            } catch (err) {
+                console.error('Erro ao carregar detalhes da nota selecionada:', err);
+            }
+        };
+
+        loadNotaForDisplay();
+
+        return () => {
+            isCurrent = false;
+        };
+    }, [location.search, location.state, profile?.company_id, notas]);
+
     const { data: suppliers = [], isLoading: isLoadingSuppliers } = useQuery({
         queryKey: ['suppliers', profile?.company_id],
         queryFn: async () => {
