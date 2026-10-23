@@ -112,6 +112,7 @@ const Notas: React.FC = () => {
     const [jobToArchive, setJobToArchive] = useState<AIProcessJob | null>(null);
 
     const { localJobs, processFile, removeLocalJob } = useUploadNotaIA();
+    const handledNotaIdRef = useRef<string | null>(null);
 
      // Effect to open modal from Quick Add button
     useEffect(() => {
@@ -120,21 +121,26 @@ const Notas: React.FC = () => {
             // Clear location state to prevent re-opening on refresh
             navigate(location.pathname, { replace: true, state: {} });
         }
-    }, [location.state, navigate]);
+    }, [location.state, navigate, location.pathname]);
 
-    // Interceptar ?editar={id} para abrir modal de exibição e detalhes automaticamente
+    // Interceptar ?editar={id} para abrir modal de exibição e detalhes automaticamente sem loop
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         const editNotaId = searchParams.get('editar') || (location.state as any)?.editId;
 
         if (!editNotaId || !profile?.company_id) return;
+        if (handledNotaIdRef.current === editNotaId) return;
+
+        handledNotaIdRef.current = editNotaId;
+        // Limpar parâmetros da URL imediatamente para evitar reaberturas involuntárias
+        navigate(location.pathname, { replace: true, state: {} });
 
         let isCurrent = true;
 
         const loadNotaForDisplay = async () => {
             // 1. Verificar se já está carregada na lista de notas
             const found = notas.find(n => n.id === editNotaId);
-            if (found) {
+            if (found && isCurrent) {
                 setSelectedNota(found);
                 setIsDetailsModalOpen(true);
                 return;
@@ -187,7 +193,7 @@ const Notas: React.FC = () => {
         return () => {
             isCurrent = false;
         };
-    }, [location.search, location.state, profile?.company_id, notas]);
+    }, [location.search, location.state, profile?.company_id, navigate]);
 
     const { data: suppliers = [], isLoading: isLoadingSuppliers } = useQuery({
         queryKey: ['suppliers', profile?.company_id],
@@ -616,7 +622,10 @@ const Notas: React.FC = () => {
             <DetalhesNotaModal
                 nota={selectedNota}
                 isOpen={isDetailsModalOpen}
-                onClose={() => setIsDetailsModalOpen(false)}
+                onClose={() => {
+                    setIsDetailsModalOpen(false);
+                    setSelectedNota(null);
+                }}
             />
             
             <ManualNotaModal

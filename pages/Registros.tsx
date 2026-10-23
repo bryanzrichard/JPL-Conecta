@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, lazy, Suspense, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
@@ -65,6 +65,7 @@ interface ListSectionProps<T extends { id: string; name: string }> {
   tableHeaders: string[];
   renderTableRow: (item: T, onEdit: (item: T) => void, onDelete: (item: T) => void) => React.ReactNode;
   autoEditId?: string | null;
+  onAutoEditConsumed?: () => void;
 }
 
 const ListSection = <T extends { id: string; name: string }>({
@@ -79,7 +80,8 @@ const ListSection = <T extends { id: string; name: string }>({
   IconComponent,
   tableHeaders,
   renderTableRow,
-  autoEditId
+  autoEditId,
+  onAutoEditConsumed
 }: ListSectionProps<T>) => {
   const { profile, user } = useAuth();
   const { toast } = useToast();
@@ -92,11 +94,14 @@ const ListSection = <T extends { id: string; name: string }>({
   const [isModalOpen, setModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<T | null>(null);
+  const handledAutoEditIdRef = useRef<string | null>(null);
 
   // Interceptar autoEditId para abrir modal de edição
   useEffect(() => {
     if (!autoEditId || !profile?.company_id) return;
-    
+    if (handledAutoEditIdRef.current === autoEditId) return;
+
+    handledAutoEditIdRef.current = autoEditId;
     let isCurrent = true;
 
     const loadItemForEdit = async () => {
@@ -104,6 +109,7 @@ const ListSection = <T extends { id: string; name: string }>({
       if (found && isCurrent) {
         setSelectedItem(found);
         setModalOpen(true);
+        onAutoEditConsumed?.();
         return;
       }
 
@@ -118,6 +124,7 @@ const ListSection = <T extends { id: string; name: string }>({
         if (item && isCurrent) {
           setSelectedItem(item);
           setModalOpen(true);
+          onAutoEditConsumed?.();
         }
       } catch (err) {
         console.error(`Erro ao carregar ${entityName} para edição:`, err);
@@ -129,7 +136,7 @@ const ListSection = <T extends { id: string; name: string }>({
     return () => {
       isCurrent = false;
     };
-  }, [autoEditId, profile?.company_id, data]);
+  }, [autoEditId, profile?.company_id, onAutoEditConsumed]);
 
   React.useEffect(() => {
       const handler = setTimeout(() => {
@@ -202,7 +209,10 @@ const ListSection = <T extends { id: string; name: string }>({
   
   const modalProps = {
     isOpen: isModalOpen,
-    onClose: () => setModalOpen(false),
+    onClose: () => {
+      setModalOpen(false);
+      setSelectedItem(null);
+    },
     [propName]: selectedItem,
   };
   
@@ -345,12 +355,19 @@ const Registros: React.FC = () => {
     const [editSupplierId, setEditSupplierId] = useState<string | null>(null);
     const [editProjectId, setEditProjectId] = useState<string | null>(null);
     const [editCollabId, setEditCollabId] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const handledEditParamRef = useRef<string | null>(null);
 
-    // Interceptar ?editar={tipo}_{id}
+    // Interceptar ?editar={tipo}_{id} para abrir modal automaticamente sem loop
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         const editParam = searchParams.get('editar') || (location.state as any)?.editId;
         if (!editParam) return;
+        if (handledEditParamRef.current === editParam) return;
+
+        handledEditParamRef.current = editParam;
+        // Limpar parâmetros da URL imediatamente para evitar reaberturas involuntárias
+        navigate(location.pathname, { replace: true, state: {} });
 
         if (editParam.startsWith('fornecedor_')) {
             const id = editParam.replace('fornecedor_', '');
@@ -365,7 +382,7 @@ const Registros: React.FC = () => {
             setActiveTab('collaborators');
             setEditCollabId(id);
         }
-    }, [location.search, location.state]);
+    }, [location.search, location.state, navigate]);
 
     const formatDate = (dateString: string | null | undefined) => {
         if (!dateString) return 'Vitalícia';
@@ -456,6 +473,7 @@ const Registros: React.FC = () => {
                 entityNamePlural="Fornecedores"
                 propName="supplier"
                 autoEditId={editSupplierId}
+                onAutoEditConsumed={() => setEditSupplierId(null)}
                 IconComponent={BuildingIcon}
                 tableHeaders={['Nome / Razão Social', 'CNPJ', 'Vendedor', 'Contato', 'Avaliação', 'Ações']}
                 renderTableRow={(supplier, onEdit, onDelete) => (
@@ -490,6 +508,7 @@ const Registros: React.FC = () => {
                 entityNamePlural="Obras"
                 propName="project"
                 autoEditId={editProjectId}
+                onAutoEditConsumed={() => setEditProjectId(null)}
                 IconComponent={ConstructionIcon}
                 tableHeaders={['Nome da Obra', 'Status', 'Mestre de Obra', 'Período', 'Localização', 'Ações']}
                 renderTableRow={(project, onEdit, onDelete) => (
@@ -532,6 +551,7 @@ const Registros: React.FC = () => {
                 entityNamePlural="Colaboradores"
                 propName="collaborator"
                 autoEditId={editCollabId}
+                onAutoEditConsumed={() => setEditCollabId(null)}
                 IconComponent={UsersIcon}
                 tableHeaders={['Nome', 'Função', 'Contato', 'Documento', 'Avaliação', 'Ações']}
                 renderTableRow={(collab, onEdit, onDelete) => (

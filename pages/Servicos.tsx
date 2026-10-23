@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabaseClient';
-import { ServiceWithDetails, Collaborator, Project, SERVICE_STATUSES } from '../types';
+import { ServiceWithDetails, AdvanceWithDetails, Collaborator, Project, SERVICE_STATUSES } from '../types';
 import { formatCurrency, formatDateBR as formatDate } from '../lib/utils';
 import { Card, CardHeader, CardContent, CardFooter } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -16,12 +16,14 @@ import { Command, CommandInput, CommandEmpty, CommandItem, CommandList } from '.
 import {
     BriefcaseIcon, PlusIcon, DollarSignIcon, TrendingUpIcon, FilterIcon,
     UserIcon, ConstructionIcon, CalendarIcon, ChevronsUpDownIcon,
-    MoreVerticalIcon, XIcon
+    MoreVerticalIcon, XIcon, EditIcon
 } from '../lib/icons';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/DropdownMenu';
 
 const ServiceModal = lazy(() => import('../components/servicos/ServiceModal'));
 const AdvanceModal = lazy(() => import('../components/servicos/AdvanceModal'));
+const EditarServicoModal = lazy(() => import('../components/historico/EditarServicoModal'));
+const EditarAdiantamentoModal = lazy(() => import('../components/historico/EditarAdiantamentoModal'));
 
 type Filters = {
     collaboratorId: string | null;
@@ -68,73 +70,89 @@ const Servicos: React.FC = () => {
     const [isProjectPopoverOpen, setProjectPopoverOpen] = useState(false);
     
     const [selectedService, setSelectedService] = useState<ServiceWithDetails | null>(null);
+    const [selectedAdvance, setSelectedAdvance] = useState<AdvanceWithDetails | null>(null);
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+    const [isEditServiceModalOpen, setEditServiceModalOpen] = useState(false);
     const [isAdvanceModalOpen, setAdvanceModalOpen] = useState(false);
+    const [isEditAdvanceModalOpen, setEditAdvanceModalOpen] = useState(false);
     const requestIdRef = useRef(0);
+    const handledIdRef = useRef<string | null>(null);
     const location = useLocation();
+    const navigate = useNavigate();
 
-    // Interceptar ?editar={id} ou ?editarAdiantamento={id} para abrir modal automaticamente
+    // Interceptar ?editar={id} ou ?editarAdiantamento={id} para abrir modal automaticamente sem loop
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         const editServiceId = searchParams.get('editar') || (location.state as any)?.editId;
         const editAdvanceId = searchParams.get('editarAdiantamento') || (location.state as any)?.editAdvanceId;
+        const targetId = editServiceId || editAdvanceId;
 
-        if ((!editServiceId && !editAdvanceId) || !profile?.company_id) return;
+        if (!targetId || !profile?.company_id) return;
+        if (handledIdRef.current === targetId) return;
+
+        handledIdRef.current = targetId;
+
+        // Limpar parâmetros da URL imediatamente para evitar reabertura involuntária ao fechar ou re-renderizar
+        navigate(location.pathname, { replace: true, state: {} });
 
         let isCurrent = true;
 
-        const loadServiceForDisplay = async () => {
-            let targetServiceId = editServiceId;
+        const loadTargetForDisplay = async () => {
+            if (editServiceId) {
+                // 1. Procurar nos serviços já carregados na página
+                const found = services.find(s => s.id === editServiceId);
+                if (found && isCurrent) {
+                    setSelectedService(found);
+                    setEditServiceModalOpen(true);
+                    return;
+                }
 
-            // Se for adiantamento, buscar o ID do serviço associado
-            if (editAdvanceId && !targetServiceId) {
+                // 2. Buscar detalhes completos do serviço via RPC fn_get_services_with_details
                 try {
-                    const { data: adv } = await supabase
-                        .from('adiantamentos')
-                        .select('service_id')
-                        .eq('id', editAdvanceId)
-                        .maybeSingle();
-                    if (adv?.service_id) {
-                        targetServiceId = adv.service_id;
+                    const { data } = await supabase.rpc('fn_get_services_with_details', {
+                        p_company_id: profile.company_id,
+                    });
+                    if (data && isCurrent) {
+                        const matched = (data as ServiceWithDetails[]).find(s => s.id === editServiceId);
+                        if (matched) {
+                            setSelectedService(matched);
+                            setEditServiceModalOpen(true);
+                        }
                     }
                 } catch (err) {
-                    console.error('Erro ao buscar serviço do adiantamento:', err);
+                    console.error('Erro ao abrir serviço para edição:', err);
                 }
-            }
+            } else if (editAdvanceId) {
+                // Buscar adiantamento e formatar para o modal de edição de adiantamento
+                try {
+                    const { data: advData } = await supabase
+                        .from('adiantamentos')
+                        .select('*, servicos(description, collaborator_id, project_id, collaborators(name), projects(name))')
+                        .eq('id', editAdvanceId)
+                        .maybeSingle();
 
-            if (!targetServiceId) return;
-
-            // 1. Procurar nos serviços já carregados na página
-            const found = services.find(s => s.id === targetServiceId);
-            if (found && isCurrent) {
-                setSelectedService(found);
-                setAdvanceModalOpen(true);
-                return;
-            }
-
-            // 2. Buscar detalhes completos do serviço via RPC fn_get_services_with_details
-            try {
-                const { data } = await supabase.rpc('fn_get_services_with_details', {
-                    p_company_id: profile.company_id,
-                });
-                if (data && isCurrent) {
-                    const matched = (data as ServiceWithDetails[]).find(s => s.id === targetServiceId);
-                    if (matched) {
-                        setSelectedService(matched);
-                        setAdvanceModalOpen(true);
+                    if (advData && isCurrent) {
+                        const formattedAdv: AdvanceWithDetails = {
+                            ...advData,
+                            service_description: advData.servicos?.description || 'Serviço',
+                            collaborator_name: advData.servicos?.collaborators?.name || null,
+                            project_name: advData.servicos?.projects?.name || null,
+                        };
+                        setSelectedAdvance(formattedAdv);
+                        setEditAdvanceModalOpen(true);
                     }
+                } catch (err) {
+                    console.error('Erro ao abrir adiantamento para edição:', err);
                 }
-            } catch (err) {
-                console.error('Erro ao abrir detalhes do serviço:', err);
             }
         };
 
-        loadServiceForDisplay();
+        loadTargetForDisplay();
 
         return () => {
             isCurrent = false;
         };
-    }, [location.search, location.state, profile?.company_id, services]);
+    }, [location.search, location.state, profile?.company_id, navigate]);
 
     const applyQuickPeriod = (shortcut: typeof QUICK_PERIOD_SHORTCUTS[number]) => {
         const today = new Date();
@@ -259,6 +277,11 @@ const Servicos: React.FC = () => {
     const handleCreateNewService = () => {
         setSelectedService(null);
         setCreateModalOpen(true);
+    };
+
+    const handleOpenEditServiceModal = (service: ServiceWithDetails) => {
+        setSelectedService(service);
+        setEditServiceModalOpen(true);
     };
     
     const handleOpenAdvanceModal = (service: ServiceWithDetails) => {
@@ -651,7 +674,7 @@ const Servicos: React.FC = () => {
                                         <tr 
                                             key={service.id} 
                                             className={rowClass}
-                                            onClick={() => handleOpenAdvanceModal(service)}
+                                            onClick={() => handleOpenEditServiceModal(service)}
                                         >
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex flex-col gap-1">
@@ -690,6 +713,9 @@ const Servicos: React.FC = () => {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onSelect={() => handleOpenEditServiceModal(service)}>
+                                                            <EditIcon className="h-4 w-4 mr-2" /> Editar / Detalhes
+                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem onSelect={() => handleOpenAdvanceModal(service)}>
                                                             <TrendingUpIcon className="h-4 w-4 mr-2" /> Novo Adiantamento
                                                         </DropdownMenuItem>
@@ -718,14 +744,49 @@ const Servicos: React.FC = () => {
                     />
                 )}
 
+                {isEditServiceModalOpen && selectedService && (
+                    <EditarServicoModal
+                        isOpen={isEditServiceModalOpen}
+                        onClose={() => {
+                            setEditServiceModalOpen(false);
+                            setSelectedService(null);
+                        }}
+                        onSuccess={() => {
+                            setEditServiceModalOpen(false);
+                            setSelectedService(null);
+                            fetchServices(filters);
+                        }}
+                        service={selectedService}
+                        collaborators={collaborators}
+                        projects={projects}
+                    />
+                )}
+
                 {isAdvanceModalOpen && selectedService && (
                     <AdvanceModal
                         isOpen={isAdvanceModalOpen}
                         onClose={() => {
                             setAdvanceModalOpen(false);
+                            setSelectedService(null);
                             fetchServices(filters); // Refresh on close to update values
                         }}
                         service={selectedService}
+                    />
+                )}
+
+                {isEditAdvanceModalOpen && selectedAdvance && (
+                    <EditarAdiantamentoModal
+                        isOpen={isEditAdvanceModalOpen}
+                        onClose={() => {
+                            setEditAdvanceModalOpen(false);
+                            setSelectedAdvance(null);
+                        }}
+                        onSuccess={() => {
+                            setEditAdvanceModalOpen(false);
+                            setSelectedAdvance(null);
+                            fetchServices(filters);
+                        }}
+                        advance={selectedAdvance}
                     />
                 )}
             </Suspense>

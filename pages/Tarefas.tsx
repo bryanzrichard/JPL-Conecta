@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
@@ -112,12 +112,19 @@ const Tarefas: React.FC = () => {
         }
     }, [location, navigate]);
 
-    // Interceptar ?editar={id} para abrir modal de edição da tarefa automaticamente
+    const handledTaskIdRef = useRef<string | null>(null);
+
+    // Interceptar ?editar={id} para abrir modal de edição da tarefa automaticamente sem loop
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         const editTaskId = searchParams.get('editar') || (location.state as any)?.editId;
 
         if (!editTaskId || !profile?.company_id) return;
+        if (handledTaskIdRef.current === editTaskId) return;
+
+        handledTaskIdRef.current = editTaskId;
+        // Limpar parâmetros da URL imediatamente para evitar reaberturas involuntárias
+        navigate(location.pathname, { replace: true, state: {} });
 
         let isCurrent = true;
 
@@ -172,7 +179,7 @@ const Tarefas: React.FC = () => {
         return () => {
             isCurrent = false;
         };
-    }, [location.search, location.state, profile?.company_id, tasks]);
+    }, [location.search, location.state, profile?.company_id, navigate]);
 
     // Queries
     const { data: tasks, isLoading: isLoadingTasks } = useQuery({
@@ -542,7 +549,10 @@ const Tarefas: React.FC = () => {
             {isCreateModalOpen && (
                 <CreateTaskModal 
                     isOpen={isCreateModalOpen}
-                    onClose={() => setCreateModalOpen(false)}
+                    onClose={() => {
+                        setCreateModalOpen(false);
+                        setTaskToEdit(null);
+                    }}
                     taskToEdit={taskToEdit}
                     projects={prerequisites?.projects || []}
                     collaborators={prerequisites?.collaborators || []}

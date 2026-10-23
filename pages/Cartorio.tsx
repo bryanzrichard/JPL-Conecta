@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
@@ -74,13 +74,20 @@ const Cartorio: React.FC = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState<CartorioRecord | null>(null);
     const location = useLocation();
+    const navigate = useNavigate();
+    const handledCartorioIdRef = useRef<string | null>(null);
 
-    // Interceptar ?editar={id} para abrir modal de edição de cartório automaticamente
+    // Interceptar ?editar={id} para abrir modal de edição de cartório automaticamente sem loop
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         const editCartorioId = searchParams.get('editar') || (location.state as any)?.editId;
 
         if (!editCartorioId || !profile?.company_id) return;
+        if (handledCartorioIdRef.current === editCartorioId) return;
+
+        handledCartorioIdRef.current = editCartorioId;
+        // Limpar parâmetros da URL imediatamente para evitar reaberturas involuntárias
+        navigate(location.pathname, { replace: true, state: {} });
 
         let isCurrent = true;
 
@@ -107,7 +114,7 @@ const Cartorio: React.FC = () => {
         return () => {
             isCurrent = false;
         };
-    }, [location.search, location.state, profile?.company_id]);
+    }, [location.search, location.state, profile?.company_id, navigate]);
 
     React.useEffect(() => {
         const handler = setTimeout(() => {
@@ -706,7 +713,10 @@ const Cartorio: React.FC = () => {
             {isEditModalOpen && (
                 <CartorioModal 
                     isOpen={isEditModalOpen}
-                    onClose={() => setIsEditModalOpen(false)}
+                    onClose={() => {
+                        setIsEditModalOpen(false);
+                        setSelectedRecord(null);
+                    }}
                     record={selectedRecord}
                 />
             )}
