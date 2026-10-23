@@ -236,7 +236,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
               <button
                 type="button"
                 onClick={() => setShowAddress(!showAddress)}
-                className="flex items-center gap-2 text-xs font-medium text-brand-blue-600 dark:text-brand-blue-400 hover:text-brand-blue-700 dark:hover:text-brand-blue-300 transition-colors"
+                className="flex items-center gap-2 text-xs font-medium text-brand-blue-400 hover:text-brand-blue-300 transition-colors"
               >
                 {showAddress ? <ChevronUpIcon className="h-3 w-3" /> : <ChevronDownIcon className="h-3 w-3" />}
                 {showAddress ? 'Ocultar endereço' : 'Adicionar endereço da obra'}
@@ -246,8 +246,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
             {showAddress && (
               <div className="p-4 bg-brand-dark-900/50 border border-gray-800/50 rounded-xl space-y-3 animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-300">Endereço</h3>
-                  {isLoadingCep && <span className="text-[10px] font-normal text-brand-blue-600 dark:text-brand-blue-400 animate-pulse flex items-center gap-1"><SearchIcon className="h-3 w-3"/> Buscando CEP...</span>}
+                  <h3 className="text-xs font-semibold text-gray-300">Endereço</h3>
+                  {isLoadingCep && <span className="text-[10px] font-normal text-brand-blue-400 animate-pulse flex items-center gap-1"><SearchIcon className="h-3 w-3"/> Buscando CEP...</span>}
                 </div>
                 
                 <div className="grid grid-cols-3 gap-3">

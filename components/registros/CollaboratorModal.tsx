@@ -168,7 +168,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, 
               <button
                 type="button"
                 onClick={() => setShowDetails(!showDetails)}
-                className="flex items-center gap-2 text-xs font-medium text-brand-blue-600 dark:text-brand-blue-400 hover:text-brand-blue-700 dark:hover:text-brand-blue-300 transition-colors"
+                className="flex items-center gap-2 text-xs font-medium text-brand-blue-400 hover:text-brand-blue-300 transition-colors"
               >
                 {showDetails ? <ChevronUpIcon className="h-3 w-3" /> : <ChevronDownIcon className="h-3 w-3" />}
                 {showDetails ? 'Ocultar detalhes' : 'Adicionar avaliação e observações'}
@@ -214,7 +214,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, 
 
 const InputGroup: React.FC<{ label: string; error?: string; children: React.ReactNode }> = ({ label, error, children }) => (
     <div>
-        <Label className={`text-xs font-medium text-gray-500 dark:text-gray-400 ${error ? "text-red-500" : ""}`}>{label}</Label>
+        <Label className={`text-xs font-medium text-gray-400 ${error ? "text-red-500" : ""}`}>{label}</Label>
         <div className="mt-1">{children}</div>
         {error && <p className="text-[10px] text-red-500 mt-1 font-medium animate-in fade-in slide-in-from-top-1">{error}</p>}
     </div>

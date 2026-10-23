@@ -87,7 +87,7 @@ const ItemsManagerModal: React.FC<ItemsManagerModalProps> = ({ isOpen, onClose, 
                 return (
                 <div key={field.id} className="p-5 bg-gray-900/80 rounded-xl border border-gray-800 shadow-sm relative group transition-all hover:border-brand-blue-500/30 hover:bg-gray-900/90">
                     {/* Micro-label for Index */}
-                    <div className="absolute -top-2.5 -left-2.5 w-7 h-7 rounded-full bg-brand-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow-lg border-2 border-white dark:border-brand-dark-900 z-10">
+                    <div className="absolute -top-2.5 -left-2.5 w-7 h-7 rounded-full bg-brand-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow-lg border-2 border-brand-dark-900 z-10">
                         {String(index + 1).padStart(2, '0')}
                     </div>
 
@@ -140,9 +140,9 @@ const ItemsManagerModal: React.FC<ItemsManagerModalProps> = ({ isOpen, onClose, 
                         </div>
                         
                         {/* Total Display */}
-                        <div className="md:col-span-12 flex items-center justify-end gap-3 pt-3 border-t border-gray-200 dark:border-gray-800/50">
-                            <span className="text-[10px] uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold">Total do Item</span>
-                            <div className="text-base font-mono font-bold text-brand-blue-600 dark:text-brand-blue-400">
+                        <div className="md:col-span-12 flex items-center justify-end gap-3 pt-3 border-t border-gray-800">
+                            <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Total do Item</span>
+                            <div className="text-base font-mono font-bold text-brand-blue-400">
                                 <ItemTotalDisplay control={control} index={index}/>
                             </div>
                         </div>
@@ -176,7 +176,7 @@ const ItemsManagerModal: React.FC<ItemsManagerModalProps> = ({ isOpen, onClose, 
 
 const InputGroup: React.FC<{ label: string; error?: string; children: React.ReactNode }> = ({ label, error, children }) => (
     <div>
-        <Label className={`text-xs ${error ? "text-red-500" : "text-gray-500 dark:text-gray-400"}`}>{label}</Label>
+        <Label className={`text-xs ${error ? "text-red-500" : "text-gray-400"}`}>{label}</Label>
         <div className="mt-1">{children}</div>
         {error && <p className="text-[10px] text-red-500 mt-1 font-medium">{error}</p>}
     </div>

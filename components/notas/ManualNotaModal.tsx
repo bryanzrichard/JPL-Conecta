@@ -283,7 +283,7 @@ const ManualNotaModal: React.FC<ManualNotaModalProps> = ({ isOpen, onClose, onSu
                 </div>
 
                 {/* Seção 2: Itens Summary & Manager */}
-                <div className="space-y-3 border-t border-gray-200 dark:border-gray-800 pt-6">
+                <div className="space-y-3 border-t border-gray-800 pt-6">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-semibold flex items-center gap-2 text-white uppercase tracking-wider">
                             <PackageIcon className="h-4 w-4 text-brand-blue-500"/> 
@@ -299,11 +299,11 @@ const ManualNotaModal: React.FC<ManualNotaModalProps> = ({ isOpen, onClose, onSu
                             </p>
                             <div className="flex items-center gap-2 text-xs text-gray-400">
                                 <span>Subtotal dos Itens:</span>
-                                <span className="text-brand-blue-600 dark:text-brand-blue-400 font-mono font-semibold">{formatCurrency(subTotal)}</span>
+                                <span className="text-brand-blue-400 font-mono font-semibold">{formatCurrency(subTotal)}</span>
                             </div>
                             {errors.items && <p className="text-[10px] text-red-500 mt-1 font-medium bg-red-500/10 px-2 py-0.5 rounded w-fit">Há erros nos itens. Clique em gerenciar para corrigir.</p>}
                         </div>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setShowItemsModal(true)} className="w-full sm:w-auto border-brand-blue-500/50 text-brand-blue-500 hover:bg-brand-blue-500 hover:text-white h-9 text-xs font-semibold uppercase tracking-wide px-4">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setShowItemsModal(true)} className="w-full sm:w-auto border-brand-blue-500/50 text-brand-blue-400 hover:bg-brand-blue-500 hover:text-white h-9 text-xs font-semibold uppercase tracking-wide px-4">
                             <EditIcon className="w-3.5 h-3.5 mr-2"/> Gerenciar Itens
                         </Button>
                     </div>
@@ -314,7 +314,7 @@ const ManualNotaModal: React.FC<ManualNotaModalProps> = ({ isOpen, onClose, onSu
                     <button 
                         type="button" 
                         onClick={() => setShowOptionalFields(!showOptionalFields)}
-                        className="text-xs text-brand-blue-600 dark:text-brand-blue-400 font-semibold flex items-center gap-1.5 transition-colors group"
+                        className="text-xs text-brand-blue-400 font-semibold flex items-center gap-1.5 transition-colors group"
                     >
                         <span className="w-4 h-4 rounded-full border border-brand-blue-500/30 flex items-center justify-center group-hover:border-brand-blue-500 transition-colors">
                             {showOptionalFields ? '-' : '+'}

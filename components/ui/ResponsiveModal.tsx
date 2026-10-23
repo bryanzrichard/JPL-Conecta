@@ -157,9 +157,9 @@ export function ResponsiveModalContent({
   );
 }
 
-export function ResponsiveModalHeader({ children }: { children: React.ReactNode; className?: string }) {
+export function ResponsiveModalHeader({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="px-6 py-4 pr-14 border-b border-gray-800 bg-brand-dark-900 shrink-0 text-left">
+    <div className={`px-6 py-4 pr-14 border-b border-gray-800 bg-brand-dark-900 shrink-0 text-left ${className || ''}`}>
       {children}
     </div>
   );
