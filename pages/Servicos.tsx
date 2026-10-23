@@ -15,7 +15,7 @@ import { Command, CommandInput, CommandEmpty, CommandItem, CommandList } from '.
 import {
     BriefcaseIcon, PlusIcon, DollarSignIcon, TrendingUpIcon, FilterIcon,
     UserIcon, ConstructionIcon, CalendarIcon, ChevronsUpDownIcon,
-    MoreVerticalIcon
+    MoreVerticalIcon, XIcon
 } from '../lib/icons';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/DropdownMenu';
 
@@ -28,6 +28,13 @@ type Filters = {
     startDate: Date | null;
     endDate: Date | null;
 };
+
+const QUICK_PERIOD_SHORTCUTS = [
+    { label: 'Hoje', daysAgo: 0 },
+    { label: 'Últimos 7 dias', daysAgo: 7 },
+    { label: 'Este Mês', isCurrentMonth: true },
+    { label: 'Últimos 90 dias', daysAgo: 90 },
+];
 
 const Servicos: React.FC = () => {
     const { profile } = useAuth();
@@ -44,6 +51,15 @@ const Servicos: React.FC = () => {
     const [tempFilters, setTempFilters] = useState<Filters>(filters);
     const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
+    // Active filters count
+    const activeFiltersCount = useMemo(() => {
+        let count = 0;
+        if (filters.collaboratorId) count++;
+        if (filters.projectId) count++;
+        if (filters.startDate || filters.endDate) count++;
+        return count;
+    }, [filters]);
+
     // Popover and search states for filters
     const [collaboratorSearch, setCollaboratorSearch] = useState("");
     const [projectSearch, setProjectSearch] = useState("");
@@ -54,6 +70,46 @@ const Servicos: React.FC = () => {
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
     const [isAdvanceModalOpen, setAdvanceModalOpen] = useState(false);
     const requestIdRef = useRef(0);
+
+    const applyQuickPeriod = (shortcut: typeof QUICK_PERIOD_SHORTCUTS[number]) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (shortcut.isCurrentMonth) {
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            setTempFilters(f => ({
+                ...f,
+                startDate: startOfMonth,
+                endDate: today,
+            }));
+            return;
+        }
+
+        if (shortcut.daysAgo === 0) {
+            setTempFilters(f => ({
+                ...f,
+                startDate: today,
+                endDate: today,
+            }));
+            return;
+        }
+
+        const pastDate = new Date(Date.now() - shortcut.daysAgo * 86400000);
+        pastDate.setHours(0, 0, 0, 0);
+        setTempFilters(f => ({
+            ...f,
+            startDate: pastDate,
+            endDate: today,
+        }));
+    };
+
+    const clearDates = () => {
+        setTempFilters(f => ({
+            ...f,
+            startDate: null,
+            endDate: null,
+        }));
+    };
 
     const fetchServices = useCallback(async (currentFilters: Filters) => {
         if (!profile?.company_id) return;
@@ -161,97 +217,137 @@ const Servicos: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Valor Total */}
-                <div className="bg-brand-dark-900 p-4 rounded-xl shadow-sm border border-gray-800 flex items-center gap-4">
+                <div className="bg-white dark:bg-brand-dark-900 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 flex items-center gap-4">
                     <div className="flex-shrink-0 p-2.5 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20">
-                        <DollarSignIcon className="h-5 w-5 text-brand-blue-400" />
+                        <DollarSignIcon className="h-5 w-5 text-brand-blue-500" />
                     </div>
                     <div>
-                        <p className="text-xs text-gray-400">Valor Total (Em Andamento)</p>
-                        <p className="text-xl font-bold text-white truncate">{formatCurrency(summary.totalValue)}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Valor Total (Em Andamento)</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white truncate">{formatCurrency(summary.totalValue)}</p>
                     </div>
                 </div>
 
                 {/* Falta Pagar */}
-                <div className="bg-brand-dark-900 p-4 rounded-xl shadow-sm border border-gray-800 flex items-center gap-4">
+                <div className="bg-white dark:bg-brand-dark-900 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 flex items-center gap-4">
                     <div className="flex-shrink-0 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                        <TrendingUpIcon className="h-5 w-5 text-emerald-400" />
+                        <TrendingUpIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div>
-                        <p className="text-xs text-gray-400">Falta Pagar (Em Andamento)</p>
-                        <p className="text-xl font-bold text-emerald-400 truncate">{formatCurrency(summary.remainingValue)}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Falta Pagar (Em Andamento)</p>
+                        <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 truncate">{formatCurrency(summary.remainingValue)}</p>
                     </div>
                 </div>
             </div>
 
-            <div className="flex justify-between items-center">
-                 <p className="text-sm text-gray-400">
-                    <span className="font-bold text-white">{summary.count}</span> {summary.count === 1 ? 'serviço em andamento' : 'serviços em andamento'}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                 <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <span className="font-bold text-gray-900 dark:text-white">{summary.count}</span> {summary.count === 1 ? 'serviço em andamento' : 'serviços em andamento'}
                 </p>
-                <Button variant="outline" className="h-9 text-sm border-brand-blue-500/50 text-brand-blue-400 hover:bg-brand-blue-500/10 hover:text-brand-blue-300" onClick={() => { setTempFilters(filters); setIsFilterSheetOpen(true); }}>
-                    <FilterIcon className="h-4 w-4 mr-2"/>
-                    Filtrar Serviços
+                <Button
+                    variant="outline"
+                    onClick={() => { setTempFilters(filters); setIsFilterSheetOpen(true); }}
+                    className="relative h-9 px-3.5 text-sm font-medium border-gray-300 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:text-brand-blue-600 dark:hover:text-brand-blue-400 hover:border-brand-blue-500/50 hover:bg-brand-blue-50/50 dark:hover:bg-brand-blue-500/10 transition-colors"
+                >
+                    <FilterIcon className="h-4 w-4 mr-2 text-brand-blue-500" />
+                    <span>Filtrar Serviços</span>
+                    {activeFiltersCount > 0 && (
+                        <span className="ml-2 flex items-center justify-center h-5 min-w-[20px] px-1 text-[11px] font-bold rounded-full bg-brand-blue-600 text-white shadow-sm">
+                            {activeFiltersCount}
+                        </span>
+                    )}
                 </Button>
             </div>
+
+            {/* Active Filters Bar */}
+            {activeFiltersCount > 0 && (
+                <div className="flex items-center justify-between gap-3 bg-brand-blue-50/50 dark:bg-brand-blue-950/30 border border-brand-blue-200 dark:border-brand-blue-900/50 px-4 py-2.5 rounded-xl">
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                        <span className="font-semibold text-brand-blue-700 dark:text-brand-blue-300 flex items-center gap-1.5">
+                            <FilterIcon className="h-3.5 w-3.5" /> Filtros ativos ({activeFiltersCount}):
+                        </span>
+                        {filters.collaboratorId && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 font-medium">
+                                Colaborador: {collaborators.find(c => c.id === filters.collaboratorId)?.name}
+                            </span>
+                        )}
+                        {filters.projectId && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 font-medium">
+                                Obra: {projects.find(p => p.id === filters.projectId)?.name}
+                            </span>
+                        )}
+                        {(filters.startDate || filters.endDate) && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 font-medium">
+                                Período: {filters.startDate ? filters.startDate.toLocaleDateString('pt-BR') : 'Início'} até {filters.endDate ? filters.endDate.toLocaleDateString('pt-BR') : 'Hoje'}
+                            </span>
+                        )}
+                    </div>
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => { handleClearFilters(); setIsFilterSheetOpen(false); }}
+                        className="text-xs text-brand-blue-600 dark:text-brand-blue-400 hover:underline h-7 px-2"
+                    >
+                        Limpar todos
+                    </Button>
+                </div>
+            )}
 
             <ResponsiveModal open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} displayMode="drawer">
                 <ResponsiveModalContent size="sm">
                     <ResponsiveModalHeader>
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-brand-blue-500/10 rounded-lg border border-brand-blue-500/20">
-                                <FilterIcon className="h-5 w-5 text-brand-blue-400" />
+                                <FilterIcon className="h-5 w-5 text-brand-blue-500" />
                             </div>
                             <div>
                                 <ResponsiveModalTitle>Filtrar Serviços</ResponsiveModalTitle>
-                                <ResponsiveModalDescription>Refine a lista de serviços em andamento</ResponsiveModalDescription>
+                                <ResponsiveModalDescription>Refine a lista por colaborador, obra ou período</ResponsiveModalDescription>
                             </div>
                         </div>
                     </ResponsiveModalHeader>
-                    <div className="flex-grow overflow-y-auto custom-scrollbar p-6 space-y-5 bg-brand-dark-950/50">
-                        {/* Collaborator Filter */}
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-300">Colaborador</Label>
-                            <Popover open={isCollaboratorPopoverOpen} onOpenChange={setCollaboratorPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm border-gray-800 focus:border-brand-blue-500">
-                                        <span className="truncate">
-                                            {tempFilters.collaboratorId
-                                                ? collaborators.find(c => c.id === tempFilters.collaboratorId)?.name
-                                                : "Todos os colaboradores"}
-                                        </span>
-                                        <ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <div className="flex-grow overflow-y-auto custom-scrollbar p-6 space-y-4 bg-gray-50/50 dark:bg-brand-dark-950/50">
+                        {/* Atalhos Rápidos de Período */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                                    <CalendarIcon className="h-3.5 w-3.5 text-brand-blue-500" />
+                                    Atalhos de Período
+                                </Label>
+                                {(tempFilters.startDate || tempFilters.endDate) && (
+                                    <button
+                                        type="button"
+                                        onClick={clearDates}
+                                        className="text-[11px] text-red-500 hover:underline flex items-center gap-0.5 font-medium"
+                                    >
+                                        <XIcon className="h-3 w-3" /> Limpar datas
+                                    </button>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-1.5">
+                                {QUICK_PERIOD_SHORTCUTS.map(shortcut => (
+                                    <Button
+                                        key={shortcut.label}
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => applyQuickPeriod(shortcut)}
+                                        className="h-8 text-xs font-medium bg-white dark:bg-brand-dark-900 border-gray-200 dark:border-gray-800 hover:border-brand-blue-500 hover:text-brand-blue-500 justify-center"
+                                    >
+                                        {shortcut.label}
                                     </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
-                                    <Command>
-                                        <CommandInput placeholder="Buscar colaborador..." value={collaboratorSearch} onInput={(e) => setCollaboratorSearch(e.currentTarget.value)} />
-                                        <CommandList className="max-h-[200px] overflow-y-auto">
-                                            <CommandEmpty>Nenhum colaborador encontrado.</CommandEmpty>
-                                            <CommandItem className="cursor-pointer" onSelect={() => {
-                                                setTempFilters(f => ({ ...f, collaboratorId: null }));
-                                                setCollaboratorPopoverOpen(false);
-                                            }}>
-                                                -- Todos --
-                                            </CommandItem>
-                                            {filteredCollaboratorsForSearch.map(c => (
-                                                <CommandItem key={c.id} className="cursor-pointer" onSelect={() => {
-                                                    setTempFilters(f => ({ ...f, collaboratorId: c.id }));
-                                                    setCollaboratorPopoverOpen(false);
-                                                }}>
-                                                    {c.name}
-                                                </CommandItem>
-                                            ))}
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
+                                ))}
+                            </div>
                         </div>
-                        
-                        {/* Project Filter */}
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-300">Obra</Label>
+
+                        {/* Obra Filter */}
+                        <div className="bg-white dark:bg-brand-dark-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-2 shadow-sm">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                                <ConstructionIcon className="h-3.5 w-3.5 text-brand-blue-500" />
+                                Obra / Projeto
+                            </Label>
                             <Popover open={isProjectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm border-gray-800 focus:border-brand-blue-500">
+                                    <Button variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white">
                                          <span className="truncate">
                                             {tempFilters.projectId
                                                 ? projects.find(p => p.id === tempFilters.projectId)?.name
@@ -285,26 +381,71 @@ const Servicos: React.FC = () => {
                             </Popover>
                         </div>
 
+                        {/* Collaborator Filter */}
+                        <div className="bg-white dark:bg-brand-dark-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-2 shadow-sm">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                                <UserIcon className="h-3.5 w-3.5 text-brand-blue-500" />
+                                Colaborador
+                            </Label>
+                            <Popover open={isCollaboratorPopoverOpen} onOpenChange={setCollaboratorPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white">
+                                        <span className="truncate">
+                                            {tempFilters.collaboratorId
+                                                ? collaborators.find(c => c.id === tempFilters.collaboratorId)?.name
+                                                : "Todos os colaboradores"}
+                                        </span>
+                                        <ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                                    <Command>
+                                        <CommandInput placeholder="Buscar colaborador..." value={collaboratorSearch} onInput={(e) => setCollaboratorSearch(e.currentTarget.value)} />
+                                        <CommandList className="max-h-[200px] overflow-y-auto">
+                                            <CommandEmpty>Nenhum colaborador encontrado.</CommandEmpty>
+                                            <CommandItem className="cursor-pointer" onSelect={() => {
+                                                setTempFilters(f => ({ ...f, collaboratorId: null }));
+                                                setCollaboratorPopoverOpen(false);
+                                            }}>
+                                                -- Todos --
+                                            </CommandItem>
+                                            {filteredCollaboratorsForSearch.map(c => (
+                                                <CommandItem key={c.id} className="cursor-pointer" onSelect={() => {
+                                                    setTempFilters(f => ({ ...f, collaboratorId: c.id }));
+                                                    setCollaboratorPopoverOpen(false);
+                                                }}>
+                                                    {c.name}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+
                          {/* Date Filter */}
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-300">Período</Label>
-                            <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white dark:bg-brand-dark-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-3 shadow-sm">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                                <CalendarIcon className="h-3.5 w-3.5 text-brand-blue-500" />
+                                Intervalo de Datas
+                            </Label>
+                            <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-1">
-                                    <Label htmlFor="start_date" className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Início</Label>
+                                    <Label htmlFor="start_date" className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold tracking-wider">Início</Label>
                                     <Input
                                         id="start_date"
                                         type="date"
-                                        className="h-9 border-gray-800 focus:border-brand-blue-500 text-sm"
+                                        className="h-9 text-xs"
                                         value={tempFilters.startDate ? tempFilters.startDate.toISOString().split('T')[0] : ''}
                                         onChange={e => setTempFilters(f => ({...f, startDate: e.target.value ? new Date(e.target.value + 'T00:00:00') : null}))}
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <Label htmlFor="end_date" className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Fim</Label>
+                                    <Label htmlFor="end_date" className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold tracking-wider">Fim</Label>
                                     <Input
                                         id="end_date"
                                         type="date"
-                                        className="h-9 border-gray-800 focus:border-brand-blue-500 text-sm"
+                                        className="h-9 text-xs"
                                         value={tempFilters.endDate ? tempFilters.endDate.toISOString().split('T')[0] : ''}
                                         onChange={e => setTempFilters(f => ({...f, endDate: e.target.value ? new Date(e.target.value + 'T00:00:00') : null}))}
                                     />
@@ -313,7 +454,7 @@ const Servicos: React.FC = () => {
                         </div>
                     </div>
                     <ResponsiveModalFooter>
-                        <Button variant="ghost" onClick={() => { handleClearFilters(); setIsFilterSheetOpen(false); }} className="text-gray-400 hover:text-white hover:bg-brand-dark-800">Limpar</Button>
+                        <Button variant="ghost" onClick={() => { handleClearFilters(); setIsFilterSheetOpen(false); }} className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">Limpar</Button>
                         <Button onClick={() => { handleApplyFilters(); setIsFilterSheetOpen(false); }} className="bg-brand-blue-600 hover:bg-brand-blue-500 text-white">Aplicar Filtros</Button>
                     </ResponsiveModalFooter>
                 </ResponsiveModalContent>
@@ -321,7 +462,13 @@ const Servicos: React.FC = () => {
             
             {loading ? <p className="text-center text-gray-400">Carregando serviços...</p> : 
             processedServices.length === 0 ? (
-                <div className="text-center py-12 px-6 bg-brand-dark-900 rounded-2xl border-2 border-dashed border-gray-800 mt-4">
+                <div className="text-center py-12 px-6 bg-white/50 dark:bg-brand-dark-900 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-800 mt-4">
+                    <div className="mx-auto p-3 bg-gray-100 dark:bg-gray-800 rounded-full w-fit mb-4">
+                        <BriefcaseIcon className="h-8 w-8 text-brand-blue-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nenhum serviço em andamento</h3>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Todos os serviços estão concluídos ou nenhum foi registrado ainda.</p>
+                </div>
                     <div className="mx-auto p-3 bg-gray-800 rounded-full w-fit mb-4">
                         <BriefcaseIcon className="h-8 w-8 text-brand-blue-500" />
                     </div>

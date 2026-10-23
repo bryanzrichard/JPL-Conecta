@@ -27,6 +27,7 @@ type TaskFilters = {
     projectId: string | null;
     collaboratorId: string | null;
     priority: string | null;
+    status: string | null;
 };
 
 // Fetch function
@@ -90,9 +91,19 @@ const Tarefas: React.FC = () => {
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
     const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-    const [filters, setFilters] = useState<TaskFilters>({ projectId: null, collaboratorId: null, priority: null });
+    const [filters, setFilters] = useState<TaskFilters>({ projectId: null, collaboratorId: null, priority: null, status: null });
     const [tempFilters, setTempFilters] = useState<TaskFilters>(filters);
     const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+
+    // Active filters count
+    const activeFiltersCount = useMemo(() => {
+        let count = 0;
+        if (filters.projectId) count++;
+        if (filters.collaboratorId) count++;
+        if (filters.priority) count++;
+        if (filters.status) count++;
+        return count;
+    }, [filters]);
 
     useEffect(() => {
         if (location.state?.action === 'newTask') {
@@ -138,6 +149,7 @@ const Tarefas: React.FC = () => {
             if (filters.projectId && task.project_id !== filters.projectId) return false;
             if (filters.collaboratorId && task.responsavel_execucao_id !== filters.collaboratorId) return false;
             if (filters.priority && task.prioridade !== filters.priority) return false;
+            if (filters.status && task.status !== filters.status) return false;
             return true;
         });
     }, [tasks, filters]);
@@ -157,7 +169,7 @@ const Tarefas: React.FC = () => {
     };
 
     const handleClearFilters = () => {
-        const cleared = { projectId: null, collaboratorId: null, priority: null };
+        const cleared = { projectId: null, collaboratorId: null, priority: null, status: null };
         setTempFilters(cleared);
         setFilters(cleared);
         setIsFilterSheetOpen(false);
@@ -194,8 +206,18 @@ const Tarefas: React.FC = () => {
                 description="Visualize, acompanhe e gerencie o cronograma das obras."
                 actions={
                     <>
-                        <Button variant="outline" className="lg:hidden" onClick={() => { setTempFilters(filters); setIsFilterSheetOpen(true); }}>
-                            <FilterIcon className="h-4 w-4 mr-2"/> Filtros
+                        <Button
+                            variant="outline"
+                            onClick={() => { setTempFilters(filters); setIsFilterSheetOpen(true); }}
+                            className="relative h-9 px-3.5 text-sm font-medium border-gray-300 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:text-brand-blue-600 dark:hover:text-brand-blue-400 hover:border-brand-blue-500/50 hover:bg-brand-blue-50/50 dark:hover:bg-brand-blue-500/10 transition-colors"
+                        >
+                            <FilterIcon className="h-4 w-4 mr-2 text-brand-blue-500" />
+                            <span>Filtros</span>
+                            {activeFiltersCount > 0 && (
+                                <span className="ml-2 flex items-center justify-center h-5 min-w-[20px] px-1 text-[11px] font-bold rounded-full bg-brand-blue-600 text-white shadow-sm">
+                                    {activeFiltersCount}
+                                </span>
+                            )}
                         </Button>
                         <Button onClick={() => { setTaskToEdit(null); setCreateModalOpen(true); }}>
                             <PlusIcon className="h-4 w-4 mr-2"/> Nova Tarefa
@@ -209,102 +231,146 @@ const Tarefas: React.FC = () => {
                     <ResponsiveModalHeader>
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-brand-blue-500/10 rounded-lg border border-brand-blue-500/20">
-                                <FilterIcon className="h-5 w-5 text-brand-blue-400" />
+                                <FilterIcon className="h-5 w-5 text-brand-blue-500" />
                             </div>
                             <div>
                                 <ResponsiveModalTitle>Filtrar Tarefas</ResponsiveModalTitle>
-                                <ResponsiveModalDescription>Refine a lista por obra, responsável ou prioridade</ResponsiveModalDescription>
+                                <ResponsiveModalDescription>Refine por obra, responsável, status ou prioridade</ResponsiveModalDescription>
                             </div>
                         </div>
                     </ResponsiveModalHeader>
-                    <div className="p-6 space-y-5 flex-grow overflow-y-auto custom-scrollbar bg-brand-dark-950/50">
-                        <FilterCombobox label="Obra" options={prerequisites?.projects || []} selectedValue={tempFilters.projectId} onSelect={id => setTempFilters(p => ({...p, projectId: id}))} />
-                        <FilterCombobox label="Responsável" options={prerequisites?.collaborators || []} selectedValue={tempFilters.collaboratorId} onSelect={id => setTempFilters(p => ({...p, collaboratorId: id}))} />
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-300">Prioridade</Label>
-                            <select 
-                                className="w-full rounded-lg border border-gray-800 bg-brand-dark-950 px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/50"
-                                value={tempFilters.priority || ''}
-                                onChange={(e) => setTempFilters(p => ({...p, priority: e.target.value || null}))}
-                            >
-                                <option value="">Todas</option>
-                                <option value="Alta">Alta</option>
-                                <option value="Média">Média</option>
-                                <option value="Baixa">Baixa</option>
-                            </select>
+                    <div className="p-6 space-y-4 flex-grow overflow-y-auto custom-scrollbar bg-gray-50/50 dark:bg-brand-dark-950/50">
+                        {/* Obra */}
+                        <div className="bg-white dark:bg-brand-dark-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-2 shadow-sm">
+                            <FilterCombobox 
+                                label="Obra / Projeto" 
+                                options={prerequisites?.projects || []} 
+                                selectedValue={tempFilters.projectId} 
+                                onSelect={id => setTempFilters(p => ({...p, projectId: id}))} 
+                            />
+                        </div>
+
+                        {/* Responsável */}
+                        <div className="bg-white dark:bg-brand-dark-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-2 shadow-sm">
+                            <FilterCombobox 
+                                label="Responsável de Execução" 
+                                options={prerequisites?.collaborators || []} 
+                                selectedValue={tempFilters.collaboratorId} 
+                                onSelect={id => setTempFilters(p => ({...p, collaboratorId: id}))} 
+                            />
+                        </div>
+
+                        {/* Status */}
+                        <div className="bg-white dark:bg-brand-dark-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-2 shadow-sm">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                                Status da Tarefa
+                            </Label>
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                {['', 'Planejada', 'Em Execução', 'Atrasada', 'Concluída'].map(st => (
+                                    <button
+                                        key={st}
+                                        type="button"
+                                        onClick={() => setTempFilters(p => ({ ...p, status: st || null }))}
+                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                                            (tempFilters.status || '') === st
+                                                ? 'bg-brand-blue-600 border-brand-blue-600 text-white shadow-sm'
+                                                : 'bg-white dark:bg-brand-dark-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-brand-blue-500'
+                                        }`}
+                                    >
+                                        {st || 'Todos'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Prioridade */}
+                        <div className="bg-white dark:bg-brand-dark-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-2 shadow-sm">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                                Prioridade
+                            </Label>
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                {['', 'Alta', 'Média', 'Baixa'].map(pr => (
+                                    <button
+                                        key={pr}
+                                        type="button"
+                                        onClick={() => setTempFilters(p => ({ ...p, priority: pr || null }))}
+                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                                            (tempFilters.priority || '') === pr
+                                                ? 'bg-brand-blue-600 border-brand-blue-600 text-white shadow-sm'
+                                                : 'bg-white dark:bg-brand-dark-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-brand-blue-500'
+                                        }`}
+                                    >
+                                        {pr || 'Todas'}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                     <ResponsiveModalFooter>
-                        <Button variant="ghost" onClick={handleClearFilters} className="text-gray-400 hover:text-white hover:bg-brand-dark-800">Limpar</Button>
-                        <Button onClick={handleApplyFilters} className="bg-brand-blue-600 hover:bg-brand-blue-500 text-white">Aplicar Filtros</Button>
+                        <Button variant="ghost" onClick={handleClearFilters} className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+                            Limpar
+                        </Button>
+                        <Button onClick={handleApplyFilters} className="bg-brand-blue-600 hover:bg-brand-blue-500 text-white">
+                            Aplicar Filtros
+                        </Button>
                     </ResponsiveModalFooter>
                 </ResponsiveModalContent>
             </ResponsiveModal>
 
             {/* KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-brand-dark-900 p-4 rounded-xl flex items-center gap-3 border border-gray-800 shadow-sm">
-                    <div className="p-2.5 bg-brand-blue-500/10 border border-brand-blue-500/20 rounded-xl"><ClipboardListIcon className="h-5 w-5 text-brand-blue-400" /></div>
-                    <div><p className="text-xs text-gray-400">Total de Tarefas</p><p className="text-xl font-bold text-white">{kpis.total}</p></div>
+                <div className="bg-white dark:bg-brand-dark-900 p-4 rounded-xl flex items-center gap-3 border border-gray-200 dark:border-gray-800 shadow-sm">
+                    <div className="p-2.5 bg-brand-blue-500/10 border border-brand-blue-500/20 rounded-xl"><ClipboardListIcon className="h-5 w-5 text-brand-blue-500" /></div>
+                    <div><p className="text-xs text-gray-500 dark:text-gray-400">Total de Tarefas</p><p className="text-xl font-bold text-gray-900 dark:text-white">{kpis.total}</p></div>
                 </div>
-                <div className="bg-brand-dark-900 p-4 rounded-xl flex items-center gap-3 border border-red-900/30 shadow-sm">
-                    <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl"><AlertTriangleIcon className="h-5 w-5 text-red-400" /></div>
-                    <div><p className="text-xs text-gray-400">Atrasadas</p><p className="text-xl font-bold text-red-400">{kpis.delayed}</p></div>
+                <div className="bg-white dark:bg-brand-dark-900 p-4 rounded-xl flex items-center gap-3 border border-red-200 dark:border-red-900/30 shadow-sm">
+                    <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl"><AlertTriangleIcon className="h-5 w-5 text-red-500 dark:text-red-400" /></div>
+                    <div><p className="text-xs text-gray-500 dark:text-gray-400">Atrasadas</p><p className="text-xl font-bold text-red-600 dark:text-red-400">{kpis.delayed}</p></div>
                 </div>
-                <div className="bg-brand-dark-900 p-4 rounded-xl flex items-center gap-3 border border-gray-800 shadow-sm">
-                    <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl"><DollarSignIcon className="h-5 w-5 text-emerald-400" /></div>
-                    <div><p className="text-xs text-gray-400">Custo Acumulado</p><p className="text-xl font-bold text-emerald-400">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(kpis.totalCost)}</p></div>
+                <div className="bg-white dark:bg-brand-dark-900 p-4 rounded-xl flex items-center gap-3 border border-gray-200 dark:border-gray-800 shadow-sm">
+                    <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl"><DollarSignIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" /></div>
+                    <div><p className="text-xs text-gray-500 dark:text-gray-400">Custo Acumulado</p><p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(kpis.totalCost)}</p></div>
                 </div>
             </div>
 
-            {/* Desktop Quick Inline Filters */}
-            <div className="hidden lg:flex items-center justify-between gap-4 bg-brand-dark-900 border border-gray-800 p-3 rounded-xl">
-                <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 pl-1">
-                        <FilterIcon className="h-3.5 w-3.5 text-brand-blue-500" /> Filtros:
-                    </span>
-                    <select 
-                        value={filters.projectId || ''} 
-                        onChange={(e) => setFilters(f => ({ ...f, projectId: e.target.value || null }))}
-                        className="bg-brand-dark-950 border border-gray-800 text-xs text-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-blue-500"
-                    >
-                        <option value="">Todas as Obras</option>
-                        {prerequisites?.projects.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                    </select>
-                    <select 
-                        value={filters.collaboratorId || ''} 
-                        onChange={(e) => setFilters(f => ({ ...f, collaboratorId: e.target.value || null }))}
-                        className="bg-brand-dark-950 border border-gray-800 text-xs text-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-blue-500"
-                    >
-                        <option value="">Todos os Responsáveis</option>
-                        {prerequisites?.collaborators.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                    </select>
-                    <select 
-                        value={filters.priority || ''} 
-                        onChange={(e) => setFilters(f => ({ ...f, priority: e.target.value || null }))}
-                        className="bg-brand-dark-950 border border-gray-800 text-xs text-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-blue-500"
-                    >
-                        <option value="">Todas as Prioridades</option>
-                        <option value="Alta">Alta</option>
-                        <option value="Média">Média</option>
-                        <option value="Baixa">Baixa</option>
-                    </select>
-                </div>
-                {(filters.projectId || filters.collaboratorId || filters.priority) && (
+            {/* Active Filters Bar */}
+            {activeFiltersCount > 0 && (
+                <div className="flex items-center justify-between gap-3 bg-brand-blue-50/50 dark:bg-brand-blue-950/30 border border-brand-blue-200 dark:border-brand-blue-900/50 px-4 py-2.5 rounded-xl">
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                        <span className="font-semibold text-brand-blue-700 dark:text-brand-blue-300 flex items-center gap-1.5">
+                            <FilterIcon className="h-3.5 w-3.5" /> Filtros ativos ({activeFiltersCount}):
+                        </span>
+                        {filters.projectId && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 font-medium">
+                                Obra: {prerequisites?.projects.find(p => p.id === filters.projectId)?.name}
+                            </span>
+                        )}
+                        {filters.collaboratorId && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 font-medium">
+                                Responsável: {prerequisites?.collaborators.find(c => c.id === filters.collaboratorId)?.name}
+                            </span>
+                        )}
+                        {filters.status && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 font-medium">
+                                Status: {filters.status}
+                            </span>
+                        )}
+                        {filters.priority && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 font-medium">
+                                Prioridade: {filters.priority}
+                            </span>
+                        )}
+                    </div>
                     <Button 
                         variant="ghost" 
                         size="sm" 
                         onClick={handleClearFilters}
-                        className="text-xs text-gray-400 hover:text-white h-7 px-2"
+                        className="text-xs text-brand-blue-600 dark:text-brand-blue-400 hover:underline h-7 px-2"
                     >
-                        Limpar filtros
+                        Limpar todos
                     </Button>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* Mobile View: List of Cards */}
             <div className="md:hidden space-y-4 pb-4">
@@ -322,10 +388,10 @@ const Tarefas: React.FC = () => {
             </div>
 
             {/* Desktop View: Table */}
-            <div className="hidden md:block overflow-hidden rounded-xl border border-gray-800 bg-brand-dark-900 shadow-sm">
+            <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 shadow-sm">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-gray-400">
-                        <thead className="text-xs text-gray-400 uppercase bg-gray-800/50 border-b border-gray-800">
+                    <table className="w-full text-sm text-left text-gray-600 dark:text-gray-400">
+                        <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
                             <tr>
                                 <th className="px-6 py-4 font-medium">Status / Prioridade</th>
                                 <th className="px-6 py-4 font-medium">Título</th>
@@ -334,7 +400,7 @@ const Tarefas: React.FC = () => {
                                 <th className="px-6 py-4 font-medium text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-800">
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                             {isLoadingTasks ? (
                                 Array.from({length: 5}).map((_, i) => (
                                     <tr key={i}><td colSpan={5} className="p-4"><Skeleton className="h-8 w-full" /></td></tr>
@@ -349,7 +415,7 @@ const Tarefas: React.FC = () => {
                                 filteredTasks.map((task) => (
                                     <tr 
                                         key={task.id} 
-                                        className="hover:bg-gray-800/40 transition-colors"
+                                        className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex flex-col gap-2 items-start">
@@ -359,7 +425,7 @@ const Tarefas: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
-                                                <p className="font-semibold text-white max-w-sm truncate" title={task.title}>{task.title}</p>
+                                                <p className="font-semibold text-gray-900 dark:text-white max-w-sm truncate" title={task.title}>{task.title}</p>
                                                 {task.description && <p className="text-xs text-gray-500 truncate max-w-sm">{task.description}</p>}
                                             </div>
                                         </td>
@@ -367,16 +433,16 @@ const Tarefas: React.FC = () => {
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
                                                     <ConstructionIcon className="h-3 w-3 text-gray-400" />
-                                                    <span className="text-gray-300">{task.projects?.name || '-'}</span>
+                                                    <span className="text-gray-700 dark:text-gray-300">{task.projects?.name || '-'}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <UserIcon className="h-3 w-3 text-gray-400" />
-                                                    <span className="text-gray-400 text-xs">{task.collaborators?.name || '-'}</span>
+                                                    <span className="text-gray-500 dark:text-gray-400 text-xs">{task.collaborators?.name || '-'}</span>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-xs">
-                                            <div className="flex items-center gap-2 text-gray-400">
+                                            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                                 <CalendarIcon className="h-3 w-3" />
                                                 <span>{formatDate(task.data_inicio_prevista)} - {formatDate(task.data_fim_prevista)}</span>
                                             </div>
@@ -387,7 +453,7 @@ const Tarefas: React.FC = () => {
                                                     <Button 
                                                         variant="outline" 
                                                         size="icon" 
-                                                        className="h-8 w-8 border-gray-700 hover:bg-gray-700"
+                                                        className="h-8 w-8 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                     >
                                                         <MoreVerticalIcon className="h-4 w-4" />
                                                     </Button>
@@ -446,10 +512,10 @@ const FilterCombobox: React.FC<{
 
     return (
         <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-gray-300">{label}</Label>
+            <Label className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">{label}</Label>
             <Popover open={isOpen} onOpenChange={setIsOpen}>
                 <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm border-gray-800">
+                    <Button type="button" variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white">
                         <span className="truncate">{selectedLabel}</span>
                         <ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" />
                     </Button>

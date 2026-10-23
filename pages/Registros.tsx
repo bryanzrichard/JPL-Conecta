@@ -190,12 +190,12 @@ const ListSection = <T extends { id: string; name: string }>({
         ) : 
          isError ? <p className="text-center text-red-500 py-8">Erro: {(error as Error)?.message}</p> :
          !data || data.data.length === 0 ? (
-            <div className="text-center py-12 px-6 bg-brand-dark-900/50 rounded-2xl border-2 border-dashed border-gray-700 mt-4">
-                <div className="mx-auto p-3 bg-gray-800 rounded-full w-fit mb-4">
+            <div className="text-center py-12 px-6 bg-white dark:bg-brand-dark-900/50 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 mt-4">
+                <div className="mx-auto p-3 bg-gray-100 dark:bg-gray-800 rounded-full w-fit mb-4">
                     <IconComponent className="h-8 w-8 text-brand-blue-500" />
                 </div>
-                <h3 className="text-lg font-semibold text-white">Nenhum(a) {entityName.toLowerCase()} encontrado(a)</h3>
-                <p className="mt-1 text-sm text-gray-400">Comece cadastrando um(a) novo(a) {entityName.toLowerCase()}.</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nenhum(a) {entityName.toLowerCase()} encontrado(a)</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Comece cadastrando um(a) novo(a) {entityName.toLowerCase()}.</p>
                 <div className="mt-6">
                     <Button onClick={handleCreate}>
                         <PlusIcon className="h-4 w-4 mr-2"/>
@@ -213,17 +213,17 @@ const ListSection = <T extends { id: string; name: string }>({
             </div>
 
             {/* Desktop View: Table */}
-            <div className="hidden md:block overflow-hidden rounded-xl border border-gray-800 bg-brand-dark-900 shadow-sm">
+            <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 shadow-sm">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-gray-400">
-                        <thead className="text-xs text-gray-400 uppercase bg-gray-800/50 border-b border-gray-800">
+                    <table className="w-full text-sm text-left text-gray-600 dark:text-gray-400">
+                        <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
                             <tr>
                                 {tableHeaders.map((header, idx) => (
                                     <th key={idx} className={`px-6 py-4 font-medium ${idx === tableHeaders.length - 1 ? 'text-center' : ''}`}>{header}</th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-800">
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                             {data.data.map(item => renderTableRow(item, handleEdit, handleDelete))}
                         </tbody>
                     </table>
@@ -282,13 +282,13 @@ const ActionCell = ({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => 
 );
 
 const InfoBox: React.FC<{icon: React.ReactNode, label: string, value: string}> = ({ icon, label, value }) => (
-    <div className="flex items-center gap-4 p-4 bg-brand-dark-900 rounded-xl border border-gray-800 shadow-sm">
+    <div className="flex items-center gap-4 p-4 bg-white dark:bg-brand-dark-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
         <div className="flex-shrink-0 p-2.5 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20">
             {icon}
         </div>
         <div className="min-w-0">
-            <p className="text-xs text-gray-400">{label}</p>
-            <p className="text-sm font-semibold text-white truncate" title={value}>{value}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate" title={value}>{value}</p>
         </div>
     </div>
 );
@@ -346,7 +346,7 @@ const Registros: React.FC = () => {
         />
         <div 
           onClick={toggleTheme}
-          className="flex items-center justify-between p-4 bg-brand-dark-900 rounded-xl border border-gray-800 shadow-sm cursor-pointer hover:border-gray-700 transition-all group"
+          className="flex items-center justify-between p-4 bg-white dark:bg-brand-dark-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 transition-all group"
           title="Clique para alternar o tema"
         >
           <div className="flex items-center gap-4 min-w-0">
@@ -358,13 +358,13 @@ const Registros: React.FC = () => {
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-gray-400">Tema do Sistema</p>
-              <p className="text-sm font-semibold text-white truncate">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Tema do Sistema</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                 {isDark ? 'Modo Escuro' : 'Modo Claro'}
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded border border-gray-700 text-gray-400">
+          <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
             {isDark ? 'DARK' : 'LIGHT'}
           </span>
         </div>
@@ -392,12 +392,12 @@ const Registros: React.FC = () => {
                 renderTableRow={(supplier, onEdit, onDelete) => (
                     <tr 
                         key={supplier.id} 
-                        className="hover:bg-gray-800/30 transition-colors"
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors"
                     >
-                        <td className="px-6 py-4 font-medium text-white">{supplier.name}</td>
-                        <td className="px-6 py-4 text-gray-300">{formatCnpj(supplier.cnpj) || '-'}</td>
-                        <td className="px-6 py-4 text-gray-300">{supplier.seller || '-'}</td>
-                        <td className="px-6 py-4 text-gray-300">{supplier.seller_contact || '-'}</td>
+                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{supplier.name}</td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{formatCnpj(supplier.cnpj) || '-'}</td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{supplier.seller || '-'}</td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{supplier.seller_contact || '-'}</td>
                         <td className="px-6 py-4">
                             <div className="flex gap-4">
                                 <div className="flex flex-col"><span className="text-[10px] text-gray-500 uppercase">Serviço</span><StarRating rating={supplier.service_rating} className="scale-75 origin-left"/></div>
@@ -425,24 +425,24 @@ const Registros: React.FC = () => {
                 renderTableRow={(project, onEdit, onDelete) => (
                     <tr 
                         key={project.id} 
-                        className="hover:bg-gray-800/30 transition-colors"
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors"
                     >
-                        <td className="px-6 py-4 font-medium text-white">{project.name}</td>
+                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{project.name}</td>
                         <td className="px-6 py-4">
                             <Badge variant="outline" className={
-                                project.status === 'Concluído' ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' :
-                                project.status === 'Em Andamento' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                                project.status === 'Concluído' ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20' :
+                                project.status === 'Em Andamento' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' :
+                                'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20'
                             }>
                                 {project.status}
                             </Badge>
                         </td>
-                        <td className="px-6 py-4 text-gray-300">{project.manager || '-'}</td>
-                        <td className="px-6 py-4 text-xs text-gray-400 whitespace-nowrap">
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{project.manager || '-'}</td>
+                        <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                             {project.start_date ? new Date(project.start_date).toLocaleDateString('pt-BR') : 'N/A'} - 
                             {project.end_date ? new Date(project.end_date).toLocaleDateString('pt-BR') : '...'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate" title={`${project.address_city || ''} - ${project.address_state || ''}`}>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate" title={`${project.address_city || ''} - ${project.address_state || ''}`}>
                             {project.address_city && project.address_state ? `${project.address_city} - ${project.address_state}` : '-'}
                         </td>
                         <ActionCell onEdit={() => onEdit(project)} onDelete={() => onDelete(project)} />
@@ -466,12 +466,12 @@ const Registros: React.FC = () => {
                 renderTableRow={(collab, onEdit, onDelete) => (
                     <tr 
                         key={collab.id} 
-                        className="hover:bg-gray-800/30 transition-colors"
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors"
                     >
-                        <td className="px-6 py-4 font-medium text-white">{collab.name}</td>
-                        <td className="px-6 py-4 text-gray-300">{collab.role || '-'}</td>
-                        <td className="px-6 py-4 text-gray-300">{collab.phone || '-'}</td>
-                        <td className="px-6 py-4 text-gray-300">{collab.document || '-'}</td>
+                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{collab.name}</td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{collab.role || '-'}</td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{collab.phone || '-'}</td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{collab.document || '-'}</td>
                         <td className="px-6 py-4"><StarRating rating={collab.rating} className="scale-75 origin-left"/></td>
                         <ActionCell onEdit={() => onEdit(collab)} onDelete={() => onDelete(collab)} />
                     </tr>

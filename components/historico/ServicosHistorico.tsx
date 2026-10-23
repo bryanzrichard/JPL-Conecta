@@ -8,7 +8,7 @@ import ConfirmationModal from './ConfirmationModal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter } from '../ui/ResponsiveModal';
-import { FilterIcon, SearchIcon, BriefcaseIcon, MoreVerticalIcon, EditIcon, Trash2Icon, PaperclipIcon } from '../../lib/icons';
+import { FilterIcon, SearchIcon, BriefcaseIcon, MoreVerticalIcon, EditIcon, Trash2Icon, PaperclipIcon, CalendarIcon, XIcon } from '../../lib/icons';
 import { useToast } from '../../contexts/ToastContext';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/Popover';
 import { Command, CommandInput, CommandEmpty, CommandItem, CommandList } from '../ui/Command';
@@ -85,6 +85,13 @@ const fetchServices = async ({ pageParam = 0, queryKey }: { pageParam?: number, 
     };
 };
 
+const QUICK_PERIOD_SHORTCUTS = [
+    { label: 'Hoje', daysAgo: 0 },
+    { label: 'Últimos 7 dias', daysAgo: 7 },
+    { label: 'Este Mês', isCurrentMonth: true },
+    { label: 'Últimos 90 dias', daysAgo: 90 },
+];
+
 const ServicosHistorico: React.FC = () => {
     const { profile, user } = useAuth();
     const { toast } = useToast();
@@ -98,6 +105,44 @@ const ServicosHistorico: React.FC = () => {
     const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
     const [serviceToDelete, setServiceToDelete] = useState<ServiceWithDetails | null>(null);
     const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+
+    // Active filters count
+    const activeFiltersCount = useMemo(() => {
+        let count = 0;
+        if (filters.collaboratorId) count++;
+        if (filters.projectId) count++;
+        if (filters.dateRange?.from || filters.dateRange?.to) count++;
+        return count;
+    }, [filters]);
+
+    const applyQuickPeriod = (shortcut: typeof QUICK_PERIOD_SHORTCUTS[number]) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (shortcut.isCurrentMonth) {
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            setTempFilters(f => ({
+                ...f,
+                dateRange: { from: startOfMonth, to: today }
+            }));
+            return;
+        }
+
+        if (shortcut.daysAgo === 0) {
+            setTempFilters(f => ({
+                ...f,
+                dateRange: { from: today, to: today }
+            }));
+            return;
+        }
+
+        const pastDate = new Date(Date.now() - shortcut.daysAgo * 86400000);
+        pastDate.setHours(0, 0, 0, 0);
+        setTempFilters(f => ({
+            ...f,
+            dateRange: { from: pastDate, to: today }
+        }));
+    };
 
     const handleViewFile = async (path: string) => {
         try {
@@ -328,9 +373,18 @@ const ServicosHistorico: React.FC = () => {
                         onKeyDown={e => e.key === 'Enter' && applyFilters()}
                     />
                 </div>
-                <Button variant="outline" className="flex-shrink-0" onClick={() => setIsFilterSheetOpen(true)}>
-                    <FilterIcon className="h-4 w-4 mr-2" />
-                    Filtros
+                <Button
+                    variant="outline"
+                    onClick={() => setIsFilterSheetOpen(true)}
+                    className="relative h-9 px-3.5 text-sm font-medium border-gray-300 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:text-brand-blue-600 dark:hover:text-brand-blue-400 hover:border-brand-blue-500/50 hover:bg-brand-blue-50/50 dark:hover:bg-brand-blue-500/10 transition-colors flex-shrink-0"
+                >
+                    <FilterIcon className="h-4 w-4 mr-2 text-brand-blue-500" />
+                    <span>Filtros</span>
+                    {activeFiltersCount > 0 && (
+                        <span className="ml-2 flex items-center justify-center h-5 min-w-[20px] px-1 text-[11px] font-bold rounded-full bg-brand-blue-600 text-white shadow-sm">
+                            {activeFiltersCount}
+                        </span>
+                    )}
                 </Button>
 
                 <ResponsiveModal open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen} displayMode="drawer">
@@ -338,21 +392,60 @@ const ServicosHistorico: React.FC = () => {
                         <ResponsiveModalHeader>
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-brand-blue-500/10 rounded-lg border border-brand-blue-500/20">
-                                    <FilterIcon className="h-5 w-5 text-brand-blue-400" />
+                                    <FilterIcon className="h-5 w-5 text-brand-blue-500" />
                                 </div>
                                 <div>
                                     <ResponsiveModalTitle>Filtrar Histórico de Serviços</ResponsiveModalTitle>
-                                    <ResponsiveModalDescription>Refine a lista de serviços concluídos ou em andamento</ResponsiveModalDescription>
+                                    <ResponsiveModalDescription>Refine a lista por colaborador, obra ou período</ResponsiveModalDescription>
                                 </div>
                             </div>
                         </ResponsiveModalHeader>
-                        <div className="p-6 space-y-5 flex-grow overflow-y-auto custom-scrollbar bg-brand-dark-950/50">
-                            <FilterCombobox label="Colaborador" options={prerequisites?.collaborators || []} selectedValue={tempFilters.collaboratorId} onSelect={id => setTempFilters(f => ({...f, collaboratorId: id}))} />
-                            <FilterCombobox label="Obra" options={prerequisites?.projects || []} selectedValue={tempFilters.projectId} onSelect={id => setTempFilters(f => ({...f, projectId: id}))} />
-                            <div className="space-y-1.5"><Label className="text-xs font-medium text-gray-300">Período de Execução</Label><DatePickerWithRange date={tempFilters.dateRange} onDateChange={range => setTempFilters(f => ({...f, dateRange: range}))}/></div>
+                        <div className="p-6 space-y-4 flex-grow overflow-y-auto custom-scrollbar bg-gray-50/50 dark:bg-brand-dark-950/50">
+                            {/* Atalhos Rápidos de Período */}
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                                        <CalendarIcon className="h-3.5 w-3.5 text-brand-blue-500" />
+                                        Atalhos de Período
+                                    </Label>
+                                    {(tempFilters.dateRange?.from || tempFilters.dateRange?.to) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setTempFilters(f => ({ ...f, dateRange: undefined }))}
+                                            className="text-[11px] text-red-500 hover:underline flex items-center gap-0.5 font-medium"
+                                        >
+                                            <XIcon className="h-3 w-3" /> Limpar datas
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                    {QUICK_PERIOD_SHORTCUTS.map(shortcut => (
+                                        <Button
+                                            key={shortcut.label}
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => applyQuickPeriod(shortcut)}
+                                            className="h-8 text-xs font-medium bg-white dark:bg-brand-dark-900 border-gray-200 dark:border-gray-800 hover:border-brand-blue-500 hover:text-brand-blue-500 justify-center"
+                                        >
+                                            {shortcut.label}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-white dark:bg-brand-dark-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-3 shadow-sm">
+                                <FilterCombobox label="Colaborador" options={prerequisites?.collaborators || []} selectedValue={tempFilters.collaboratorId} onSelect={id => setTempFilters(f => ({...f, collaboratorId: id}))} />
+                                <FilterCombobox label="Obra / Projeto" options={prerequisites?.projects || []} selectedValue={tempFilters.projectId} onSelect={id => setTempFilters(f => ({...f, projectId: id}))} />
+                            </div>
+
+                            <div className="bg-white dark:bg-brand-dark-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-2 shadow-sm">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">Período de Execução</Label>
+                                <DatePickerWithRange date={tempFilters.dateRange} onDateChange={range => setTempFilters(f => ({...f, dateRange: range}))}/>
+                            </div>
                         </div>
                         <ResponsiveModalFooter>
-                            <Button variant="ghost" onClick={clearFilters} className="text-gray-400 hover:text-white hover:bg-brand-dark-800">Limpar</Button>
+                            <Button variant="ghost" onClick={clearFilters} className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">Limpar</Button>
                             <Button onClick={applyFilters} className="bg-brand-blue-600 hover:bg-brand-blue-500 text-white">Aplicar Filtros</Button>
                         </ResponsiveModalFooter>
                     </ResponsiveModalContent>
@@ -392,10 +485,10 @@ const FilterCombobox: React.FC<{
 
     return (
         <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-gray-300">{label}</Label>
+            <Label className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">{label}</Label>
             <Popover open={isOpen} onOpenChange={setIsOpen}>
                 <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm">
+                    <Button type="button" variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-sm bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white">
                         <span className="truncate">{selectedLabel}</span>
                         <ChevronsUpDownIcon className="ml-2 h-4 w-4 text-gray-400 flex-shrink-0" />
                     </Button>
