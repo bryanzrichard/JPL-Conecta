@@ -7,7 +7,8 @@ import { Supplier, Project, Collaborator, CATEGORIA_NOTA_ENUM, PROJECT_STATUSES,
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
-import { PlusIcon, SearchIcon, BuildingIcon, ConstructionIcon, UsersIcon, PlusSquareIcon, UserCircleIcon, KeyRoundIcon, Trash2Icon, AlertTriangleIcon, ClipboardListIcon, FileTextIcon, MoreVerticalIcon, EditIcon, LogOutIcon } from '../lib/icons';
+import { PlusIcon, SearchIcon, BuildingIcon, ConstructionIcon, UsersIcon, PlusSquareIcon, UserCircleIcon, KeyRoundIcon, Trash2Icon, AlertTriangleIcon, ClipboardListIcon, FileTextIcon, MoreVerticalIcon, EditIcon, LogOutIcon, SunIcon, MoonIcon } from '../lib/icons';
+import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
 import SupplierCard from '../components/registros/SupplierCard';
 import ProjectCard from '../components/registros/ProjectCard';
@@ -295,6 +296,7 @@ const InfoBox: React.FC<{icon: React.ReactNode, label: string, value: string}> =
 
 const Registros: React.FC = () => {
     const { user, profile, signOut } = useAuth();
+    const { isDark, toggleTheme } = useTheme();
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
     const formatDate = (dateString: string | null | undefined) => {
@@ -326,7 +328,7 @@ const Registros: React.FC = () => {
         }
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <InfoBox
           icon={<UserCircleIcon className="h-5 w-5 text-brand-blue-400" />}
           label="Email do Usuário"
@@ -342,6 +344,30 @@ const Registros: React.FC = () => {
           label="Validade da Chave"
           value={formatDate(profile?.company_keys?.expires_at)}
         />
+        <div 
+          onClick={toggleTheme}
+          className="flex items-center justify-between p-4 bg-brand-dark-900 rounded-xl border border-gray-800 shadow-sm cursor-pointer hover:border-gray-700 transition-all group"
+          title="Clique para alternar o tema"
+        >
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="flex-shrink-0 p-2.5 rounded-xl bg-brand-blue-500/10 border border-brand-blue-500/20">
+              {isDark ? (
+                <SunIcon className="h-5 w-5 text-amber-400 group-hover:rotate-45 transition-transform" />
+              ) : (
+                <MoonIcon className="h-5 w-5 text-brand-blue-600 group-hover:-rotate-12 transition-transform" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-400">Tema do Sistema</p>
+              <p className="text-sm font-semibold text-white truncate">
+                {isDark ? 'Modo Escuro' : 'Modo Claro'}
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded border border-gray-700 text-gray-400">
+            {isDark ? 'DARK' : 'LIGHT'}
+          </span>
+        </div>
       </div>
 
       <Tabs defaultValue="suppliers" className="space-y-4">

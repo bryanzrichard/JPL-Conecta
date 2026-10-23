@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDashboardAlerts } from '../hooks/useDashboardAlerts';
 import { Button } from './ui/Button';
+import { ThemeToggle } from './ui/ThemeToggle';
 import { 
     MenuIcon, XIcon, PlusIcon, ClipboardListIcon, FileTextIcon, 
     LayoutIcon, ConstructionIcon, HistoryIcon, ActivityIcon, BuildingIcon,
@@ -156,7 +157,8 @@ const MainLayout: React.FC = () => {
                 </nav>
 
                 {/* Desktop Sidebar Footer: Profile & Logout */}
-                <div className="p-3 border-t border-gray-800 bg-brand-dark-950/50">
+                <div className="p-3 border-t border-gray-800 bg-brand-dark-950/50 space-y-2">
+                    <ThemeToggle variant="sidebar" />
                     <div className="flex items-center justify-between p-2 rounded-xl bg-brand-dark-800/40 border border-gray-800">
                         <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-8 h-8 rounded-lg bg-brand-blue-500/20 border border-brand-blue-500/30 flex items-center justify-center text-brand-blue-400 font-bold text-xs shrink-0">
@@ -197,6 +199,7 @@ const MainLayout: React.FC = () => {
 
                     {/* Quick Desktop Actions */}
                     <div className="flex items-center gap-3">
+                        <ThemeToggle variant="icon" />
                         <Button
                             variant="outline"
                             size="sm"
@@ -224,6 +227,7 @@ const MainLayout: React.FC = () => {
                         JPL Conecta
                     </NavLink>
                     <div className="flex items-center gap-2">
+                        <ThemeToggle variant="icon" />
                         <div className="w-8 h-8 rounded-full bg-brand-dark-800 border border-gray-700 flex items-center justify-center text-xs font-bold text-gray-300">
                             {userInitial}
                         </div>
@@ -341,6 +345,9 @@ const MainLayout: React.FC = () => {
                                 <ActivityIcon className="h-5 w-5" />
                                 <span className="font-medium">Registro</span>
                             </NavLink>
+                            <div className="pt-2 px-1">
+                                <ThemeToggle variant="sidebar" />
+                            </div>
                         </div>
                     </div>
                 </div>

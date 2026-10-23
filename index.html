@@ -9,9 +9,15 @@
     <script>
       // Initialize theme and primary color
       (function() {
-        // Force dark mode as requested by user
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.classList.add('light');
+        } else {
+          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('light');
+          if (!savedTheme) localStorage.setItem('theme', 'dark');
+        }
         
         const primaryColor = localStorage.getItem('primary-color') || '#6366f1';
         document.documentElement.style.setProperty('--primary', primaryColor);
@@ -70,6 +76,170 @@
             body {
                 background-color: var(--bg-main);
                 color: var(--text-main);
+            }
+
+            /* ======================================================== */
+            /* TEMA CLARO (Light Theme) OVERRIDES                       */
+            /* Ativado quando a classe 'dark' NÃO está no <html>        */
+            /* ======================================================== */
+            html:not(.dark) body {
+                background-color: #f8fafc !important;
+                color: #0f172a !important;
+            }
+
+            /* Superfícies e Containers */
+            html:not(.dark) .bg-brand-dark-950 {
+                background-color: #f8fafc !important;
+                color: #0f172a !important;
+            }
+            html:not(.dark) .bg-brand-dark-950\/50,
+            html:not(.dark) .bg-brand-dark-950\/40 {
+                background-color: rgba(241, 245, 249, 0.75) !important;
+            }
+
+            html:not(.dark) .bg-brand-dark-900 {
+                background-color: #ffffff !important;
+                color: #0f172a !important;
+            }
+            html:not(.dark) .bg-brand-dark-900\/95,
+            html:not(.dark) .bg-brand-dark-900\/90,
+            html:not(.dark) .bg-brand-dark-900\/80,
+            html:not(.dark) .bg-brand-dark-900\/50 {
+                background-color: rgba(255, 255, 255, 0.95) !important;
+                color: #0f172a !important;
+            }
+
+            html:not(.dark) .bg-brand-dark-800,
+            html:not(.dark) .bg-brand-dark-800\/80,
+            html:not(.dark) .bg-brand-dark-800\/60,
+            html:not(.dark) .bg-brand-dark-800\/40 {
+                background-color: #f1f5f9 !important;
+                color: #0f172a !important;
+            }
+
+            html:not(.dark) .bg-gray-900,
+            html:not(.dark) .bg-gray-900\/80,
+            html:not(.dark) .bg-gray-900\/60,
+            html:not(.dark) .bg-gray-900\/40,
+            html:not(.dark) .bg-gray-900\/30 {
+                background-color: #f8fafc !important;
+            }
+
+            html:not(.dark) .bg-gray-800,
+            html:not(.dark) .bg-gray-800\/60,
+            html:not(.dark) .bg-gray-800\/50,
+            html:not(.dark) .bg-gray-800\/40,
+            html:not(.dark) .bg-gray-800\/30 {
+                background-color: #f1f5f9 !important;
+            }
+
+            /* Bordas e Divisores */
+            html:not(.dark) .border-gray-800,
+            html:not(.dark) .border-gray-800\/80,
+            html:not(.dark) .border-gray-800\/60,
+            html:not(.dark) .border-gray-800\/50 {
+                border-color: #e2e8f0 !important;
+            }
+            html:not(.dark) .border-gray-700,
+            html:not(.dark) .border-gray-700\/50 {
+                border-color: #cbd5e1 !important;
+            }
+            html:not(.dark) .divide-gray-800 > :not([hidden]) ~ :not([hidden]) {
+                border-color: #e2e8f0 !important;
+            }
+
+            /* Textos e Tipografia */
+            html:not(.dark) .text-white {
+                color: #0f172a !important;
+            }
+            html:not(.dark) .text-gray-100,
+            html:not(.dark) .text-gray-200,
+            html:not(.dark) .text-gray-300 {
+                color: #334155 !important;
+            }
+            html:not(.dark) .text-gray-400 {
+                color: #64748b !important;
+            }
+            html:not(.dark) .text-gray-500 {
+                color: #64748b !important;
+            }
+
+            /* Exceções Obrigatórias: botões de ação e badges primários mantêm texto branco */
+            html:not(.dark) button.bg-brand-blue-600,
+            html:not(.dark) button.bg-brand-blue-500,
+            html:not(.dark) button.bg-red-600,
+            html:not(.dark) .bg-brand-blue-600,
+            html:not(.dark) .bg-brand-blue-500,
+            html:not(.dark) .bg-red-600,
+            html:not(.dark) .bg-brand-blue-600 .text-white,
+            html:not(.dark) .bg-brand-blue-500 .text-white,
+            html:not(.dark) .bg-red-600 .text-white,
+            html:not(.dark) .bg-emerald-600 .text-white,
+            html:not(.dark) a.bg-brand-blue-600,
+            html:not(.dark) a.bg-brand-blue-500 {
+                color: #ffffff !important;
+            }
+
+            /* Inputs, Selects e Textareas */
+            html:not(.dark) input:not([type=checkbox]):not([type=radio]):not([type=file]),
+            html:not(.dark) select,
+            html:not(.dark) textarea {
+                background-color: #ffffff !important;
+                border-color: #cbd5e1 !important;
+                color: #0f172a !important;
+            }
+            html:not(.dark) input::placeholder,
+            html:not(.dark) textarea::placeholder {
+                color: #94a3b8 !important;
+            }
+
+            /* Linhas de Tabela */
+            html:not(.dark) tr.hover\:bg-gray-800\/50:hover,
+            html:not(.dark) tr.hover\:bg-gray-800\/40:hover,
+            html:not(.dark) tr.hover\:bg-gray-800\/30:hover,
+            html:not(.dark) tr.hover\:bg-brand-dark-950\/50:hover {
+                background-color: #f8fafc !important;
+            }
+            html:not(.dark) thead.bg-gray-800\/50,
+            html:not(.dark) thead.bg-brand-dark-950\/50 {
+                background-color: #f1f5f9 !important;
+                color: #475569 !important;
+            }
+
+            /* Dropdowns, Popovers e Menus */
+            html:not(.dark) [role="dialog"],
+            html:not(.dark) [role="menu"],
+            html:not(.dark) .shadow-2xl,
+            html:not(.dark) .shadow-xl {
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+            }
+
+            /* Calendário DayPicker no tema claro */
+            html:not(.dark) .rdp {
+                --rdp-background-color: #ffffff;
+                --rdp-color: #1e293b;
+                border-color: #e2e8f0;
+            }
+            html:not(.dark) .rdp-head_cell {
+                color: #64748b;
+            }
+            html:not(.dark) .rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+                background-color: #f1f5f9;
+            }
+
+            /* Skeletons e Hovers no tema claro */
+            html:not(.dark) .animate-pulse {
+                background-color: #e2e8f0 !important;
+            }
+            html:not(.dark) .hover\:text-white:hover {
+                color: #0f172a !important;
+            }
+            html:not(.dark) .hover\:bg-brand-dark-800:hover,
+            html:not(.dark) .hover\:bg-brand-dark-800\/60:hover,
+            html:not(.dark) .hover\:bg-brand-dark-700:hover,
+            html:not(.dark) .hover\:bg-gray-800:hover,
+            html:not(.dark) .hover\:bg-gray-700:hover {
+                background-color: #f1f5f9 !important;
             }
             
             /* Safe area insets for mobile */

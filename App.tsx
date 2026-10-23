@@ -19,6 +19,7 @@ import Registros from './pages/Registros';
 import Cartorio from './pages/Cartorio';
 import Tarefas from './pages/Tarefas';
 import { ToastProvider } from './contexts/ToastContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster } from './components/ui/Toaster';
 
 // Create a client
@@ -61,43 +62,45 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <HashRouter>
-          <Routes>
-            {/* Public routes accessible only when not logged in */}
-            <Route element={<PublicRoute />}>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/update-password" element={<UpdatePassword />} />
-            </Route>
-
-            {/* Protected routes that require authentication */}
-            <Route element={<ProtectedRoute />}>
-              {/* Standalone page for users without a company key */}
-              <Route path="/register-key" element={<RegisterKey />} />
-              
-              {/* Main application layout for users with a valid company key */}
-              <Route element={<MainLayout />}>
-                <Route path="/" element={<Home />} />
-                <Route path="/notas" element={<Notas />} />
-                <Route path="/servicos" element={<Servicos />} />
-                <Route path="/historico" element={<Historico />} />
-                <Route path="/registro" element={<Registros />} />
-                <Route path="/cartorio" element={<Cartorio />} />
-                <Route path="/tarefas" element={<Tarefas />} />
-                {/* Catch-all for authenticated users, redirects to home */}
-                <Route path="*" element={<Navigate to="/" />} />
+      <ThemeProvider>
+        <ToastProvider>
+          <HashRouter>
+            <Routes>
+              {/* Public routes accessible only when not logged in */}
+              <Route element={<PublicRoute />}>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/update-password" element={<UpdatePassword />} />
               </Route>
-            </Route>
-            
-            {/* Fallback for any other route, redirects to login */}
-            <Route path="*" element={<Navigate to="/login" />} />
-          </Routes>
-        </HashRouter>
-        <Toaster />
-      </ToastProvider>
+
+              {/* Protected routes that require authentication */}
+              <Route element={<ProtectedRoute />}>
+                {/* Standalone page for users without a company key */}
+                <Route path="/register-key" element={<RegisterKey />} />
+                
+                {/* Main application layout for users with a valid company key */}
+                <Route element={<MainLayout />}>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/notas" element={<Notas />} />
+                  <Route path="/servicos" element={<Servicos />} />
+                  <Route path="/historico" element={<Historico />} />
+                  <Route path="/registro" element={<Registros />} />
+                  <Route path="/cartorio" element={<Cartorio />} />
+                  <Route path="/tarefas" element={<Tarefas />} />
+                  {/* Catch-all for authenticated users, redirects to home */}
+                  <Route path="*" element={<Navigate to="/" />} />
+                </Route>
+              </Route>
+              
+              {/* Fallback for any other route, redirects to login */}
+              <Route path="*" element={<Navigate to="/login" />} />
+            </Routes>
+          </HashRouter>
+          <Toaster />
+        </ToastProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
