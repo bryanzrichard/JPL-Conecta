@@ -67,6 +67,32 @@ const getWhatsAppUrl = (phone?: string | null, name?: string): string | null => 
   return `https://wa.me/${fullPhone}?text=${encodeURIComponent(text)}`;
 };
 
+// Helper to calculate effective project status based on schedule dates
+export const getEffectiveProjectStatus = (project: {
+  status?: ProjectStatus | string;
+  start_date?: string | null;
+  end_date?: string | null;
+}): ProjectStatus => {
+  if (project.status === 'Concluído') return 'Concluído';
+
+  const todayStr = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD'
+  if (project.end_date) {
+    const cleanEnd = project.end_date.includes('T') ? project.end_date.split('T')[0] : project.end_date;
+    if (cleanEnd <= todayStr) {
+      return 'Concluído';
+    }
+  }
+
+  if (project.start_date) {
+    const cleanStart = project.start_date.includes('T') ? project.start_date.split('T')[0] : project.start_date;
+    if (cleanStart <= todayStr) {
+      return 'Em Andamento';
+    }
+  }
+
+  return (project.status as ProjectStatus) || 'Planejamento';
+};
+
 const Registros: React.FC = () => {
   const { profile, user } = useAuth();
   const { toast } = useToast();
@@ -246,6 +272,7 @@ const Registros: React.FC = () => {
   const { data: projectsData, isLoading: isLoadingProjects } = useQuery<{ data: Project[]; count: number }>({
     queryKey: ['projects', profile?.company_id, page, debouncedSearch, statusFilter],
     queryFn: async () => {
+      const todayStr = new Date().toLocaleDateString('en-CA');
       let query = (supabase as any)
         .from('projects')
         .select('*', { count: 'exact' })
@@ -255,15 +282,44 @@ const Registros: React.FC = () => {
         query = query.or(`name.ilike.%${debouncedSearch}%,manager.ilike.%${debouncedSearch}%,address_city.ilike.%${debouncedSearch}%`);
       }
 
-      if (statusFilter !== 'todos') {
-        query = query.eq('status', statusFilter);
+      if (statusFilter === 'Concluído') {
+        query = query.or(`status.eq.Concluído,end_date.lte.${todayStr}`);
+      } else if (statusFilter === 'Em Andamento') {
+        query = query.eq('status', 'Em Andamento').or(`end_date.is.null,end_date.gt.${todayStr}`);
+      } else if (statusFilter === 'Planejamento') {
+        query = query.eq('status', 'Planejamento');
       }
 
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       const { data, count, error } = await query.order('created_at', { ascending: false }).range(from, to);
       if (error) throw error;
-      return { data: (data as Project[]) || [], count: count ?? 0 };
+
+      const mapped = ((data as Project[]) || []).map(p => ({
+        ...p,
+        status: getEffectiveProjectStatus(p)
+      }));
+
+      // Background auto-sync out-of-sync projects to Supabase
+      const outOfSync = ((data as Project[]) || []).filter(p => {
+        const cleanEnd = p.end_date ? (p.end_date.includes('T') ? p.end_date.split('T')[0] : p.end_date) : '';
+        return p.status !== 'Concluído' && cleanEnd && cleanEnd <= todayStr;
+      });
+
+      if (outOfSync.length > 0 && profile?.company_id) {
+        const ids = outOfSync.map(p => p.id);
+        (supabase as any)
+          .from('projects')
+          .update({ status: 'Concluído' })
+          .in('id', ids)
+          .eq('company_id', profile.company_id)
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: ['registros_counts'] });
+          })
+          .catch((err: any) => console.error('Erro ao sincronizar status da obra:', err));
+      }
+
+      return { data: mapped, count: count ?? 0 };
     },
     enabled: !!profile?.company_id && activeTab === 'projects',
     placeholderData: (previousData) => previousData,
@@ -1440,6 +1496,15 @@ const Registros: React.FC = () => {
                         </p>
                       </div>
                     </div>
+
+                    {selectedProject.end_date && (selectedProject.end_date.includes('T') ? selectedProject.end_date.split('T')[0] : selectedProject.end_date) <= new Date().toLocaleDateString('en-CA') && (
+                      <div className="pt-2 border-t border-slate-200/60 dark:border-gray-700/60 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500 dark:text-gray-400 font-medium">Status do Cronograma:</span>
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/60">
+                          ✓ Prazo finalizado (Concluída)
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

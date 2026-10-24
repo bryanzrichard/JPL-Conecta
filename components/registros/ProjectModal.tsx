@@ -39,10 +39,13 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, d
   const [showAddress, setShowAddress] = useState(false);
 
   const defaultValues: ProjectFormValues = useMemo(() => {
+    const todayStr = new Date().toLocaleDateString('en-CA');
     if (project) {
+      const cleanEnd = project.end_date ? (project.end_date.includes('T') ? project.end_date.split('T')[0] : project.end_date) : '';
+      const isPastOrToday = cleanEnd && cleanEnd <= todayStr;
       return {
         name: project.name || '',
-        status: project.status || 'Planejamento',
+        status: (isPastOrToday ? 'Concluído' : project.status) || 'Planejamento',
         manager: project.manager || '',
         start_date: project.start_date ? project.start_date.split('T')[0] : '',
         end_date: project.end_date ? project.end_date.split('T')[0] : null,
@@ -98,25 +101,16 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, d
   const endDate = watch('end_date');
   
   useEffect(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const start = startDate ? startDate.split('T')[0] : '';
+    const end = endDate ? endDate.split('T')[0] : '';
 
-    const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
-    const end = endDate ? new Date(`${endDate}T00:00:00`) : null;
-
-    let newStatus: ProjectStatus = 'Planejamento';
-
-    if (end && end < today) {
-      newStatus = 'Concluído';
-    } else if (start && start <= today) {
-      newStatus = 'Em Andamento';
+    if (end && end <= todayStr) {
+      setValue('status', 'Concluído', { shouldDirty: true });
+    } else if (start && start <= todayStr && (!end || end > todayStr)) {
+      setValue('status', 'Em Andamento', { shouldDirty: true });
     }
-    
-    const currentStatus = watch('status');
-    if (currentStatus !== newStatus) {
-      setValue('status', newStatus, { shouldDirty: true });
-    }
-  }, [startDate, endDate, setValue, watch]);
+  }, [startDate, endDate, setValue]);
 
   const mutation = useMutation({
     mutationFn: async (data: ProjectFormValues) => {
@@ -206,7 +200,6 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, d
         
         <form id="project-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50/60 dark:bg-brand-dark-950/50 space-y-4 custom-scrollbar">
-            <input type="hidden" {...register('status')} />
 
             {/* Bloco 1: Dados Gerais da Obra */}
             <div className="bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
@@ -240,6 +233,27 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, d
                     className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5 pt-2 border-t border-gray-100 dark:border-gray-800">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Status Operacional da Obra <span className="text-red-500">*</span>
+                  </Label>
+                  {endDate && (endDate.includes('T') ? endDate.split('T')[0] : endDate) <= new Date().toLocaleDateString('en-CA') && (
+                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <span>✓</span> Cronograma Encerrado (Concluído)
+                    </span>
+                  )}
+                </div>
+                <select
+                  {...register('status')}
+                  className="w-full h-9 text-xs bg-white dark:bg-brand-dark-950 border border-gray-300 dark:border-gray-800 rounded-lg px-3 text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-brand-blue-500"
+                >
+                  <option value="Planejamento">Planejamento</option>
+                  <option value="Em Andamento">Em Andamento</option>
+                  <option value="Concluído">Concluído</option>
+                </select>
               </div>
             </div>
 

@@ -46,9 +46,17 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
                       {project.name}
                   </h3>
               </div>
-              <div className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusColors[project.status]}`}>
-                  {project.status}
-              </div>
+              {(() => {
+                const todayStr = new Date().toLocaleDateString('en-CA');
+                const cleanEnd = project.end_date ? (project.end_date.includes('T') ? project.end_date.split('T')[0] : project.end_date) : '';
+                const isConcluded = project.status === 'Concluído' || (cleanEnd && cleanEnd <= todayStr);
+                const effectiveStatus = isConcluded ? 'Concluído' : project.status;
+                return (
+                  <div className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusColors[effectiveStatus] || statusColors['Planejamento']}`}>
+                      {effectiveStatus}
+                  </div>
+                );
+              })()}
           </div>
           
           <div className="flex flex-col items-end flex-shrink-0 gap-1">
