@@ -13,17 +13,11 @@ import { formatApiError } from '../lib/handleError';
 import { logAuditAction } from '../lib/auditLogger';
 import { formatCnpj, formatDateBR } from '../lib/utils';
 import { useToast } from '../contexts/ToastContext';
-import { ThemeToggle } from '../components/ui/ThemeToggle';
-import { 
-  ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, 
-  ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter 
-} from '../components/ui/ResponsiveModal';
 import { 
   BuildingIcon, ConstructionIcon, UsersIcon, PlusIcon, SearchIcon, 
   DownloadIcon, EditIcon, Trash2Icon, MoreVerticalIcon, PhoneIcon,
   MapPinIcon, CalendarIcon, CopyIcon, CheckIcon, ExternalLinkIcon,
-  XIcon, ChevronLeftIcon, ChevronRightIcon, AlertTriangleIcon, FilterIcon,
-  KeyRoundIcon, LogOutIcon, UserCircleIcon
+  XIcon, ChevronLeftIcon, ChevronRightIcon, AlertTriangleIcon, FilterIcon
 } from '../lib/icons';
 import { 
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger 
@@ -100,7 +94,7 @@ export const getEffectiveProjectStatus = (project: {
 };
 
 const Registros: React.FC = () => {
-  const { profile, user, signOut } = useAuth();
+  const { profile, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const location = useLocation();
@@ -124,23 +118,6 @@ const Registros: React.FC = () => {
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCollaboratorModalOpen, setIsCollaboratorModalOpen] = useState(false);
-  const [isAccountDrawerOpen, setIsAccountDrawerOpen] = useState(false);
-  const [isRegistrosLogoutModalOpen, setIsRegistrosLogoutModalOpen] = useState(false);
-  
-  // Format helpers for account and license expiry
-  const formattedKeyExpiry = profile?.company_keys?.expires_at 
-    ? formatDateBR(profile.company_keys.expires_at)
-    : '30/12/2028';
-
-  const formattedKeyExpiryLong = useMemo(() => {
-    if (!profile?.company_keys?.expires_at) return '30 de dezembro de 2028';
-    try {
-      const d = new Date(profile.company_keys.expires_at);
-      return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
-    } catch {
-      return '30 de dezembro de 2028';
-    }
-  }, [profile?.company_keys?.expires_at]);
   
   // Modal Edit Target
   const [modalEditSupplier, setModalEditSupplier] = useState<Supplier | null>(null);
@@ -621,33 +598,17 @@ const Registros: React.FC = () => {
       {/* ========================================================= */}
       <header className="bg-white dark:bg-brand-dark-900 border-b border-slate-200 dark:border-gray-800 px-6 pt-4 pb-0 shrink-0">
         {/* Andar 1: Título Operacional + Ações Globais da Página */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
-                Cadastros Gerais
-              </h1>
-              <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                Gestão & Licença
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
+            <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+              Cadastros Gerais
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-gray-400">
               Fornecedores homologados, canteiros de obras e mão de obra operacional qualificada.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAccountDrawerOpen(true)}
-              className="h-8 text-xs font-semibold border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-brand-dark-800 gap-1.5"
-              title="Visualizar dados da empresa, chave de acesso e configurações da conta"
-            >
-              <KeyRoundIcon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Conta & Licença</span>
-            </Button>
-
             <Button
               variant="outline"
               size="sm"
@@ -667,33 +628,6 @@ const Registros: React.FC = () => {
               <PlusIcon className="h-3.5 w-3.5" />
               <span>+ Novo(a) {tabConfig.singular}</span>
             </Button>
-          </div>
-        </div>
-
-        {/* Faixa Compacta de Informações de Conta & Licença Realocadas */}
-        <div className="flex flex-wrap items-center justify-between gap-2 py-1.5 px-3 mb-2 rounded-lg bg-slate-50 dark:bg-brand-dark-800/60 border border-slate-200/80 dark:border-gray-800 text-[11px] text-slate-600 dark:text-gray-300">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="inline-flex items-center gap-1.5 font-semibold text-slate-800 dark:text-white whitespace-nowrap">
-              <span>🏢</span>
-              <span>{profile?.companies?.name || 'JPL Construtora'}</span>
-            </div>
-            <span className="text-slate-300 dark:text-gray-700 font-bold">•</span>
-            <div className="inline-flex items-center gap-1 text-slate-600 dark:text-gray-400 font-mono whitespace-nowrap">
-              <span>👤</span>
-              <span>{user?.email || 'bryanrichardjpl@icloud.com'}</span>
-            </div>
-            <span className="text-slate-300 dark:text-gray-700 font-bold">•</span>
-            <div className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800/50 whitespace-nowrap">
-              <KeyRoundIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>Validade da Chave: Ativa até {formattedKeyExpiry}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-gray-400 bg-white dark:bg-brand-dark-900 px-2 py-0.5 rounded border border-slate-200 dark:border-gray-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              SISTEMA OPERACIONAL
-            </span>
           </div>
         </div>
 
@@ -1901,150 +1835,6 @@ const Registros: React.FC = () => {
         }
         confirmText="Excluir Definitivamente"
         isLoading={deleteMutation.isPending}
-      />
-
-      {/* ========================================================= */}
-      {/* 4. DRAWER: Conta & Licença do Sistema (Realocação Completa) */}
-      {/* ========================================================= */}
-      <ResponsiveModal
-        isOpen={isAccountDrawerOpen}
-        onOpenChange={setIsAccountDrawerOpen}
-        displayMode="drawer"
-      >
-        <ResponsiveModalContent size="md">
-          <ResponsiveModalHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/80 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 shadow-sm">
-                <KeyRoundIcon className="h-5 w-5" />
-              </div>
-              <div>
-                <ResponsiveModalTitle>Conta & Licença do Sistema</ResponsiveModalTitle>
-                <ResponsiveModalDescription>
-                  Informações de autenticação, titularidade e validade da assinatura
-                </ResponsiveModalDescription>
-              </div>
-            </div>
-          </ResponsiveModalHeader>
-
-          <div className="p-6 space-y-4">
-            {/* Card 1: Empresa */}
-            <div className="p-4 rounded-xl bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 shadow-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <BuildingIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                  Empresa / Organização
-                </span>
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/50">
-                  MATRIZ ATIVA
-                </span>
-              </div>
-              <p className="text-base font-bold text-slate-900 dark:text-white">
-                {profile?.companies?.name || 'JPL Construtora'}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-gray-400 font-mono">
-                ID da Empresa: {profile?.company_id || 'Principal'}
-              </p>
-            </div>
-
-            {/* Card 2: Email do Usuário */}
-            <div className="p-4 rounded-xl bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 shadow-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <UserCircleIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                  Email do Usuário Logado
-                </span>
-                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800/50">
-                  ADMINISTRADOR
-                </span>
-              </div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-white font-mono break-all">
-                {user?.email || 'bryanrichardjpl@icloud.com'}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-gray-400">
-                Sessão autenticada e protegida com criptografia de ponta a ponta.
-              </p>
-            </div>
-
-            {/* Card 3: Validade da Chave */}
-            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30 shadow-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <KeyRoundIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  Validade da Chave de Acesso
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-700">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  HOMOLOGADA
-                </span>
-              </div>
-              <p className="text-base font-bold text-slate-900 dark:text-white">
-                {formattedKeyExpiryLong}
-              </p>
-              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-mono">
-                Chave Ativa até {formattedKeyExpiry} • Acesso ilimitado a todos os módulos
-              </p>
-            </div>
-
-            {/* Card 4: Tema do Sistema */}
-            <div className="p-4 rounded-xl bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 shadow-sm flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">
-                  Tema do Sistema
-                </p>
-                <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-                  Modo de Exibição Visual
-                </p>
-              </div>
-              <ThemeToggle variant="pill" />
-            </div>
-
-            {/* Card 5: Ação de Logout */}
-            <div className="p-4 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wider">
-                  Sessão Atual
-                </p>
-                <p className="text-xs text-slate-600 dark:text-gray-400 mt-0.5">
-                  Desconectar com segurança deste dispositivo
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsRegistrosLogoutModalOpen(true)}
-                className="h-8 text-xs font-semibold text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 gap-1.5"
-              >
-                <LogOutIcon className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
-                <span>Sair da Conta</span>
-              </Button>
-            </div>
-          </div>
-
-          <ResponsiveModalFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsAccountDrawerOpen(false)}
-              className="w-full text-xs font-semibold"
-            >
-              Fechar Detalhes
-            </Button>
-          </ResponsiveModalFooter>
-        </ResponsiveModalContent>
-      </ResponsiveModal>
-
-      {/* Modal de Confirmação de Logout disparado a partir do Drawer de Cadastros */}
-      <ConfirmationModal
-        isOpen={isRegistrosLogoutModalOpen}
-        onClose={() => setIsRegistrosLogoutModalOpen(false)}
-        onConfirm={async () => {
-          setIsRegistrosLogoutModalOpen(false);
-          setIsAccountDrawerOpen(false);
-          await signOut();
-        }}
-        title="Sair da Conta"
-        description="Tem certeza que deseja desconectar do JPL Conecta? Seus cadastros e configurações salvas permanecem protegidos."
-        confirmText="Sim, Sair"
       />
     </div>
   );
