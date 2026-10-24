@@ -592,7 +592,7 @@ const Registros: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-brand-dark-950">
+    <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-brand-dark-950 pb-16 md:pb-0">
       {/* ========================================================= */}
       {/* 1. SUB-HEADER OPERACIONAL COMPACTO (Andar 1 & Andar 2)    */}
       {/* ========================================================= */}

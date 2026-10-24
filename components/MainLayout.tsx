@@ -84,6 +84,7 @@ const MainLayout: React.FC = () => {
     const companyName = profile?.companies?.name || 'JPL Construtora';
     const userEmail = user?.email || 'bryanrichardjpl@icloud.com';
     const userInitial = userEmail.charAt(0).toUpperCase();
+    const isFullBleedRoute = ['/registro', '/registros'].includes(location.pathname);
 
     const formattedKeyExpiry = profile?.company_keys?.expires_at 
         ? formatDateBR(profile.company_keys.expires_at)
@@ -305,8 +306,14 @@ const MainLayout: React.FC = () => {
                     </div>
                 </header>
 
-                {/* CONTAINER FULL-BLEED OPERACIONAL (Sem max-w, sem mx-auto, 100% altura e largura) */}
-                <main className="flex-1 flex flex-col h-full min-w-0 overflow-hidden pt-14 md:pt-0">
+                {/* CONTAINER OPERACIONAL: Full-Bleed Split-View para Cadastros, e Scroll Vertical Completo para as demais páginas */}
+                <main
+                    className={`flex-1 min-w-0 pt-14 md:pt-0 ${
+                        isFullBleedRoute
+                            ? 'h-full flex flex-col overflow-hidden'
+                            : 'h-full overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 pb-24 md:pb-8'
+                    }`}
+                >
                     <Outlet />
                 </main>
             </div>
