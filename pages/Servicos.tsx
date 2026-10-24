@@ -43,6 +43,7 @@ const ServiceModal = lazy(() => import('../components/servicos/ServiceModal'));
 const AdvanceModal = lazy(() => import('../components/servicos/AdvanceModal'));
 const EditarServicoModal = lazy(() => import('../components/servicos/EditarServicoModal'));
 const EditarAdiantamentoModal = lazy(() => import('../components/servicos/EditarAdiantamentoModal'));
+const DetalhesServicoModal = lazy(() => import('../components/servicos/DetalhesServicoModal'));
 
 type ServiceFilters = {
     searchTerm: string;
@@ -122,6 +123,7 @@ const Servicos: React.FC = () => {
     // Modais e Estados de Edição/Exclusão
     const [selectedService, setSelectedService] = useState<ServiceWithDetails | null>(null);
     const [selectedAdvance, setSelectedAdvance] = useState<AdvanceWithDetails | null>(null);
+    const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);
     const [isCreateServiceModalOpen, setCreateServiceModalOpen] = useState(false);
     const [isEditServiceModalOpen, setEditServiceModalOpen] = useState(false);
     const [isAdvanceModalOpen, setAdvanceModalOpen] = useState(false);
@@ -192,7 +194,7 @@ const Servicos: React.FC = () => {
                             remaining_value: Math.max(0, (Number(data.total_value) || 0) - total_advances),
                         };
                         setSelectedService(formattedService);
-                        setEditServiceModalOpen(true);
+                        setDetailsModalOpen(true);
                     }
                 } catch (err) {
                     console.error('Erro ao abrir serviço para edição:', err);
@@ -897,8 +899,10 @@ const Servicos: React.FC = () => {
                                     <ServicoCard
                                         key={service.id}
                                         service={service}
+                                        onSelect={(s) => { setSelectedService(s); setDetailsModalOpen(true); }}
                                         onEdit={(s) => { setSelectedService(s); setEditServiceModalOpen(true); }}
                                         onDelete={(s) => { setServiceToDelete(s); setDeleteServiceModalOpen(true); }}
+                                        onAddAdvance={(s) => { setSelectedService(s); setAdvanceModalOpen(true); }}
                                         onViewAttachment={service.receipt_path ? handleViewAttachment : undefined}
                                     />
                                 ))}
@@ -926,7 +930,7 @@ const Servicos: React.FC = () => {
                                                     <tr 
                                                         key={service.id} 
                                                         className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer group"
-                                                        onClick={() => { setSelectedService(service); setEditServiceModalOpen(true); }}
+                                                        onClick={() => { setSelectedService(service); setDetailsModalOpen(true); }}
                                                     >
                                                         <td className="px-6 py-4 whitespace-nowrap">
                                                             <Badge className={isCompleted 
@@ -969,14 +973,17 @@ const Servicos: React.FC = () => {
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end">
+                                                                    <DropdownMenuItem onSelect={() => { setSelectedService(service); setDetailsModalOpen(true); }}>
+                                                                        <EyeIcon className="h-4 w-4 mr-2 text-brand-blue-500" /> Visualizar Detalhes
+                                                                    </DropdownMenuItem>
                                                                     <DropdownMenuItem onSelect={() => { setSelectedService(service); setAdvanceModalOpen(true); }}>
                                                                         <PlusIcon className="h-4 w-4 mr-2 text-emerald-500" /> Novo Adiantamento
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuItem onSelect={() => { setSelectedService(service); setEditServiceModalOpen(true); }}>
-                                                                        <EditIcon className="h-4 w-4 mr-2 text-brand-blue-500" /> Editar / Detalhes
+                                                                        <EditIcon className="h-4 w-4 mr-2 text-brand-blue-500" /> Editar Contrato
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuItem onSelect={() => handleViewAdvancesForService(service)}>
-                                                                        <DollarSignIcon className="h-4 w-4 mr-2 text-amber-500" /> Ver Adiantamentos
+                                                                        <DollarSignIcon className="h-4 w-4 mr-2 text-amber-500" /> Ver no Extrato
                                                                     </DropdownMenuItem>
                                                                     {service.receipt_path && (
                                                                         <DropdownMenuItem onSelect={() => handleViewAttachment(service.receipt_path!)}>
@@ -1639,6 +1646,32 @@ const Servicos: React.FC = () => {
             {/* MODAIS COMPARTILHADOS                                          */}
             {/* ============================================================== */}
             <Suspense fallback={<div />}>
+                {isDetailsModalOpen && selectedService && (
+                    <DetalhesServicoModal
+                        isOpen={isDetailsModalOpen}
+                        onClose={() => {
+                            setDetailsModalOpen(false);
+                            setSelectedService(null);
+                        }}
+                        onEdit={(s) => {
+                            setDetailsModalOpen(false);
+                            setSelectedService(s);
+                            setEditServiceModalOpen(true);
+                        }}
+                        onDelete={(s) => {
+                            setDetailsModalOpen(false);
+                            setServiceToDelete(s);
+                            setDeleteServiceModalOpen(true);
+                        }}
+                        onAddAdvance={(s) => {
+                            setDetailsModalOpen(false);
+                            setSelectedService(s);
+                            setAdvanceModalOpen(true);
+                        }}
+                        service={selectedService}
+                    />
+                )}
+
                 {isCreateServiceModalOpen && (
                     <ServiceModal
                         isOpen={isCreateServiceModalOpen}

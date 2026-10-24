@@ -9,7 +9,9 @@ import {
   UserIcon, 
   ConstructionIcon, 
   CalendarIcon, 
-  PaperclipIcon 
+  PaperclipIcon,
+  EyeIcon,
+  PlusIcon
 } from '../../lib/icons';
 
 interface ServicoCardProps {
@@ -17,6 +19,8 @@ interface ServicoCardProps {
     onEdit: (service: ServiceWithDetails) => void;
     onDelete: (service: ServiceWithDetails) => void;
     onViewAttachment?: (path: string) => void;
+    onSelect?: (service: ServiceWithDetails) => void;
+    onAddAdvance?: (service: ServiceWithDetails) => void;
 }
 
 const formatCurrency = (value: number | null | undefined) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
@@ -27,15 +31,30 @@ const formatDate = (dateString: string | Date | null | undefined) => {
     return new Date(date.getTime() + userTimezoneOffset).toLocaleDateString('pt-BR');
 };
 
-const ServicoCard: React.FC<ServicoCardProps> = ({ service, onEdit, onDelete, onViewAttachment }) => {
+const ServicoCard: React.FC<ServicoCardProps> = ({ 
+    service, 
+    onEdit, 
+    onDelete, 
+    onViewAttachment, 
+    onSelect,
+    onAddAdvance 
+}) => {
     const isCompleted = service.status === 'Concluído';
     const statusClass = isCompleted 
         ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20' 
         : 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20';
 
+    const handleCardClick = () => {
+        if (onSelect) {
+            onSelect(service);
+        } else {
+            onEdit(service);
+        }
+    };
+
     return (
         <div 
-            onClick={() => onEdit(service)}
+            onClick={handleCardClick}
             className="group relative bg-white dark:bg-brand-dark-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800/60 hover:border-brand-blue-500/30 transition-all duration-200 cursor-pointer shadow-sm touch-manipulation"
         >
             <div className="flex justify-between items-start mb-3">
@@ -58,6 +77,16 @@ const ServicoCard: React.FC<ServicoCardProps> = ({ service, onEdit, onDelete, on
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            {onSelect && (
+                                <DropdownMenuItem onSelect={() => onSelect(service)}>
+                                    <EyeIcon className="h-4 w-4 mr-2 text-brand-blue-500" /> Visualizar Detalhes
+                                </DropdownMenuItem>
+                            )}
+                            {onAddAdvance && (
+                                <DropdownMenuItem onSelect={() => onAddAdvance(service)}>
+                                    <PlusIcon className="h-4 w-4 mr-2 text-emerald-500" /> Novo Adiantamento
+                                </DropdownMenuItem>
+                            )}
                             {service.receipt_path && onViewAttachment && (
                                 <DropdownMenuItem onSelect={() => onViewAttachment(service.receipt_path!)}>
                                     <PaperclipIcon className="h-4 w-4 mr-2" /> Ver Anexo
