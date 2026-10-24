@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDashboardAlerts } from '../hooks/useDashboardAlerts';
 import { Button } from './ui/Button';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { GlobalSearchModal } from './GlobalSearchModal';
+import ConfirmationModal from './ui/ConfirmationModal';
 import { 
     MenuIcon, XIcon, PlusIcon, ClipboardListIcon, FileTextIcon, 
     LayoutIcon, ConstructionIcon, ActivityIcon, BuildingIcon,
     LogOutIcon, ChevronRightIcon, UploadCloudIcon, SearchIcon,
     KeyRoundIcon, MoreVerticalIcon
 } from '../lib/icons';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from './ui/DropdownMenu';
 import { formatDateBR } from '../lib/utils';
 
 const MainLayout: React.FC = () => {
@@ -20,6 +20,10 @@ const MainLayout: React.FC = () => {
     const location = useLocation();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const accountMenuRef = useRef<HTMLDivElement>(null);
+    const accountButtonRef = useRef<HTMLButtonElement>(null);
 
     // Global shortcut Ctrl+K / Cmd+K to open Search Modal
     useEffect(() => {
@@ -33,12 +37,40 @@ const MainLayout: React.FC = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
+    // Close account menu on click outside or escape key
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (
+                accountMenuRef.current && 
+                !accountMenuRef.current.contains(e.target as Node) &&
+                accountButtonRef.current &&
+                !accountButtonRef.current.contains(e.target as Node)
+            ) {
+                setIsAccountMenuOpen(false);
+            }
+        };
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setIsAccountMenuOpen(false);
+            }
+        };
+        if (isAccountMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('keydown', handleKeyDown);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isAccountMenuOpen]);
+
     // Realtime alerts for navigation badges
     const { delayedTasks, pendingAi } = useDashboardAlerts(profile?.company_id, user?.id);
 
     // Close menus on route change
     useEffect(() => {
         setIsMenuOpen(false);
+        setIsAccountMenuOpen(false);
     }, [location.pathname]);
 
     const navLinks = [
@@ -167,8 +199,99 @@ const MainLayout: React.FC = () => {
                     ))}
                 </nav>
 
-                {/* Rodapé: Badge ONLINE • v1.2 + Card de Perfil Interativo com Popover */}
-                <div className="p-3 border-t border-slate-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 space-y-2">
+                {/* Rodapé: Badge ONLINE • v1.2 + Card de Perfil Interativo com Popover Upward */}
+                <div className="relative p-3 border-t border-slate-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 space-y-2">
+                    {/* Popover da Conta (Upward Floating - Garantido Dentro da Sidebar) */}
+                    {isAccountMenuOpen && (
+                        <div
+                            ref={accountMenuRef}
+                            className="absolute bottom-full left-2 right-2 mb-2 bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+                        >
+                            {/* Cabeçalho do Perfil */}
+                            <div className="p-3.5 bg-slate-50 dark:bg-brand-dark-800/80 border-b border-slate-100 dark:border-gray-800">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-bold text-sm flex items-center justify-center shadow-md shadow-indigo-600/30 shrink-0">
+                                        {userInitial}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                            {userEmail.split('@')[0]}
+                                        </p>
+                                        <p className="text-[11px] text-slate-500 dark:text-gray-400 truncate font-mono">
+                                            {userEmail}
+                                        </p>
+                                        <div className="flex items-center gap-1 mt-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 truncate">
+                                            <span>🏢</span>
+                                            <span className="truncate">{companyName}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Validade da Chave & Status da Licença */}
+                            <div className="p-3 border-b border-slate-100 dark:border-gray-800 space-y-2">
+                                <div className="flex items-center justify-between text-[11px]">
+                                    <span className="text-slate-500 dark:text-gray-400 font-medium">Status da Licença</span>
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                        LICENÇA ATIVA
+                                    </span>
+                                </div>
+                                <div className="flex items-start gap-2 p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/50 text-[11px]">
+                                    <KeyRoundIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider leading-none">
+                                            Validade da Chave
+                                        </p>
+                                        <p className="font-semibold text-slate-900 dark:text-white mt-1 text-xs whitespace-nowrap">
+                                            Ativa até {formattedKeyExpiry}
+                                        </p>
+                                        <p className="text-[10px] text-slate-500 dark:text-gray-400 mt-0.5">
+                                            Acesso liberado a todos os módulos
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Ações e Preferências */}
+                            <div className="p-2 space-y-1">
+                                {/* Alternar Tema */}
+                                <div className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-brand-dark-800/60 transition-colors">
+                                    <span className="font-medium">Tema do Sistema</span>
+                                    <ThemeToggle variant="icon" />
+                                </div>
+
+                                {/* Link Cadastros & Configurações */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsAccountMenuOpen(false);
+                                        navigate('/registro');
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-brand-dark-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left cursor-pointer"
+                                >
+                                    <BuildingIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                                    <span>Configurações da Conta</span>
+                                </button>
+
+                                <div className="h-px bg-slate-100 dark:bg-gray-800 my-1" />
+
+                                {/* Sair da Conta */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsAccountMenuOpen(false);
+                                        setIsLogoutModalOpen(true);
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors text-left cursor-pointer"
+                                >
+                                    <LogOutIcon className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                                    <span>Sair da Conta</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Badge ONLINE */}
                     <div className="flex items-center justify-between px-2.5 py-1 rounded-md bg-slate-50 dark:bg-brand-dark-800/50 border border-slate-200 dark:border-gray-800 text-[10px] text-slate-500 dark:text-gray-400">
                         <span className="flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400">
@@ -178,56 +301,34 @@ const MainLayout: React.FC = () => {
                         <span className="font-mono">v1.2</span>
                     </div>
 
-                    {/* Card de Perfil Interativo com DropdownMenu */}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button
-                                type="button"
-                                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-brand-dark-800/60 dark:hover:bg-brand-dark-800 border border-slate-200 dark:border-gray-700/60 transition-all text-left group cursor-pointer"
-                            >
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-sm shrink-0">
-                                        {userInitial}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-semibold text-slate-900 dark:text-white truncate leading-tight">
-                                            {userEmail.split('@')[0]}
-                                        </p>
-                                        <p className="text-[10px] text-slate-500 dark:text-gray-400 truncate leading-tight font-mono">
-                                            {userEmail}
-                                        </p>
-                                    </div>
-                                </div>
-                                <MoreVerticalIcon className="h-4 w-4 text-slate-400 group-hover:text-slate-600 dark:hover:text-white shrink-0 ml-1" />
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-72 p-2 bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 shadow-xl rounded-xl space-y-1">
-                            <div className="px-3 py-2 border-b border-slate-100 dark:border-gray-800">
-                                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{companyName}</p>
-                                <p className="text-[11px] text-slate-500 dark:text-gray-400 truncate font-mono">{userEmail}</p>
+                    {/* Botão de Perfil Interativo */}
+                    <button
+                        ref={accountButtonRef}
+                        type="button"
+                        onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+                        className={`w-full flex items-center justify-between p-2 rounded-xl transition-all text-left cursor-pointer border ${
+                            isAccountMenuOpen
+                                ? 'bg-indigo-50/80 dark:bg-brand-dark-800 border-indigo-400 dark:border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm'
+                                : 'bg-slate-50 hover:bg-slate-100 dark:bg-brand-dark-800/60 dark:hover:bg-brand-dark-800 border-slate-200 dark:border-gray-700/60'
+                        }`}
+                        title="Ver dados da conta, validade da chave e configurações"
+                        aria-label="Menu da conta"
+                    >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-sm shrink-0">
+                                {userInitial}
                             </div>
-                            
-                            <div className="px-3 py-2">
-                                <div className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 w-full">
-                                    <span>🔑</span>
-                                    <span className="truncate">Validade da Chave: Ativa até {formattedKeyExpiry}</span>
-                                </div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold text-slate-900 dark:text-white truncate leading-tight">
+                                    {userEmail.split('@')[0]}
+                                </p>
+                                <p className="text-[10px] text-slate-500 dark:text-gray-400 truncate leading-tight font-mono">
+                                    {userEmail}
+                                </p>
                             </div>
-
-                            <DropdownMenuItem onSelect={() => navigate('/registro')} className="text-xs py-2 px-3 rounded-lg cursor-pointer">
-                                <KeyRoundIcon className="h-3.5 w-3.5 mr-2 text-slate-500" /> Configurações da Conta
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-
-                            <DropdownMenuItem 
-                                onSelect={() => signOut()}
-                                className="text-xs py-2 px-3 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer font-semibold"
-                            >
-                                <LogOutIcon className="h-3.5 w-3.5 mr-2 text-rose-600" /> Sair da Conta
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                        </div>
+                        <MoreVerticalIcon className="h-4 w-4 text-slate-400 group-hover:text-slate-600 dark:hover:text-white shrink-0 ml-1" />
+                    </button>
                 </div>
             </aside>
 
@@ -300,9 +401,15 @@ const MainLayout: React.FC = () => {
                             <SearchIcon className="h-4 w-4" />
                         </button>
                         <ThemeToggle variant="icon" />
-                        <div className="w-7 h-7 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
+                        <button
+                            type="button"
+                            onClick={() => setIsAccountMenuOpen(true)}
+                            className="w-7 h-7 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-sm cursor-pointer"
+                            title="Abrir menu da conta"
+                            aria-label="Abrir menu da conta"
+                        >
                             {userInitial}
-                        </div>
+                        </button>
                     </div>
                 </header>
 
@@ -381,10 +488,102 @@ const MainLayout: React.FC = () => {
                 </div>
             )}
 
+            {/* Mobile Account Bottom Sheet */}
+            {isAccountMenuOpen && (
+                <div 
+                    className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+                    onClick={() => setIsAccountMenuOpen(false)}
+                >
+                    <div 
+                        className="absolute left-0 right-0 bottom-0 bg-white dark:bg-brand-dark-900 border-t border-slate-200 dark:border-gray-800 rounded-t-2xl p-5 animate-in slide-in-from-bottom-8 duration-200 max-h-[85vh] overflow-y-auto"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-gray-800">
+                            <span className="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Conta & Licença</span>
+                            <button
+                                type="button"
+                                onClick={() => setIsAccountMenuOpen(false)}
+                                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                            >
+                                <XIcon className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Informações da Conta */}
+                        <div className="py-4 space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white font-bold text-base flex items-center justify-center shadow-md shrink-0">
+                                    {userInitial}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                        {userEmail.split('@')[0]}
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-mono truncate">
+                                        {userEmail}
+                                    </p>
+                                    <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5 truncate">
+                                        🏢 {companyName}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 space-y-1">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">🔑 Status da Licença</span>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+                                        ATIVA
+                                    </span>
+                                </div>
+                                <p className="text-xs text-emerald-900 dark:text-emerald-200 font-semibold">
+                                    Validade da Chave: Ativa até {formattedKeyExpiry}
+                                </p>
+                            </div>
+
+                            <div className="space-y-1 pt-2">
+                                <NavLink
+                                    to="/registro"
+                                    onClick={() => setIsAccountMenuOpen(false)}
+                                    className="flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-brand-dark-800"
+                                >
+                                    <BuildingIcon className="h-5 w-5 text-slate-400 shrink-0" />
+                                    <span>Configurações & Cadastros</span>
+                                </NavLink>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsAccountMenuOpen(false);
+                                        setIsLogoutModalOpen(true);
+                                    }}
+                                    className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                                >
+                                    <LogOutIcon className="h-5 w-5 shrink-0" />
+                                    <span>Sair da Conta</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Modal de Busca Global e Inteligência de Preços (Ctrl + K) */}
             <GlobalSearchModal
                 isOpen={isSearchOpen}
                 onClose={() => setIsSearchOpen(false)}
+            />
+
+            {/* Modal de Confirmação de Logout */}
+            <ConfirmationModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+                onConfirm={async () => {
+                    setIsLogoutModalOpen(false);
+                    await signOut();
+                }}
+                title="Sair da Conta"
+                description="Tem certeza que deseja sair do sistema? Suas alterações salvas não serão perdidas."
+                confirmText="Sim, Sair"
             />
         </div>
     );
