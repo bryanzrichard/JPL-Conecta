@@ -32,7 +32,7 @@ import {
     ResponsiveModalDescription,
     ResponsiveModalFooter,
 } from '../components/ui/ResponsiveModal';
-import ConfirmationModal from '../components/historico/ConfirmationModal';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
 import CartorioModal from '../components/cartorio/CartorioModal';
 import { formatApiError } from '../lib/handleError';
 import { logAuditAction } from '../lib/auditLogger';

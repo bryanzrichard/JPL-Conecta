@@ -14,7 +14,7 @@ import { useToast } from '../contexts/ToastContext';
 import SupplierCard from '../components/registros/SupplierCard';
 import ProjectCard from '../components/registros/ProjectCard';
 import CollaboratorCard from '../components/registros/CollaboratorCard';
-import ConfirmationModal from '../components/historico/ConfirmationModal';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { formatApiError } from '../lib/handleError';
 import { logAuditAction } from '../lib/auditLogger';
 import { formatCnpj } from '../lib/utils';

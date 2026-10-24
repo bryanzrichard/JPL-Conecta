@@ -16,7 +16,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/Popove
 import { Command, CommandInput, CommandEmpty, CommandItem, CommandList } from '../components/ui/Command';
 import { ChevronsUpDownIcon } from '../lib/icons';
 import { useToast } from '../contexts/ToastContext';
-import ConfirmationModal from '../components/historico/ConfirmationModal';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { formatApiError } from '../lib/handleError';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Badge } from '../components/ui/Badge';

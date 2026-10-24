@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../hooks/useAuth';
 import { ServiceWithDetails, Collaborator, Project } from '../../types';
 import ServicoCard from './ServicoCard';
-import ConfirmationModal from './ConfirmationModal';
+import ConfirmationModal from '../ui/ConfirmationModal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter } from '../ui/ResponsiveModal';

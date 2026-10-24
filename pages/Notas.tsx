@@ -14,7 +14,7 @@ import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, Respons
 import FiltrosNotas from '../components/notas/FiltrosNotas';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import NotasPendentesIA from '../components/notas/NotasPendentesIA';
-import ConfirmationModal from '../components/historico/ConfirmationModal';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { formatApiError } from '../lib/handleError';
 import { formatCurrency, formatDateBR as formatDate } from '../lib/utils';
 import { useToast } from '../contexts/ToastContext';
