@@ -1,47 +1,96 @@
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabaseClient';
-import { NotaFiscal, Supplier, Project, AIProcessJob, PAYMENT_METHODS } from '../types';
+import { NotaFiscal, NotaWithItemCount, Supplier, Project, AIProcessJob, PAYMENT_METHODS } from '../types';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { FileTextIcon, DollarSignIcon, FilterIcon, PlusIcon, MoreVerticalIcon, EditIcon, Trash2Icon, EyeIcon } from '../lib/icons';
+import { FileTextIcon, DollarSignIcon, FilterIcon, PlusIcon, MoreVerticalIcon, EditIcon, Trash2Icon, EyeIcon, PackageIcon } from '../lib/icons';
 import ListaNotas from '../components/notas/ListaNotas';
 import DetalhesNotaModal from '../components/notas/DetalhesNotaModal';
 import ManualNotaModal from '../components/notas/ManualNotaModal';
 import SuccessPopup from '../components/notas/SuccessPopup';
 import { PageHeader } from '../components/ui/PageHeader';
 import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter } from '../components/ui/ResponsiveModal';
-import FiltrosNotas from '../components/notas/FiltrosNotas';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import NotasPendentesIA from '../components/notas/NotasPendentesIA';
+import FiltrosNotas, { NotaFilters } from '../components/notas/FiltrosNotas';
+import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from '@tanstack/react-query';
+import NotasPendentesIA, { LocalJob } from '../components/notas/NotasPendentesIA';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { formatApiError } from '../lib/handleError';
 import { formatCurrency, formatDateBR as formatDate } from '../lib/utils';
 import { useToast } from '../contexts/ToastContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Skeleton } from '../components/ui/Skeleton';
+import { TableSkeleton } from '../components/ui/TableSkeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/DropdownMenu';
 import { Badge } from '../components/ui/Badge';
+import { useUploadNotaIA } from '../hooks/useUploadNotaIA';
+import { logAuditAction } from '../lib/auditLogger';
 
 const UploadNotaModal = lazy(() => import('../components/notas/UploadNotaModal'));
+const EditarNotaModal = lazy(() => import('../components/notas/EditarNotaModal'));
 
-
-type NotaFilters = {
-    invoice_number: string;
-    supplier_id: string | null;
-    payment_method: string | null;
-    start_date: Date | null;
-    end_date: Date | null;
-};
+const PAGE_SIZE = 10;
 
 const initialFilters: NotaFilters = {
     invoice_number: '',
     supplier_id: null,
+    project_id: null,
     payment_method: null,
     start_date: null,
     end_date: null,
 };
 
+const fetchNotas = async ({ pageParam = 0, queryKey }: { pageParam?: number, queryKey: any }) => {
+    const [_, companyId, filters] = queryKey;
+    if (!companyId) return { data: [], count: 0, nextPage: undefined };
+
+    let query = supabase
+        .from('notas_fiscais')
+        .select('*, projects(name), suppliers(name), itens_nota_fiscal(count)', { count: 'exact' })
+        .eq('company_id', companyId);
+
+    if (filters.invoice_number) {
+        query = query.ilike('invoice_number', `%${filters.invoice_number}%`);
+    }
+    if (filters.supplier_id) {
+        query = query.eq('supplier_id', filters.supplier_id);
+    }
+    if (filters.project_id) {
+        query = query.eq('project_id', filters.project_id);
+    }
+    if (filters.payment_method) {
+        query = query.eq('payment_method', filters.payment_method);
+    }
+    if (filters.start_date) {
+        const d = filters.start_date instanceof Date ? filters.start_date.toISOString().split('T')[0] : filters.start_date;
+        query = query.gte('issue_date', d);
+    }
+    if (filters.end_date) {
+        const d = filters.end_date instanceof Date ? filters.end_date.toISOString().split('T')[0] : filters.end_date;
+        query = query.lte('issue_date', d);
+    }
+
+    const from = pageParam * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, to);
+
+    if (error) {
+        throw new Error(`Falha ao buscar notas: ${error.message}`);
+    }
+    
+    const formattedData = (data || []).map((n: any) => ({
+        ...n,
+        item_count: n.itens_nota_fiscal?.[0]?.count || 0,
+        itens_nota_fiscal: undefined
+    }));
+
+    return { 
+        data: formattedData as NotaWithItemCount[], 
+        count: count ?? 0,
+        nextPage: data && data.length === PAGE_SIZE ? pageParam + 1 : undefined
+    };
+};
 
 const fetchNotasSummary = async (companyId: string, filters: NotaFilters) => {
     let query = supabase
@@ -55,14 +104,19 @@ const fetchNotasSummary = async (companyId: string, filters: NotaFilters) => {
     if (filters.supplier_id) {
         query = query.eq('supplier_id', filters.supplier_id);
     }
+    if (filters.project_id) {
+        query = query.eq('project_id', filters.project_id);
+    }
     if (filters.payment_method) {
         query = query.eq('payment_method', filters.payment_method);
     }
     if (filters.start_date) {
-        query = query.gte('issue_date', filters.start_date.toISOString().split('T')[0]);
+        const d = filters.start_date instanceof Date ? filters.start_date.toISOString().split('T')[0] : filters.start_date;
+        query = query.gte('issue_date', d);
     }
     if (filters.end_date) {
-        query = query.lte('issue_date', filters.end_date.toISOString().split('T')[0]);
+        const d = filters.end_date instanceof Date ? filters.end_date.toISOString().split('T')[0] : filters.end_date;
+        query = query.lte('issue_date', d);
     }
 
     const { data, error, count } = await query.range(0, 9999);
@@ -72,36 +126,38 @@ const fetchNotasSummary = async (companyId: string, filters: NotaFilters) => {
     return { totalValue, count: count ?? 0 };
 };
 
-
-import { useUploadNotaIA } from '../hooks/useUploadNotaIA';
-import { LocalJob } from '../components/notas/NotasPendentesIA';
-
 const Notas: React.FC = () => {
     const { user, profile } = useAuth();
     const queryClient = useQueryClient();
     const { toast } = useToast();
     const location = useLocation();
     const navigate = useNavigate();
-    const [notas, setNotas] = useState<NotaFiscal[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);
-    const [selectedNota, setSelectedNota] = useState<NotaFiscal | null>(null);
+
+    // Modals state
+    const [selectedNota, setSelectedNota] = useState<NotaFiscal | NotaWithItemCount | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+
+    // Edit and Delete Modal state
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [notaToEdit, setNotaToEdit] = useState<NotaWithItemCount | null>(null);
+    const [isDeleteNotaModalOpen, setDeleteNotaModalOpen] = useState(false);
+    const [notaToDelete, setNotaToDelete] = useState<NotaWithItemCount | null>(null);
     
+    // Filters state
     const [filters, setFilters] = useState<NotaFilters>(initialFilters);
     const [tempFilters, setTempFilters] = useState<NotaFilters>(initialFilters);
     const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
     const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-    const [limit, setLimit] = useState(20);
 
     // Active filters count
     const activeFiltersCount = useMemo(() => {
         let count = 0;
         if (filters.invoice_number) count++;
         if (filters.supplier_id) count++;
+        if (filters.project_id) count++;
         if (filters.payment_method) count++;
         if (filters.start_date || filters.end_date) count++;
         return count;
@@ -114,11 +170,29 @@ const Notas: React.FC = () => {
     const { localJobs, processFile, removeLocalJob } = useUploadNotaIA();
     const handledNotaIdRef = useRef<string | null>(null);
 
-     // Effect to open modal from Quick Add button
+    // Query principal de notas com paginação infinita
+    const { 
+        data: notasData, 
+        error: notasError, 
+        fetchNextPage, 
+        hasNextPage, 
+        isFetchingNextPage, 
+        isLoading: isLoadingNotas,
+        status: notasStatus 
+    } = useInfiniteQuery({
+        queryKey: ['notas', profile?.company_id, filters],
+        queryFn: fetchNotas,
+        enabled: !!profile?.company_id,
+        getNextPageParam: (lastPage) => lastPage.nextPage,
+        initialPageParam: 0,
+    });
+
+    const allNotas = useMemo(() => notasData?.pages.flatMap(page => page.data) ?? [], [notasData]);
+
+    // Effect to open modal from Quick Add button
     useEffect(() => {
         if (location.state?.action === 'newAiNota') {
             setIsUploadModalOpen(true);
-            // Clear location state to prevent re-opening on refresh
             navigate(location.pathname, { replace: true, state: {} });
         }
     }, [location.state, navigate, location.pathname]);
@@ -132,25 +206,22 @@ const Notas: React.FC = () => {
         if (handledNotaIdRef.current === editNotaId) return;
 
         handledNotaIdRef.current = editNotaId;
-        // Limpar parâmetros da URL imediatamente para evitar reaberturas involuntárias
         navigate(location.pathname, { replace: true, state: {} });
 
         let isCurrent = true;
 
         const loadNotaForDisplay = async () => {
-            // 1. Verificar se já está carregada na lista de notas
-            const found = notas.find(n => n.id === editNotaId);
+            const found = allNotas.find(n => n.id === editNotaId);
             if (found && isCurrent) {
                 setSelectedNota(found);
                 setIsDetailsModalOpen(true);
                 return;
             }
 
-            // 2. Buscar diretamente no Supabase por nota_id
             try {
                 const { data: notaData } = await supabase
                     .from('notas_fiscais')
-                    .select('*, projects(name), suppliers(name)')
+                    .select('*, projects(name), suppliers(name), itens_nota_fiscal(count)')
                     .eq('id', editNotaId)
                     .eq('company_id', profile.company_id)
                     .maybeSingle();
@@ -158,12 +229,16 @@ const Notas: React.FC = () => {
                 if (!isCurrent) return;
 
                 if (notaData) {
-                    setSelectedNota(notaData as any);
+                    const formatted = {
+                        ...notaData,
+                        item_count: (notaData as any).itens_nota_fiscal?.[0]?.count || 0,
+                        itens_nota_fiscal: undefined
+                    };
+                    setSelectedNota(formatted as any);
                     setIsDetailsModalOpen(true);
                     return;
                 }
 
-                // 3. Se não encontrou por nota_id, pode ser o ID de um item da nota
                 const { data: itemData } = await supabase
                     .from('itens_nota_fiscal')
                     .select('nota_fiscal_id')
@@ -173,13 +248,18 @@ const Notas: React.FC = () => {
                 if (itemData?.nota_fiscal_id && isCurrent) {
                     const { data: notaFromItem } = await supabase
                         .from('notas_fiscais')
-                        .select('*, projects(name), suppliers(name)')
+                        .select('*, projects(name), suppliers(name), itens_nota_fiscal(count)')
                         .eq('id', itemData.nota_fiscal_id)
                         .eq('company_id', profile.company_id)
                         .maybeSingle();
 
                     if (notaFromItem && isCurrent) {
-                        setSelectedNota(notaFromItem as any);
+                        const formatted = {
+                            ...notaFromItem,
+                            item_count: (notaFromItem as any).itens_nota_fiscal?.[0]?.count || 0,
+                            itens_nota_fiscal: undefined
+                        };
+                        setSelectedNota(formatted as any);
                         setIsDetailsModalOpen(true);
                     }
                 }
@@ -193,7 +273,7 @@ const Notas: React.FC = () => {
         return () => {
             isCurrent = false;
         };
-    }, [location.search, location.state, profile?.company_id, navigate]);
+    }, [location.search, location.state, profile?.company_id, navigate, allNotas]);
 
     const { data: suppliers = [], isLoading: isLoadingSuppliers } = useQuery({
         queryKey: ['suppliers', profile?.company_id],
@@ -225,7 +305,7 @@ const Notas: React.FC = () => {
                 .from('ai_process_jobs')
                 .select('*')
                 .eq('user_id', user.id)
-                .in('status', ['pending', 'processing', 'completed', 'failed']) // Don't fetch archived jobs
+                .in('status', ['pending', 'processing', 'completed', 'failed'])
                 .order('created_at', { ascending: false });
             
             if (error) throw error;
@@ -234,7 +314,6 @@ const Notas: React.FC = () => {
         enabled: !!user?.id,
         refetchInterval: (query) => {
             const jobs = query.state.data as AIProcessJob[] | undefined;
-            // Keep polling if ANY job is being processed or pending
             if (!jobs) return false;
             return jobs.some(job => job.status === 'pending' || job.status === 'processing') ? 5000 : false;
         },
@@ -254,8 +333,7 @@ const Notas: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['active_ai_jobs', user?.id] });
         },
         onError: (err) => {
-            const errorMessage = formatApiError(err);
-            toast({ variant: 'destructive', title: 'Erro!', description: errorMessage });
+            toast({ variant: 'destructive', title: 'Erro!', description: formatApiError(err) });
         },
         onSettled: () => {
             setDeleteModalOpen(false);
@@ -263,67 +341,47 @@ const Notas: React.FC = () => {
         }
     });
 
-    const requestIdRef = useRef(0);
+    // Exclusão completa de Nota Fiscal (Arquivo Storage + Banco de Dados + Auditoria)
+    const deleteNotaMutation = useMutation({
+        mutationFn: async (nota: NotaWithItemCount | NotaFiscal) => {
+            if (nota.file_url) {
+                const { error: storageError } = await supabase.storage
+                    .from('jpl-conecta')
+                    .remove([nota.file_url]);
 
-    const fetchNotas = useCallback(async (currentFilters: NotaFilters, currentLimit: number, isLoadMore: boolean = false) => {
-        if (!profile?.company_id) return;
-        const currentRequestId = ++requestIdRef.current;
-        
-        if (isLoadMore) {
-            setLoadingMore(true);
-        } else {
-            setLoading(true);
-        }
-
-        try {
-            let query = supabase
-                .from('notas_fiscais')
-                .select('*, projects(name), suppliers(name)')
-                .eq('company_id', profile.company_id);
-
-            if (currentFilters.invoice_number) {
-                query = query.ilike('invoice_number', `%${currentFilters.invoice_number}%`);
-            }
-            if (currentFilters.supplier_id) {
-                query = query.eq('supplier_id', currentFilters.supplier_id);
-            }
-            if (currentFilters.payment_method) {
-                query = query.eq('payment_method', currentFilters.payment_method);
-            }
-            if (currentFilters.start_date) {
-                query = query.gte('issue_date', currentFilters.start_date.toISOString().split('T')[0]);
-            }
-            if (currentFilters.end_date) {
-                query = query.lte('issue_date', currentFilters.end_date.toISOString().split('T')[0]);
-            }
-
-            const { data, error } = await query
-                .order('created_at', { ascending: false })
-                .limit(currentLimit);
-
-            if (error) throw error;
-            if (currentRequestId === requestIdRef.current) {
-                setNotas(data || []);
-            }
-        } catch (err) {
-            console.error("Error fetching invoices:", err);
-        } finally {
-            if (currentRequestId === requestIdRef.current) {
-                if (isLoadMore) {
-                    setLoadingMore(false);
-                } else {
-                    setLoading(false);
+                if (storageError && !storageError.message.toLowerCase().includes('not found') && !storageError.message.includes('bucket not found')) {
+                     console.error(`Falha ao excluir o arquivo da nota: ${storageError.message}`);
                 }
             }
+            const { error: dbError } = await supabase.from('notas_fiscais').delete().eq('id', nota.id);
+            if (dbError) throw dbError;
+            
+            await logAuditAction(
+                profile?.company_id,
+                user?.email,
+                'EXCLUIR',
+                `Nota Fiscal: ${nota.invoice_number || nota.id}`,
+                { id: nota.id, amount: nota.total_value }
+            );
+        },
+        onSuccess: () => {
+            toast({ title: 'Sucesso!', description: 'Nota fiscal excluída com sucesso.' });
+            queryClient.invalidateQueries({ queryKey: ['notas'] });
+            queryClient.invalidateQueries({ queryKey: ['notasSummary'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboardItems'] });
+        },
+        onError: (err) => {
+            toast({ variant: 'destructive', title: 'Erro ao excluir nota!', description: formatApiError(err) });
+        },
+        onSettled: () => {
+            setDeleteNotaModalOpen(false);
+            setNotaToDelete(null);
+            if (isDetailsModalOpen) {
+                setIsDetailsModalOpen(false);
+                setSelectedNota(null);
+            }
         }
-    }, [profile?.company_id]);
-
-    const prevLimitRef = useRef(limit);
-    useEffect(() => {
-        const isLoadMore = prevLimitRef.current !== limit && prevLimitRef.current < limit;
-        fetchNotas(filters, limit, isLoadMore);
-        prevLimitRef.current = limit;
-    }, [fetchNotas, filters, limit]);
+    });
     
     const { data: summaryData, isLoading: isLoadingSummary } = useQuery({
         queryKey: ['notasSummary', profile?.company_id, filters],
@@ -331,9 +389,19 @@ const Notas: React.FC = () => {
         enabled: !!profile?.company_id,
     });
     
-    const handleSelectNota = (nota: NotaFiscal) => {
+    const handleSelectNota = (nota: NotaWithItemCount | NotaFiscal) => {
         setSelectedNota(nota);
         setIsDetailsModalOpen(true);
+    };
+
+    const handleEditNota = (nota: NotaWithItemCount | NotaFiscal) => {
+        setNotaToEdit(nota as NotaWithItemCount);
+        setIsEditModalOpen(true);
+    };
+
+    const handleDeleteNota = (nota: NotaWithItemCount | NotaFiscal) => {
+        setNotaToDelete(nota as NotaWithItemCount);
+        setDeleteNotaModalOpen(true);
     };
 
     const handleApplyFilters = () => {
@@ -352,9 +420,9 @@ const Notas: React.FC = () => {
         setIsManualModalOpen(false);
         setSelectedJob(null);
         
-        fetchNotas(filters, limit); // Re-fetch the main list
+        queryClient.invalidateQueries({ queryKey: ['notas'] });
         queryClient.invalidateQueries({ queryKey: ['active_ai_jobs', user?.id] });
-        queryClient.invalidateQueries({ queryKey: ['notasSummary'] }); // Invalidate summary
+        queryClient.invalidateQueries({ queryKey: ['notasSummary'] });
         queryClient.invalidateQueries({ queryKey: ['dashboardItems'] });
         
         setShowSuccessPopup(true);
@@ -367,7 +435,7 @@ const Notas: React.FC = () => {
     const handleCloseUploadModal = () => {
         setIsUploadModalOpen(false);
         setSelectedJob(null);
-    }
+    };
 
     const handleArchiveOrCancelJob = (job: AIProcessJob) => {
         setJobToArchive(job);
@@ -465,6 +533,11 @@ const Notas: React.FC = () => {
                                 Fornecedor: {suppliers.find(s => s.id === filters.supplier_id)?.name}
                             </span>
                         )}
+                        {filters.project_id && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 font-medium">
+                                Obra: {projects.find(p => p.id === filters.project_id)?.name}
+                            </span>
+                        )}
                         {filters.payment_method && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-brand-dark-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 font-medium">
                                 Pgto: {filters.payment_method}
@@ -496,7 +569,7 @@ const Notas: React.FC = () => {
                             </div>
                             <div>
                                 <ResponsiveModalTitle>Filtrar Notas Fiscais</ResponsiveModalTitle>
-                                <ResponsiveModalDescription>Refine a busca por número, fornecedor ou período</ResponsiveModalDescription>
+                                <ResponsiveModalDescription>Refine a busca por número, fornecedor, obra ou período</ResponsiveModalDescription>
                             </div>
                         </div>
                     </ResponsiveModalHeader>
@@ -505,6 +578,7 @@ const Notas: React.FC = () => {
                             filters={tempFilters}
                             onFiltersChange={setTempFilters}
                             suppliers={suppliers}
+                            projects={projects}
                         />
                     </div>
                     <ResponsiveModalFooter>
@@ -528,17 +602,31 @@ const Notas: React.FC = () => {
             )}
 
             <div className="space-y-4">
-                <h2 className="text-lg font-semibold text-white px-2">Últimos Registros</h2>
+                <h2 className="text-lg font-semibold text-white px-2">Notas Fiscais Registradas</h2>
                 
-                {loading ? (
-                    <p className="text-center text-gray-400 py-8">Carregando notas...</p>
-                ) : notas.length === 0 ? (
+                {notasStatus === 'pending' ? (
+                    <>
+                        <div className="md:hidden">
+                            <ListaNotas
+                                notas={[]}
+                                loading={true}
+                                onSelectNota={() => {}}
+                                onAddNew={() => setIsManualModalOpen(true)}
+                            />
+                        </div>
+                        <div className="hidden md:block">
+                            <TableSkeleton />
+                        </div>
+                    </>
+                ) : notasStatus === 'error' ? (
+                    <p className="text-center text-red-500 py-8">Erro ao carregar notas: {(notasError as Error)?.message}</p>
+                ) : allNotas.length === 0 ? (
                     <div className="text-center py-12 px-6 bg-brand-dark-900/50 rounded-2xl border-2 border-dashed border-gray-700">
                         <div className="mx-auto p-3 bg-gray-800 rounded-full w-fit mb-4">
                             <FileTextIcon className="h-8 w-8 text-brand-blue-500" />
                         </div>
                         <h3 className="text-lg font-semibold text-white">Nenhuma nota fiscal encontrada</h3>
-                        <p className="mt-1 text-sm text-gray-400">Você ainda não tem registros. Adicione uma nota manualmente ou use a IA.</p>
+                        <p className="mt-1 text-sm text-gray-400">Nenhum registro corresponde aos filtros atuais. Tente ajustar sua busca ou adicione uma nova nota.</p>
                         <div className="mt-6">
                             <Button onClick={() => setIsManualModalOpen(true)}>
                                 <PlusIcon className="h-4 w-4 mr-2"/>
@@ -551,9 +639,11 @@ const Notas: React.FC = () => {
                         {/* Mobile: Cards */}
                         <div className="md:hidden">
                             <ListaNotas
-                                notas={notas}
-                                loading={loading}
+                                notas={allNotas}
+                                loading={false}
                                 onSelectNota={handleSelectNota}
+                                onEditNota={handleEditNota}
+                                onDeleteNota={handleDeleteNota}
                                 onAddNew={() => setIsManualModalOpen(true)}
                             />
                         </div>
@@ -573,14 +663,24 @@ const Notas: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-800">
-                                        {notas.map((nota) => (
+                                        {allNotas.map((nota) => (
                                             <tr 
                                                 key={nota.id} 
                                                 className="hover:bg-gray-800/50 transition-colors cursor-pointer group"
                                                 onClick={() => handleSelectNota(nota)}
                                             >
                                                 <td className="px-6 py-4 whitespace-nowrap">{formatDate(nota.issue_date)}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap font-medium text-white">{nota.invoice_number}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap font-medium text-white">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{nota.invoice_number}</span>
+                                                        {nota.item_count > 0 && (
+                                                            <span className="text-[11px] font-medium text-brand-blue-400 bg-brand-blue-500/10 border border-brand-blue-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                                <PackageIcon className="w-3 h-3" />
+                                                                {nota.item_count}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex flex-col">
                                                         <span className="font-medium text-white">{nota.suppliers?.name || 'N/A'}</span>
@@ -596,9 +696,29 @@ const Notas: React.FC = () => {
                                                     {formatCurrency(nota.total_value)}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleSelectNota(nota); }}>
-                                                        <EyeIcon className="h-4 w-4 text-gray-400 hover:text-white" />
-                                                    </Button>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <MoreVerticalIcon className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onSelect={() => handleSelectNota(nota)}>
+                                                                <EyeIcon className="h-4 w-4 mr-2" /> Visualizar Detalhes
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => handleEditNota(nota)}>
+                                                                <EditIcon className="h-4 w-4 mr-2" /> Editar Nota
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => handleDeleteNota(nota)} className="text-red-500 hover:!text-red-400 focus:text-red-500">
+                                                                <Trash2Icon className="h-4 w-4 mr-2" /> Excluir Nota
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </td>
                                             </tr>
                                         ))}
@@ -607,11 +727,11 @@ const Notas: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Botão Ver Mais */}
-                        {notas.length >= limit && (
+                        {/* Botão Carregar Mais Notas */}
+                        {hasNextPage && (
                             <div className="flex justify-center mt-6">
-                                <Button variant="outline" onClick={() => setLimit(l => l + 20)} disabled={loadingMore}>
-                                    {loadingMore ? 'Carregando...' : 'Ver mais'}
+                                <Button variant="outline" onClick={() => fetchNextPage()} isLoading={isFetchingNextPage}>
+                                    {isFetchingNextPage ? 'Carregando...' : 'Carregar mais notas'}
                                 </Button>
                             </div>
                         )}
@@ -619,6 +739,7 @@ const Notas: React.FC = () => {
                 )}
             </div>
             
+            {/* Modal de Detalhes da Nota com ações integradas de Editar e Excluir */}
             <DetalhesNotaModal
                 nota={selectedNota}
                 isOpen={isDetailsModalOpen}
@@ -626,7 +747,38 @@ const Notas: React.FC = () => {
                     setIsDetailsModalOpen(false);
                     setSelectedNota(null);
                 }}
+                onEdit={(nota) => {
+                    setIsDetailsModalOpen(false);
+                    handleEditNota(nota);
+                }}
+                onDelete={(nota) => {
+                    setIsDetailsModalOpen(false);
+                    handleDeleteNota(nota);
+                }}
             />
+
+            {/* Modal de Edição Completa da Nota Fiscal */}
+            {isEditModalOpen && (
+                <Suspense fallback={<div />}>
+                    <EditarNotaModal
+                        isOpen={isEditModalOpen}
+                        onClose={() => {
+                            setIsEditModalOpen(false);
+                            setNotaToEdit(null);
+                        }}
+                        onSuccess={() => {
+                            setIsEditModalOpen(false);
+                            setNotaToEdit(null);
+                            queryClient.invalidateQueries({ queryKey: ['notas'] });
+                            queryClient.invalidateQueries({ queryKey: ['notasSummary'] });
+                            queryClient.invalidateQueries({ queryKey: ['dashboardItems'] });
+                        }}
+                        nota={notaToEdit}
+                        suppliers={suppliers}
+                        projects={projects}
+                    />
+                </Suspense>
+            )}
             
             <ManualNotaModal
                 isOpen={isManualModalOpen}
@@ -657,6 +809,30 @@ const Notas: React.FC = () => {
                 />
             )}
             
+            {/* Confirmação de Exclusão de Nota Fiscal */}
+            <ConfirmationModal
+                isOpen={isDeleteNotaModalOpen}
+                onClose={() => {
+                    setDeleteNotaModalOpen(false);
+                    setNotaToDelete(null);
+                }}
+                onConfirm={() => notaToDelete && deleteNotaMutation.mutate(notaToDelete)}
+                title="Excluir Nota Fiscal"
+                description={
+                    <>
+                        Tem certeza que deseja excluir a nota fiscal <strong>{notaToDelete?.invoice_number || 'selecionada'}</strong>?
+                        {notaToDelete?.file_url && (
+                            <span className="block mt-2 text-xs text-gray-400">
+                                O documento digitalizado anexado também será removido permanentemente do storage.
+                            </span>
+                        )}
+                    </>
+                }
+                confirmText="Excluir Nota"
+                isLoading={deleteNotaMutation.isPending}
+            />
+
+            {/* Confirmação de Exclusão de Job IA */}
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setDeleteModalOpen(false)}

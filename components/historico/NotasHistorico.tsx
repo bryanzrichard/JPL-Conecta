@@ -22,7 +22,7 @@ import { TableSkeleton } from '../ui/TableSkeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/DropdownMenu';
 import { Badge } from '../ui/Badge';
 
-const EditarNotaModal = lazy(() => import('./EditarNotaModal'));
+const EditarNotaModal = lazy(() => import('../notas/EditarNotaModal'));
 
 type NotaFilters = {
     searchTerm: string;

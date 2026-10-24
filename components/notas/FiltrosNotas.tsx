@@ -3,13 +3,14 @@ import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/Popover';
 import { Command, CommandInput, CommandEmpty, CommandItem, CommandList } from '../ui/Command';
-import { ChevronsUpDownIcon, CalendarIcon, BuildingIcon, CreditCardIcon, FileTextIcon, FilterIcon, XIcon } from '../../lib/icons';
-import { Supplier, PAYMENT_METHODS } from '../../types';
+import { ChevronsUpDownIcon, CalendarIcon, BuildingIcon, CreditCardIcon, FileTextIcon, FilterIcon, XIcon, ConstructionIcon } from '../../lib/icons';
+import { Supplier, Project, PAYMENT_METHODS } from '../../types';
 import { Button } from '../ui/Button';
 
 export type NotaFilters = {
   invoice_number: string;
   supplier_id: string | null;
+  project_id: string | null;
   payment_method: string | null;
   start_date: Date | null;
   end_date: Date | null;
@@ -19,6 +20,7 @@ interface FiltrosNotasProps {
   filters: NotaFilters;
   onFiltersChange: (filters: NotaFilters) => void;
   suppliers: Supplier[];
+  projects?: Project[];
 }
 
 const QUICK_PERIOD_SHORTCUTS = [
@@ -37,12 +39,18 @@ const PAYMENT_QUICK_FILTERS = [
   { slug: 'dinheiro', label: 'Dinheiro' },
 ];
 
-const FiltrosNotas: React.FC<FiltrosNotasProps> = ({ filters, onFiltersChange, suppliers }) => {
+const FiltrosNotas: React.FC<FiltrosNotasProps> = ({ filters, onFiltersChange, suppliers, projects = [] }) => {
   const [supplierSearch, setSupplierSearch] = useState('');
   const [isSupplierPopoverOpen, setIsSupplierPopoverOpen] = useState(false);
+  const [projectSearch, setProjectSearch] = useState('');
+  const [isProjectPopoverOpen, setIsProjectPopoverOpen] = useState(false);
 
   const filteredSuppliersForSearch = suppliers.filter(s =>
     s.name.toLowerCase().includes(supplierSearch.toLowerCase())
+  );
+
+  const filteredProjectsForSearch = projects.filter(p =>
+    p.name.toLowerCase().includes(projectSearch.toLowerCase())
   );
 
   const handleInputChange = (field: keyof NotaFilters, value: string | null) => {
@@ -102,6 +110,7 @@ const FiltrosNotas: React.FC<FiltrosNotasProps> = ({ filters, onFiltersChange, s
   };
 
   const selectedSupplierName = suppliers.find(s => s.id === filters.supplier_id)?.name;
+  const selectedProjectName = projects.find(p => p.id === filters.project_id)?.name;
 
   return (
     <div className="space-y-6">
@@ -220,6 +229,71 @@ const FiltrosNotas: React.FC<FiltrosNotasProps> = ({ filters, onFiltersChange, s
                       }}
                     >
                       {s.name}
+                    </CommandItem>
+                  ))}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Project (Obra) Filter */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Obra / Projeto
+            </Label>
+            {filters.project_id && (
+              <button
+                type="button"
+                onClick={() => handleInputChange('project_id', null)}
+                className="text-[10px] text-gray-400 hover:text-red-500"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+          <Popover open={isProjectPopoverOpen} onOpenChange={setIsProjectPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="outline" 
+                className={`w-full justify-between font-normal text-left h-9 px-3 text-xs bg-white dark:bg-brand-dark-950 border-gray-200 dark:border-gray-800 ${!filters.project_id ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}
+              >
+                <span className="truncate">
+                  {selectedProjectName || "Todas as obras"}
+                </span>
+                <ChevronsUpDownIcon className="ml-2 h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0 w-[--radix-popover-trigger-width] border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 shadow-xl">
+              <Command>
+                <CommandInput 
+                  placeholder="Buscar obra..." 
+                  value={projectSearch} 
+                  onInput={(e) => setProjectSearch(e.currentTarget.value)} 
+                  className="border-none focus:ring-0 h-9 text-xs"
+                />
+                <CommandList className="max-h-[200px] overflow-y-auto custom-scrollbar">
+                  <CommandEmpty className="py-2 text-center text-xs text-gray-400">Nenhuma obra encontrada.</CommandEmpty>
+                  <CommandItem 
+                    className="cursor-pointer text-xs py-2 px-3 font-semibold text-brand-blue-600 dark:text-brand-blue-400" 
+                    onSelect={() => {
+                      handleInputChange('project_id', null);
+                      setIsProjectPopoverOpen(false);
+                    }}
+                  >
+                    -- Todas as obras --
+                  </CommandItem>
+                  {filteredProjectsForSearch.map(p => (
+                    <CommandItem 
+                      key={p.id} 
+                      className="cursor-pointer text-xs py-2 px-3" 
+                      onSelect={() => {
+                        handleInputChange('project_id', p.id);
+                        setIsProjectPopoverOpen(false);
+                      }}
+                    >
+                      {p.name}
                     </CommandItem>
                   ))}
                 </CommandList>

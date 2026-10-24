@@ -20,7 +20,9 @@ import {
   ExternalLinkIcon,
   PackageIcon,
   CalendarIcon,
-  CheckCircle2Icon
+  CheckCircle2Icon,
+  EditIcon,
+  Trash2Icon
 } from '../../lib/icons';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, openStorageFile } from '../../lib/utils';
@@ -29,6 +31,8 @@ interface DetalhesNotaModalProps {
   nota: NotaFiscal | null;
   isOpen: boolean;
   onClose: () => void;
+  onEdit?: (nota: NotaFiscal) => void;
+  onDelete?: (nota: NotaFiscal) => void;
 }
 
 const PAGE_SIZE = 25;
@@ -70,7 +74,7 @@ const getCategoryBadgeClass = (category: string) => {
   }
 };
 
-const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onClose }) => {
+const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onClose, onEdit, onDelete }) => {
   const { toast } = useToast();
   const [items, setItems] = useState<ItemNotaFiscal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -417,7 +421,33 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onC
         </div>
 
         {/* Footer */}
-        <ResponsiveModalFooter className="px-6 py-4 flex-shrink-0 flex items-center justify-end border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">
+        <ResponsiveModalFooter className="px-6 py-4 flex-shrink-0 flex items-center justify-between border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">
+          <div className="flex items-center gap-2">
+            {onDelete && nota && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onDelete(nota)}
+                className="text-xs font-semibold h-9 px-3 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-950/30 gap-1.5"
+              >
+                <Trash2Icon className="h-3.5 w-3.5" />
+                Excluir
+              </Button>
+            )}
+            {onEdit && nota && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(nota)}
+                className="text-xs font-semibold h-9 px-3 text-brand-blue-600 dark:text-brand-blue-400 border-brand-blue-200 dark:border-brand-blue-900/40 hover:bg-brand-blue-50 dark:hover:bg-brand-blue-950/30 gap-1.5"
+              >
+                <EditIcon className="h-3.5 w-3.5" />
+                Editar Nota
+              </Button>
+            )}
+          </div>
           <Button 
             variant="ghost" 
             onClick={onClose} 

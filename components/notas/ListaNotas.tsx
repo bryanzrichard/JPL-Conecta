@@ -1,19 +1,35 @@
 import React from 'react';
-import { NotaFiscal } from '../../types';
+import { NotaFiscal, NotaWithItemCount } from '../../types';
 import NotaCard from './NotaCard';
+import NotaCardSkeleton from './NotaCardSkeleton';
 import { FileTextIcon, PlusIcon } from '../../lib/icons';
 import { Button } from '../ui/Button';
 
 interface ListaNotasProps {
-    notas: NotaFiscal[];
+    notas: (NotaFiscal | NotaWithItemCount)[];
     loading: boolean;
-    onSelectNota: (nota: NotaFiscal) => void;
+    onSelectNota: (nota: any) => void;
+    onEditNota?: (nota: any) => void;
+    onDeleteNota?: (nota: any) => void;
     onAddNew: () => void;
 }
 
-const ListaNotas: React.FC<ListaNotasProps> = ({ notas, loading, onSelectNota, onAddNew }) => {
+const ListaNotas: React.FC<ListaNotasProps> = ({ 
+    notas, 
+    loading, 
+    onSelectNota, 
+    onEditNota, 
+    onDeleteNota, 
+    onAddNew 
+}) => {
     if (loading) {
-        return <p className="text-center text-gray-400 py-8">Carregando notas...</p>;
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <NotaCardSkeleton key={i} />
+                ))}
+            </div>
+        );
     }
 
     if (notas.length === 0) {
@@ -37,7 +53,13 @@ const ListaNotas: React.FC<ListaNotasProps> = ({ notas, loading, onSelectNota, o
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {notas.map(nota => (
-                <NotaCard key={nota.id} nota={nota} onSelect={onSelectNota} />
+                <NotaCard 
+                    key={nota.id} 
+                    nota={nota} 
+                    onSelect={onSelectNota} 
+                    onEdit={onEditNota}
+                    onDelete={onDeleteNota}
+                />
             ))}
         </div>
     );
