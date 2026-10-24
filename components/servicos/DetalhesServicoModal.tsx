@@ -113,10 +113,10 @@ const DetalhesServicoModal: React.FC<DetalhesServicoModalProps> = ({
   if (!service) return null;
 
   const totalContract = Number(service.total_value) || 0;
-  const totalPaid = Number(service.total_advances) || 0;
-  const remainingValue = Number(service.remaining_value) || 0;
-  const progressPercent = totalContract > 0 ? Math.min(100, Math.max(0, Math.round((totalPaid / totalContract) * 100))) : 0;
   const isCompleted = service.status === 'Concluído';
+  const totalPaid = isCompleted ? totalContract : (Number(service.total_advances) || 0);
+  const remainingValue = isCompleted ? 0 : (Number(service.remaining_value) || 0);
+  const progressPercent = isCompleted ? 100 : (totalContract > 0 ? Math.min(100, Math.max(0, Math.round((totalPaid / totalContract) * 100))) : 0);
 
   return (
     <ResponsiveModal open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} displayMode="drawer">
@@ -279,8 +279,8 @@ const DetalhesServicoModal: React.FC<DetalhesServicoModalProps> = ({
 
                     <div>
                       <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-semibold block">Saldo a Pagar</span>
-                      <span className="text-lg font-bold font-mono text-amber-600 dark:text-amber-400">
-                        {formatCurrency(remainingValue)}
+                      <span className={`text-lg font-bold font-mono ${isCompleted ? 'text-gray-400 dark:text-gray-500' : 'text-amber-600 dark:text-amber-400'}`}>
+                        {isCompleted ? 'Quitado (R$ 0,00)' : formatCurrency(remainingValue)}
                       </span>
                     </div>
                   </div>
@@ -330,7 +330,7 @@ const DetalhesServicoModal: React.FC<DetalhesServicoModalProps> = ({
                     <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
                       {advances.length} {advances.length === 1 ? 'liberação' : 'liberações'}
                     </span>
-                    {onAddAdvance && remainingValue > 0.009 && (
+                    {onAddAdvance && !isCompleted && remainingValue > 0.009 && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -465,7 +465,7 @@ const DetalhesServicoModal: React.FC<DetalhesServicoModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {onAddAdvance && service && remainingValue > 0.009 && (
+            {onAddAdvance && service && !isCompleted && remainingValue > 0.009 && (
               <Button
                 type="button"
                 size="sm"

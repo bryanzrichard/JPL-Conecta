@@ -82,7 +82,7 @@ const ServicoCard: React.FC<ServicoCardProps> = ({
                                     <EyeIcon className="h-4 w-4 mr-2 text-brand-blue-500" /> Visualizar Detalhes
                                 </DropdownMenuItem>
                             )}
-                            {onAddAdvance && (
+                            {onAddAdvance && !isCompleted && service.remaining_value > 0.009 && (
                                 <DropdownMenuItem onSelect={() => onAddAdvance(service)}>
                                     <PlusIcon className="h-4 w-4 mr-2 text-emerald-500" /> Novo Adiantamento
                                 </DropdownMenuItem>
@@ -128,8 +128,8 @@ const ServicoCard: React.FC<ServicoCardProps> = ({
                     </div>
                     <div className="text-right">
                         <span className="text-[10px] text-gray-500 uppercase block mb-0.5">Restante</span>
-                        <span className={`font-bold ${service.remaining_value > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                            {formatCurrency(service.remaining_value)}
+                        <span className={`font-bold ${isCompleted ? 'text-gray-400 dark:text-gray-500 font-medium' : (service.remaining_value > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500')}`}>
+                            {isCompleted ? 'Quitado' : formatCurrency(service.remaining_value)}
                         </span>
                     </div>
                 </div>

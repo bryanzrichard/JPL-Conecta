@@ -212,13 +212,14 @@ const Servicos: React.FC = () => {
                         .maybeSingle();
 
                     if (data && isMounted) {
+                        const isCompleted = data.status === 'Concluído';
                         const total_advances = (data.adiantamentos || []).reduce((acc: number, curr: any) => acc + (Number(curr.value) || 0), 0);
                         const formattedService: ServiceWithDetails = {
                             ...data,
                             collaborator_name: data.collaborators?.name || null,
                             project_name: data.projects?.name || null,
                             total_advances,
-                            remaining_value: Math.max(0, (Number(data.total_value) || 0) - total_advances),
+                            remaining_value: isCompleted ? 0 : Math.max(0, (Number(data.total_value) || 0) - total_advances),
                         };
                         setSelectedService(formattedService);
                         setDetailsModalOpen(true);
@@ -300,8 +301,9 @@ const Servicos: React.FC = () => {
         if (error) throw error;
 
         const formattedData = (data || []).map((s: any) => {
+            const isCompleted = s.status === 'Concluído';
             const total_advances = (s.adiantamentos || []).reduce((acc: number, curr: any) => acc + (Number(curr.value) || 0), 0);
-            const remaining_value = Math.max(0, (Number(s.total_value) || 0) - total_advances);
+            const remaining_value = isCompleted ? 0 : Math.max(0, (Number(s.total_value) || 0) - total_advances);
             return {
                 ...s,
                 collaborator_name: s.collaborators?.name || null,
@@ -357,11 +359,18 @@ const Servicos: React.FC = () => {
             const rpcRow = Array.isArray(rpcData) ? rpcData[0] : rpcData;
             if (!rpcError && rpcRow) {
                 const totalValue = Number(rpcRow.total_value) || 0;
-                const totalPaid = Number(rpcRow.total_paid) || 0;
+                let totalPaid = Number(rpcRow.total_paid) || 0;
+                let remainingValue = Math.max(0, totalValue - totalPaid);
+
+                if (serviceStatusFilter === 'Concluído') {
+                    totalPaid = totalValue;
+                    remainingValue = 0;
+                }
+
                 return {
                     totalValue,
                     totalPaid,
-                    remainingValue: Math.max(0, totalValue - totalPaid),
+                    remainingValue,
                     count: Number(rpcRow.total_count) || 0,
                 };
             }
@@ -1026,9 +1035,7 @@ const Servicos: React.FC = () => {
                                                             {formatCurrency(service.total_value)}
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-right font-bold">
-                                                            <span className={service.remaining_value > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}>
-                                                                {formatCurrency(service.remaining_value)}
-                                                            </span>
+                                                            <span className={isCompleted ? 'text-gray-400 font-medium' : (service.remaining_value > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400')}>{isCompleted ? 'Quitado' : formatCurrency(service.remaining_value)}</span>
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                                             <DropdownMenu>
@@ -1045,9 +1052,7 @@ const Servicos: React.FC = () => {
                                                                     <DropdownMenuItem onSelect={() => { setSelectedService(service); setDetailsModalOpen(true); }}>
                                                                         <EyeIcon className="h-4 w-4 mr-2 text-brand-blue-500" /> Visualizar Detalhes
                                                                     </DropdownMenuItem>
-                                                                    <DropdownMenuItem onSelect={() => { setSelectedService(service); setAdvanceModalOpen(true); }}>
-                                                                        <PlusIcon className="h-4 w-4 mr-2 text-emerald-500" /> Novo Adiantamento
-                                                                    </DropdownMenuItem>
+                                                                    {!isCompleted && service.remaining_value > 0.009 && (`r`n                                                                        <DropdownMenuItem onSelect={() => { setSelectedService(service); setAdvanceModalOpen(true); }}>`r`n                                                                            <PlusIcon className="h-4 w-4 mr-2 text-emerald-500" /> Novo Adiantamento`r`n                                                                        </DropdownMenuItem>`r`n                                                                    )}
                                                                     <DropdownMenuItem onSelect={() => { setSelectedService(service); setEditServiceModalOpen(true); }}>
                                                                         <EditIcon className="h-4 w-4 mr-2 text-brand-blue-500" /> Editar Contrato
                                                                     </DropdownMenuItem>

@@ -20,7 +20,12 @@ set search_path = public
 as $$
   select
     coalesce(sum(s.total_value), 0)::numeric as total_value,
-    coalesce(sum(coalesce(a.paid, 0)), 0)::numeric as total_paid,
+    coalesce(sum(
+      case 
+        when s.status::text = 'Concluído' then s.total_value
+        else coalesce(a.paid, 0)
+      end
+    ), 0)::numeric as total_paid,
     count(*)::bigint as total_count
   from public.servicos s
   left join lateral (
