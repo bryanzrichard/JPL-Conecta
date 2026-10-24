@@ -27,6 +27,7 @@ interface QuickSupplierModalProps {
   onSuccess: (newSupplier: Supplier) => void;
   initialName: string;
   initialCnpj: string;
+  displayMode?: 'dialog' | 'drawer';
 }
 
 const customResolver = createZodResolver(supplierSchema);
@@ -36,7 +37,8 @@ const QuickSupplierModal: React.FC<QuickSupplierModalProps> = ({
   onClose, 
   onSuccess, 
   initialName, 
-  initialCnpj 
+  initialCnpj,
+  displayMode = 'drawer'
 }) => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -133,8 +135,8 @@ const QuickSupplierModal: React.FC<QuickSupplierModalProps> = ({
   };
 
   return (
-    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="dialog">
-      <ResponsiveModalContent size="sm" className="max-w-md flex flex-col p-0">
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode={displayMode}>
+      <ResponsiveModalContent size="md" className="max-w-xl flex flex-col p-0">
         
         {/* Header Consistente */}
         <ResponsiveModalHeader className="px-6 py-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">

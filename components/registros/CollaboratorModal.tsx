@@ -27,6 +27,7 @@ interface CollaboratorModalProps {
   isOpen: boolean;
   onClose: () => void;
   collaborator?: Collaborator | null;
+  displayMode?: 'dialog' | 'drawer';
 }
 
 const customResolver = createZodResolver(collaboratorSchema);
@@ -43,7 +44,7 @@ const COLLABORATOR_ROLES_PRESETS = [
   'Ajudante Geral',
 ];
 
-const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, collaborator }) => {
+const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, collaborator, displayMode = 'drawer' }) => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -143,8 +144,8 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, 
   };
 
   return (
-    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="dialog">
-      <ResponsiveModalContent size="md" className="max-w-2xl flex flex-col p-0">
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode={displayMode}>
+      <ResponsiveModalContent size="md" className="max-w-xl flex flex-col p-0">
         
         {/* Header Consistente */}
         <ResponsiveModalHeader className="px-6 py-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">

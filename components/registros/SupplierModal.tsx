@@ -27,11 +27,12 @@ interface SupplierModalProps {
   isOpen: boolean;
   onClose: () => void;
   supplier?: Supplier | null;
+  displayMode?: 'dialog' | 'drawer';
 }
 
 const customResolver = createZodResolver(supplierSchema);
 
-const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier }) => {
+const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier, displayMode = 'drawer' }) => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -143,8 +144,8 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, supplier
   };
 
   return (
-    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="dialog">
-      <ResponsiveModalContent size="md" className="max-w-2xl flex flex-col p-0">
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode={displayMode}>
+      <ResponsiveModalContent size="md" className="max-w-xl flex flex-col p-0">
         
         {/* Header Consistente */}
         <ResponsiveModalHeader className="px-6 py-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">

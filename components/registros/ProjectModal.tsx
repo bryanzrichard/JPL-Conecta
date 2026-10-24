@@ -25,11 +25,12 @@ interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   project?: Project | null;
+  displayMode?: 'dialog' | 'drawer';
 }
 
 const customResolver = createZodResolver(projectSchema);
 
-const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project }) => {
+const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, displayMode = 'drawer' }) => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -183,8 +184,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
   const cepRegister = register('address_zip');
 
   return (
-    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="dialog">
-      <ResponsiveModalContent size="md" className="max-w-2xl flex flex-col p-0">
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode={displayMode}>
+      <ResponsiveModalContent size="md" className="max-w-xl flex flex-col p-0">
         
         {/* Header Consistente */}
         <ResponsiveModalHeader className="px-6 py-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">

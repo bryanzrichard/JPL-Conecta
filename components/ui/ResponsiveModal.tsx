@@ -126,7 +126,7 @@ export function ResponsiveModalContent({
       <SheetContent
         onInteractOutside={handleInteractOutside}
         side="right"
-        className={`${base} h-full w-full ${DRAWER_WIDTH[resolvedSize]} border-l`}
+        className={`${base} h-full w-full ${DRAWER_WIDTH[resolvedSize]} border-l ${className || ''}`}
       >
         {children}
       </SheetContent>
