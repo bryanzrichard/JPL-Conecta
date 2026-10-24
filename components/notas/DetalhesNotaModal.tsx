@@ -22,7 +22,9 @@ import {
   CalendarIcon,
   CheckCircle2Icon,
   EditIcon,
-  Trash2Icon
+  Trash2Icon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '../../lib/icons';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, openStorageFile } from '../../lib/utils';
@@ -33,6 +35,10 @@ interface DetalhesNotaModalProps {
   onClose: () => void;
   onEdit?: (nota: NotaFiscal) => void;
   onDelete?: (nota: NotaFiscal) => void;
+  onPrevNota?: () => void;
+  onNextNota?: () => void;
+  hasPrev?: boolean;
+  hasNext?: boolean;
 }
 
 const PAGE_SIZE = 25;
@@ -74,7 +80,17 @@ const getCategoryBadgeClass = (category: string) => {
   }
 };
 
-const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onClose, onEdit, onDelete }) => {
+const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ 
+  nota, 
+  isOpen, 
+  onClose, 
+  onEdit, 
+  onDelete,
+  onPrevNota,
+  onNextNota,
+  hasPrev,
+  hasNext
+}) => {
   const { toast } = useToast();
   const [items, setItems] = useState<ItemNotaFiscal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +99,25 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onC
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'resumo' | 'anexo'>('resumo');
+
+  // Navegação sequencial por teclado (← / →)
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      if (['input', 'textarea', 'select'].includes(activeTag)) return;
+
+      if (e.key === 'ArrowLeft' && hasPrev && onPrevNota) {
+        e.preventDefault();
+        onPrevNota();
+      } else if (e.key === 'ArrowRight' && hasNext && onNextNota) {
+        e.preventDefault();
+        onNextNota();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, hasPrev, hasNext, onPrevNota, onNextNota]);
 
   const handleViewFile = async (path: string) => {
     try {
@@ -187,18 +222,49 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({ nota, isOpen, onC
               </div>
             </div>
 
-            {nota.file_url && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleViewFile(nota.file_url!)}
-                className="h-8 text-xs font-semibold gap-1.5 border-brand-blue-500/30 text-brand-blue-600 dark:text-brand-blue-400 hover:bg-brand-blue-500/10"
-              >
-                <PaperclipIcon className="h-3.5 w-3.5" />
-                <span>Abrir Anexo</span>
-                <ExternalLinkIcon className="h-3 w-3 ml-0.5" />
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Botões de Navegação Sequencial */}
+              {(hasPrev !== undefined || hasNext !== undefined) && (
+                <div className="inline-flex items-center bg-slate-100 dark:bg-brand-dark-800 rounded-lg p-0.5 border border-slate-200 dark:border-gray-700">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onPrevNota}
+                    disabled={!hasPrev}
+                    className="h-7 px-2 text-xs text-slate-700 dark:text-gray-300 disabled:opacity-30 hover:bg-white dark:hover:bg-brand-dark-700 gap-1"
+                    title="Nota Anterior (Seta Esquerda)"
+                  >
+                    <ChevronLeftIcon className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Anterior</span>
+                  </Button>
+                  <div className="h-3 w-px bg-slate-300 dark:bg-gray-700 mx-0.5" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onNextNota}
+                    disabled={!hasNext}
+                    className="h-7 px-2 text-xs text-slate-700 dark:text-gray-300 disabled:opacity-30 hover:bg-white dark:hover:bg-brand-dark-700 gap-1"
+                    title="Próxima Nota (Seta Direita)"
+                  >
+                    <span className="hidden sm:inline">Próxima</span>
+                    <ChevronRightIcon className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+
+              {nota.file_url && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleViewFile(nota.file_url!)}
+                  className="h-8 text-xs font-semibold gap-1.5 border-brand-blue-500/30 text-brand-blue-600 dark:text-brand-blue-400 hover:bg-brand-blue-500/10"
+                >
+                  <PaperclipIcon className="h-3.5 w-3.5" />
+                  <span>Abrir Anexo</span>
+                  <ExternalLinkIcon className="h-3 w-3 ml-0.5" />
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Abas Superiores de Navegação */}
