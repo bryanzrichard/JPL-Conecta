@@ -95,15 +95,18 @@ export const NotaDetailPanel: React.FC<NotaDetailPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'detalhes' | 'anexo'>('detalhes');
 
   // Buscar itens da nota fiscal via React Query
-  const { data: items = [], isLoading: loadingItems, isError } = useQuery({
+  const { data: items = [], isLoading: loadingItems, isError, error: itemsError } = useQuery({
     queryKey: ['nota_itens', nota?.id],
     queryFn: async (): Promise<ItemNotaFiscal[]> => {
       const { data, error } = await supabase
         .from('itens_nota_fiscal')
         .select('*')
         .eq('nota_fiscal_id', nota.id)
-        .order('created_at', { ascending: true });
-      if (error) throw error;
+        .order('description', { ascending: true });
+      if (error) {
+        console.error('Erro ao buscar itens da nota fiscal:', error);
+        throw error;
+      }
       return (data || []) as ItemNotaFiscal[];
     },
     enabled: !!nota?.id,

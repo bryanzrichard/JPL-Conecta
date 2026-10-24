@@ -210,18 +210,62 @@ const Notas: React.FC = () => {
 
     const hasPrevNota = selectedNotaIndex > 0;
     const hasNextNota = selectedNotaIndex >= 0 && selectedNotaIndex < allNotas.length - 1;
+    const pendingAdvanceAfterFetchRef = useRef(false);
+    const tableSentinelRef = useRef<HTMLDivElement | null>(null);
 
-    const handlePrevNota = () => {
+    const handlePrevNota = useCallback(() => {
         if (hasPrevNota) {
             setSelectedNota(allNotas[selectedNotaIndex - 1]);
         }
-    };
+    }, [hasPrevNota, selectedNotaIndex, allNotas]);
 
-    const handleNextNota = () => {
+    const handleNextNota = useCallback(() => {
         if (hasNextNota) {
             setSelectedNota(allNotas[selectedNotaIndex + 1]);
+            // Se estiver nos últimos 3 itens e houver próxima página, pré-carrega em background!
+            if (selectedNotaIndex >= allNotas.length - 3 && hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+            }
+        } else if (hasNextPage && !isFetchingNextPage) {
+            // Chegou no final da página atual, solicita próxima página e avança assim que chegar
+            pendingAdvanceAfterFetchRef.current = true;
+            fetchNextPage();
         }
-    };
+    }, [hasNextNota, selectedNotaIndex, allNotas, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+    // Avançar automaticamente para a nota recém-carregada quando pendingAdvanceAfterFetchRef for true
+    useEffect(() => {
+        if (pendingAdvanceAfterFetchRef.current && allNotas.length > 0) {
+            pendingAdvanceAfterFetchRef.current = false;
+            if (selectedNotaIndex >= 0 && selectedNotaIndex < allNotas.length - 1) {
+                setSelectedNota(allNotas[selectedNotaIndex + 1]);
+            }
+        }
+    }, [allNotas, selectedNotaIndex]);
+
+    // Acompanhar a linha selecionada na tabela rolando suavemente para ela ao navegar
+    useEffect(() => {
+        if (!selectedNota) return;
+        const el = document.getElementById(`nota-row-${selectedNota.id}`);
+        if (el) {
+            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    }, [selectedNota?.id]);
+
+    // Scroll infinito automático via IntersectionObserver
+    useEffect(() => {
+        const sentinel = tableSentinelRef.current;
+        if (!sentinel) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+            }
+        }, { threshold: 0.1 });
+
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     // Atalhos de teclado no Split View (↑ / ↓ para navegar pelas notas, Esc para fechar o painel)
     useEffect(() => {
@@ -232,14 +276,10 @@ const Notas: React.FC = () => {
 
             if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                if (hasPrevNota) {
-                    setSelectedNota(allNotas[selectedNotaIndex - 1]);
-                }
+                handlePrevNota();
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                if (hasNextNota) {
-                    setSelectedNota(allNotas[selectedNotaIndex + 1]);
-                }
+                handleNextNota();
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 setSelectedNota(null);
@@ -247,7 +287,7 @@ const Notas: React.FC = () => {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedNota, isDesktop, selectedNotaIndex, hasPrevNota, hasNextNota, allNotas]);
+    }, [selectedNota, isDesktop, handlePrevNota, handleNextNota]);
 
     // Effect to open modal from Quick Add button
     useEffect(() => {
@@ -986,6 +1026,7 @@ const Notas: React.FC = () => {
                                                 const isSelected = selectedNota?.id === nota.id && isDesktop;
                                                 return (
                                                     <tr 
+                                                        id={`nota-row-${nota.id}`}
                                                         key={nota.id} 
                                                         className={`transition-colors cursor-pointer group ${
                                                             isSelected
@@ -1088,20 +1129,19 @@ const Notas: React.FC = () => {
                                     </table>
                                 </div>
 
-                                {/* Botão Carregar Mais Notas */}
-                                {hasNextPage && (
-                                    <div className="flex justify-center p-3 border-t border-slate-100 dark:border-gray-800">
-                                        <Button 
-                                            variant="outline" 
-                                            size="sm"
-                                            onClick={() => fetchNextPage()} 
-                                            isLoading={isFetchingNextPage}
-                                            className="h-8 text-xs font-semibold cursor-pointer"
-                                        >
-                                            {isFetchingNextPage ? 'Carregando...' : 'Carregar mais notas'}
-                                        </Button>
-                                    </div>
-                                )}
+                                {/* Sentinel de Scroll Infinito Automático (Sem necessidade de clicar em botões) */}
+                                <div ref={tableSentinelRef} className="p-3 text-center border-t border-slate-100 dark:border-gray-800">
+                                    {isFetchingNextPage ? (
+                                        <div className="flex items-center justify-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                                            <div className="w-4 h-4 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                                            <span>Carregando mais notas...</span>
+                                        </div>
+                                    ) : hasNextPage ? (
+                                        <span className="text-[11px] text-slate-400">Role ou use as setas para carregar mais</span>
+                                    ) : allNotas.length > 0 ? (
+                                        <span className="text-[11px] text-slate-400">Todas as {allNotas.length} notas carregadas</span>
+                                    ) : null}
+                                </div>
                             </div>
 
                             {/* Desktop: Painel Direito (Mestre-Detalhe Embutido - Sem Modal / Sem Backdrop) */}
