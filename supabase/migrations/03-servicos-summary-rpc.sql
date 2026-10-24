@@ -29,7 +29,7 @@ as $$
     where ad.service_id = s.id
   ) a on true
   where s.company_id::text = p_company_id
-    and (p_status is null or s.status = p_status)
+    and (p_status is null or s.status::text = p_status)
     and (p_search is null or s.description ilike '%' || p_search || '%')
     and (p_collaborator_id is null or s.collaborator_id::text = p_collaborator_id)
     and (p_project_id is null or s.project_id::text = p_project_id)
