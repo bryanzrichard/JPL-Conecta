@@ -63,6 +63,22 @@ type AdvanceFilters = {
 
 const PAGE_SIZE = 10;
 
+// Busca de adiantamentos por descrição do adiantamento OU do serviço.
+// O PostgREST não aceita OR com colunas da tabela embutida (retorna 400), então
+// resolvemos antes os ids dos serviços que casam com o termo.
+const buildAdvanceSearchFilter = async (companyId: string, term: string): Promise<string> => {
+    const safe = term.replace(/[,()*%]/g, ' ').trim();
+    const { data } = await supabase
+        .from('servicos')
+        .select('id')
+        .eq('company_id', companyId)
+        .ilike('description', `%${safe}%`)
+        .limit(500);
+    const ids = (data || []).map((s: any) => s.id);
+    const base = `description.ilike.%${safe}%`;
+    return ids.length ? `${base},service_id.in.(${ids.join(',')})` : base;
+};
+
 // Formata Date em yyyy-MM-dd no fuso local (evita deslocamento de dia causado por toISOString/UTC)
 const toDateStr = (d: Date): string => {
     const y = d.getFullYear();
@@ -452,7 +468,7 @@ const Servicos: React.FC = () => {
             .eq('company_id', companyId);
 
         if (filters.searchTerm) {
-            query = query.or(`description.ilike.%${filters.searchTerm}%,servicos.description.ilike.%${filters.searchTerm}%`);
+            query = query.or(await buildAdvanceSearchFilter(companyId, filters.searchTerm));
         }
         if (filters.collaboratorId) {
             query = query.eq('servicos.collaborator_id', filters.collaboratorId);
@@ -551,7 +567,7 @@ const Servicos: React.FC = () => {
                 .eq('company_id', profile.company_id);
 
             if (advanceFilters.searchTerm) {
-                query = query.or(`description.ilike.%${advanceFilters.searchTerm}%,servicos.description.ilike.%${advanceFilters.searchTerm}%`);
+                query = query.or(await buildAdvanceSearchFilter(profile.company_id, advanceFilters.searchTerm));
             }
             if (advanceFilters.collaboratorId) {
                 query = query.eq('servicos.collaborator_id', advanceFilters.collaboratorId);
