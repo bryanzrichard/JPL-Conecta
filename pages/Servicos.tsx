@@ -35,7 +35,7 @@ import {
     BriefcaseIcon, PlusIcon, DollarSignIcon, TrendingUpIcon, FilterIcon,
     UserIcon, ConstructionIcon, CalendarIcon, ChevronsUpDownIcon,
     MoreVerticalIcon, XIcon, EditIcon, Trash2Icon, PaperclipIcon,
-    SearchIcon, CheckCircle2Icon, ExternalLinkIcon
+    SearchIcon, CheckCircle2Icon, ExternalLinkIcon, EyeIcon
 } from '../lib/icons';
 
 // Modais Lazy
