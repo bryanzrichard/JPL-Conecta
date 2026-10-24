@@ -3,7 +3,8 @@ import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from '@tansta
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../hooks/useAuth';
 import { ServiceWithDetails, Collaborator, Project } from '../../types';
-import ServicoCard from './ServicoCard';
+import ServicoCard from '../servicos/ServicoCard';
+import { deleteServiceWithAttachments } from '../servicos/serviceActions';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -24,7 +25,7 @@ import { TableSkeleton } from '../ui/TableSkeleton';
 import { Badge } from '../ui/Badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/DropdownMenu';
 
-const EditarServicoModal = lazy(() => import('./EditarServicoModal'));
+const EditarServicoModal = lazy(() => import('../servicos/EditarServicoModal'));
 
 type ServiceFilters = {
     searchTerm: string;
@@ -193,24 +194,16 @@ const ServicosHistorico: React.FC = () => {
 
     const deleteMutation = useMutation({
         mutationFn: async (service: ServiceWithDetails) => {
-            if (service.receipt_path) {
-                const { error: deleteFileError } = await supabase.storage.from('jpl-conecta').remove([service.receipt_path]);
-                if (deleteFileError) console.error("Erro ao remover comprovante:", deleteFileError);
-            }
-            const { error } = await supabase.from('servicos').delete().eq('id', service.id);
-            if (error) throw error;
-            
-            await logAuditAction(
-                profile?.company_id,
-                user?.email,
-                'EXCLUIR',
-                `Serviço: ${service.description || service.id}`,
-                { id: service.id, amount: service.total_value }
-            );
+            await deleteServiceWithAttachments({
+                service,
+                companyId: profile?.company_id,
+                userEmail: user?.email,
+            });
         },
         onSuccess: () => {
-            toast({ title: 'Sucesso!', description: 'Serviço excluído com sucesso.' });
+            toast({ title: 'Sucesso!', description: 'Serviço e arquivos vinculados excluídos com sucesso.' });
             queryClient.invalidateQueries({ queryKey: ['servicos'] });
+            queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
             queryClient.invalidateQueries({ queryKey: ['services_dashboard'] });
         },
         onError: (err) => {

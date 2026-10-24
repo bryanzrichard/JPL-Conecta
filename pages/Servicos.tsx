@@ -22,8 +22,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 const ServiceModal = lazy(() => import('../components/servicos/ServiceModal'));
 const AdvanceModal = lazy(() => import('../components/servicos/AdvanceModal'));
-const EditarServicoModal = lazy(() => import('../components/historico/EditarServicoModal'));
-const EditarAdiantamentoModal = lazy(() => import('../components/historico/EditarAdiantamentoModal'));
+const EditarServicoModal = lazy(() => import('../components/servicos/EditarServicoModal'));
+const EditarAdiantamentoModal = lazy(() => import('../components/servicos/EditarAdiantamentoModal'));
 
 type Filters = {
     collaboratorId: string | null;

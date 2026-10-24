@@ -3,7 +3,8 @@ import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from '@tansta
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../hooks/useAuth';
 import { AdvanceWithDetails, Collaborator, Project } from '../../types';
-import AdiantamentoCard from './AdiantamentoCard';
+import AdiantamentoCard from '../servicos/AdiantamentoCard';
+import { deleteAdvanceWithAttachment } from '../servicos/serviceActions';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -23,7 +24,7 @@ import AdiantamentoCardSkeleton from './AdiantamentoCardSkeleton';
 import { TableSkeleton } from '../ui/TableSkeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/DropdownMenu';
 
-const EditarAdiantamentoModal = lazy(() => import('./EditarAdiantamentoModal'));
+const EditarAdiantamentoModal = lazy(() => import('../servicos/EditarAdiantamentoModal'));
 
 type AdvanceFilters = {
     searchTerm: string;
@@ -194,47 +195,17 @@ const AdiantamentosHistorico: React.FC = () => {
 
     const deleteMutation = useMutation({
         mutationFn: async (advance: AdvanceWithDetails) => {
-            if (advance.receipt_path) {
-                const { error: deleteFileError } = await supabase.storage.from('jpl-conecta').remove([advance.receipt_path]);
-                if (deleteFileError) console.error("Erro ao remover comprovante:", deleteFileError);
-            }
-            const { error } = await supabase.from('adiantamentos').delete().eq('id', advance.id);
-            if (error) throw error;
-
-            // Se o serviço estava 'Concluído', verificar se ainda há saldo pendente após a exclusão do adiantamento
-            if (advance.service_id) {
-                const { data: serviceData } = await (supabase as any)
-                    .from('servicos')
-                    .select('id, total_value, status, adiantamentos(value)')
-                    .eq('id', advance.service_id)
-                    .maybeSingle();
-
-                if (serviceData && serviceData.status === 'Concluído') {
-                    const remainingAdvances = (serviceData.adiantamentos || []).reduce(
-                        (sum: number, a: { value: number }) => sum + Number(a.value || 0),
-                        0
-                    );
-                    if (Number(serviceData.total_value) - remainingAdvances > 0.009) {
-                        await (supabase as any)
-                            .from('servicos')
-                            .update({ status: 'Em Andamento' })
-                            .eq('id', advance.service_id);
-                    }
-                }
-            }
-            
-            await logAuditAction(
-                profile?.company_id,
-                user?.email,
-                'EXCLUIR',
-                `Adiantamento: ${advance.description || advance.id}`,
-                { id: advance.id, amount: advance.value }
-            );
+            await deleteAdvanceWithAttachment({
+                advance,
+                companyId: profile?.company_id,
+                userEmail: user?.email,
+            });
         },
         onSuccess: () => {
             toast({ title: 'Sucesso!', description: 'Adiantamento excluído com sucesso.' });
             queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
             queryClient.invalidateQueries({ queryKey: ['servicos'] }); // Advances affect services totals
+            queryClient.invalidateQueries({ queryKey: ['services_dashboard'] });
         },
         onError: (err) => {
             const errorMessage = formatApiError(err);
