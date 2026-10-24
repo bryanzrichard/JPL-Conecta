@@ -328,6 +328,28 @@ const Servicos: React.FC = () => {
         queryFn: async () => {
             if (!profile?.company_id) return { totalValue: 0, totalPaid: 0, remainingValue: 0, count: 0 };
 
+            // Tenta o cálculo no servidor (RPC); se a função ainda não existir, cai no cálculo local abaixo.
+            const { data: rpcData, error: rpcError } = await (supabase as any).rpc('get_services_summary', {
+                p_company_id: profile.company_id,
+                p_status: serviceStatusFilter === 'Todos' ? null : serviceStatusFilter,
+                p_search: serviceFilters.searchTerm || null,
+                p_collaborator_id: serviceFilters.collaboratorId,
+                p_project_id: serviceFilters.projectId,
+                p_start_date: serviceFilters.startDate ? toDateStr(serviceFilters.startDate) : null,
+                p_end_date: serviceFilters.endDate ? toDateStr(serviceFilters.endDate) : null,
+            });
+            const rpcRow = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+            if (!rpcError && rpcRow) {
+                const totalValue = Number(rpcRow.total_value) || 0;
+                const totalPaid = Number(rpcRow.total_paid) || 0;
+                return {
+                    totalValue,
+                    totalPaid,
+                    remainingValue: Math.max(0, totalValue - totalPaid),
+                    count: Number(rpcRow.total_count) || 0,
+                };
+            }
+
             let query = supabase
                 .from('servicos')
                 .select('id, total_value, adiantamentos(value)')
@@ -496,6 +518,24 @@ const Servicos: React.FC = () => {
         queryKey: ['advancesSummary', profile?.company_id, advanceFilters],
         queryFn: async () => {
             if (!profile?.company_id) return { totalPaid: 0, count: 0 };
+
+            // Tenta o cálculo no servidor (RPC); se a função ainda não existir, cai no cálculo local abaixo.
+            const { data: rpcData, error: rpcError } = await (supabase as any).rpc('get_advances_summary', {
+                p_company_id: profile.company_id,
+                p_search: advanceFilters.searchTerm || null,
+                p_collaborator_id: advanceFilters.collaboratorId,
+                p_project_id: advanceFilters.projectId,
+                p_service_id: advanceFilters.serviceId ?? null,
+                p_from: advanceFilters.dateRange?.from ? toDateStr(advanceFilters.dateRange.from) : null,
+                p_to: advanceFilters.dateRange?.to ? toDateStr(advanceFilters.dateRange.to) : null,
+            });
+            const rpcRow = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+            if (!rpcError && rpcRow) {
+                return {
+                    totalPaid: Number(rpcRow.total_paid) || 0,
+                    count: Number(rpcRow.total_count) || 0,
+                };
+            }
 
             let query = supabase
                 .from('adiantamentos')
