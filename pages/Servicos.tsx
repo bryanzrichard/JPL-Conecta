@@ -1052,7 +1052,11 @@ const Servicos: React.FC = () => {
                                                                     <DropdownMenuItem onSelect={() => { setSelectedService(service); setDetailsModalOpen(true); }}>
                                                                         <EyeIcon className="h-4 w-4 mr-2 text-brand-blue-500" /> Visualizar Detalhes
                                                                     </DropdownMenuItem>
-                                                                    {!isCompleted && service.remaining_value > 0.009 && (`r`n                                                                        <DropdownMenuItem onSelect={() => { setSelectedService(service); setAdvanceModalOpen(true); }}>`r`n                                                                            <PlusIcon className="h-4 w-4 mr-2 text-emerald-500" /> Novo Adiantamento`r`n                                                                        </DropdownMenuItem>`r`n                                                                    )}
+                                                                    {!isCompleted && service.remaining_value > 0.009 && (
+                                                                        <DropdownMenuItem onSelect={() => { setSelectedService(service); setAdvanceModalOpen(true); }}>
+                                                                            <PlusIcon className="h-4 w-4 mr-2 text-emerald-500" /> Novo Adiantamento
+                                                                        </DropdownMenuItem>
+                                                                    )}
                                                                     <DropdownMenuItem onSelect={() => { setSelectedService(service); setEditServiceModalOpen(true); }}>
                                                                         <EditIcon className="h-4 w-4 mr-2 text-brand-blue-500" /> Editar Contrato
                                                                     </DropdownMenuItem>
