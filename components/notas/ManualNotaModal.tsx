@@ -213,8 +213,8 @@ const ManualNotaModal: React.FC<ManualNotaModalProps> = ({ isOpen, onClose, onSu
   };
 
   return (
-    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="dialog">
-      <ResponsiveModalContent size="xl" fullHeight className="max-w-5xl flex flex-col">
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="drawer">
+      <ResponsiveModalContent size="xl" fullHeight className="max-w-4xl flex flex-col">
         {/* Header Consistente */}
         <ResponsiveModalHeader className="px-6 py-4 flex-shrink-0">
           <div className="flex items-center gap-3">

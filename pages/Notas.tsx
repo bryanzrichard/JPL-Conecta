@@ -29,6 +29,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/DropdownMenu';
 import { useUploadNotaIA } from '../hooks/useUploadNotaIA';
 import { logAuditAction } from '../lib/auditLogger';
+import { useMediaQuery } from '../hooks/use-media-query';
+import NotaDetailPanel from '../components/notas/NotaDetailPanel';
 
 const UploadNotaModal = lazy(() => import('../components/notas/UploadNotaModal'));
 const EditarNotaModal = lazy(() => import('../components/notas/EditarNotaModal'));
@@ -142,6 +144,7 @@ const Notas: React.FC = () => {
     const { toast } = useToast();
     const location = useLocation();
     const navigate = useNavigate();
+    const isDesktop = useMediaQuery('(min-width: 1024px)');
 
     // Modals state
     const [selectedNota, setSelectedNota] = useState<NotaFiscal | NotaWithItemCount | null>(null);
@@ -219,6 +222,32 @@ const Notas: React.FC = () => {
             setSelectedNota(allNotas[selectedNotaIndex + 1]);
         }
     };
+
+    // Atalhos de teclado no Split View (↑ / ↓ para navegar pelas notas, Esc para fechar o painel)
+    useEffect(() => {
+        if (!selectedNota || !isDesktop) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+            if (['input', 'textarea', 'select'].includes(activeTag)) return;
+
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (hasPrevNota) {
+                    setSelectedNota(allNotas[selectedNotaIndex - 1]);
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (hasNextNota) {
+                    setSelectedNota(allNotas[selectedNotaIndex + 1]);
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                setSelectedNota(null);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedNota, isDesktop, selectedNotaIndex, hasPrevNota, hasNextNota, allNotas]);
 
     // Effect to open modal from Quick Add button
     useEffect(() => {
@@ -407,8 +436,8 @@ const Notas: React.FC = () => {
             setNotaToDelete(null);
             if (isDetailsModalOpen) {
                 setIsDetailsModalOpen(false);
-                setSelectedNota(null);
             }
+            setSelectedNota(null);
         }
     });
     
@@ -420,7 +449,9 @@ const Notas: React.FC = () => {
     
     const handleSelectNota = (nota: NotaWithItemCount | NotaFiscal) => {
         setSelectedNota(nota);
-        setIsDetailsModalOpen(true);
+        if (!isDesktop) {
+            setIsDetailsModalOpen(true);
+        }
     };
 
     const handleEditNota = (nota: NotaWithItemCount | NotaFiscal) => {
@@ -877,7 +908,9 @@ const Notas: React.FC = () => {
                 {/* ========================================================= */}
                 {/* 4. TABELA DE ALTA DENSIDADE (COLUNAS SEPARADAS)           */}
                 {/* ========================================================= */}
-                <div className="overflow-hidden rounded-b-xl border-x border-b border-slate-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 shadow-sm">
+                <div className={`overflow-hidden rounded-b-xl border-x border-b border-slate-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 shadow-sm flex flex-col lg:flex-row ${
+                    selectedNota && isDesktop ? 'items-stretch' : ''
+                }`}>
                     {notasStatus === 'pending' ? (
                         <>
                             <div className="md:hidden p-4">
@@ -888,14 +921,14 @@ const Notas: React.FC = () => {
                                     onAddNew={() => setIsManualModalOpen(true)}
                                 />
                             </div>
-                            <div className="hidden md:block">
+                            <div className="hidden md:block w-full">
                                 <TableSkeleton />
                             </div>
                         </>
                     ) : notasStatus === 'error' ? (
-                        <p className="text-center text-red-500 py-8 text-sm">Erro ao carregar notas: {(notasError as Error)?.message}</p>
+                        <p className="text-center text-red-500 py-8 text-sm w-full">Erro ao carregar notas: {(notasError as Error)?.message}</p>
                     ) : allNotas.length === 0 ? (
-                        <div className="text-center py-12 px-6 bg-slate-50/50 dark:bg-brand-dark-900/50">
+                        <div className="text-center py-12 px-6 bg-slate-50/50 dark:bg-brand-dark-900/50 w-full">
                             <div className="mx-auto p-3 bg-slate-100 dark:bg-gray-800 rounded-full w-fit mb-3">
                                 <FileTextIcon className="h-7 w-7 text-indigo-600 dark:text-indigo-400" />
                             </div>
@@ -907,7 +940,7 @@ const Notas: React.FC = () => {
                                 <Button 
                                     size="sm"
                                     onClick={() => setIsManualModalOpen(true)}
-                                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs"
+                                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs cursor-pointer"
                                 >
                                     <PlusIcon className="h-3.5 w-3.5 mr-1.5"/>
                                     Novo Registro Manual
@@ -917,7 +950,7 @@ const Notas: React.FC = () => {
                     ) : (
                         <>
                             {/* Mobile: Cards */}
-                            <div className="md:hidden p-3">
+                            <div className="md:hidden p-3 w-full">
                                 <ListaNotas
                                     notas={allNotas}
                                     loading={false}
@@ -928,128 +961,164 @@ const Notas: React.FC = () => {
                                 />
                             </div>
 
-                            {/* Desktop: Table de Alta Densidade com Colunas Separadas */}
-                            <div className="hidden md:block overflow-x-auto">
-                                <table className="w-full text-sm text-left text-slate-600 dark:text-gray-400">
-                                    <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-brand-dark-800/60 border-b border-slate-200 dark:border-gray-800">
-                                        <tr>
-                                            <th className="px-4 py-3.5 font-semibold">Emissão</th>
-                                            <th className="px-4 py-3.5 font-semibold">Nota / Tipo</th>
-                                            <th className="px-4 py-3.5 font-semibold">Fornecedor</th>
-                                            <th className="px-4 py-3.5 font-semibold">Obra / Destino</th>
-                                            <th className="px-4 py-3.5 font-semibold">Pagamento</th>
-                                            <th className="px-4 py-3.5 font-semibold text-right">Valor Total</th>
-                                            <th className="px-4 py-3.5 font-semibold text-center w-16">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-brand-dark-900">
-                                        {allNotas.map((nota) => {
-                                            const isRec = isReceipt(nota.invoice_number);
-                                            return (
-                                                <tr 
-                                                    key={nota.id} 
-                                                    className="hover:bg-slate-50 dark:hover:bg-brand-dark-800/60 transition-colors cursor-pointer group"
-                                                    onClick={() => handleSelectNota(nota)}
-                                                >
-                                                    {/* 1. EMISSÃO */}
-                                                    <td className="px-4 py-3.5 whitespace-nowrap font-mono text-xs text-slate-600 dark:text-gray-300">
-                                                        {formatDate(nota.issue_date)}
-                                                    </td>
+                            {/* Desktop: Painel Esquerdo (Tabela Retrátil em Split View) */}
+                            <div className={`transition-all duration-300 ease-in-out ${
+                                selectedNota && isDesktop
+                                    ? 'w-full lg:w-[48%] xl:w-[46%] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800'
+                                    : 'w-full'
+                            }`}>
+                                <div className={`hidden md:block overflow-x-auto ${selectedNota && isDesktop ? 'max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar' : ''}`}>
+                                    <table className="w-full text-sm text-left text-slate-600 dark:text-gray-400">
+                                        <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-brand-dark-800/60 border-b border-slate-200 dark:border-gray-800 sticky top-0 z-10">
+                                            <tr>
+                                                <th className="px-3 sm:px-4 py-3.5 font-semibold whitespace-nowrap">Emissão</th>
+                                                <th className="px-3 sm:px-4 py-3.5 font-semibold">Nota / Tipo</th>
+                                                <th className={selectedNota && isDesktop ? 'hidden' : 'px-4 py-3.5 font-semibold'}>Fornecedor</th>
+                                                <th className={selectedNota && isDesktop ? 'hidden' : 'px-4 py-3.5 font-semibold'}>Obra / Destino</th>
+                                                <th className={selectedNota && isDesktop ? 'hidden' : 'px-4 py-3.5 font-semibold'}>Pagamento</th>
+                                                <th className="px-3 sm:px-4 py-3.5 font-semibold text-right whitespace-nowrap">Valor Total</th>
+                                                <th className="px-2 sm:px-4 py-3.5 font-semibold text-center w-12 sm:w-16">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-brand-dark-900">
+                                            {allNotas.map((nota) => {
+                                                const isRec = isReceipt(nota.invoice_number);
+                                                const isSelected = selectedNota?.id === nota.id && isDesktop;
+                                                return (
+                                                    <tr 
+                                                        key={nota.id} 
+                                                        className={`transition-colors cursor-pointer group ${
+                                                            isSelected
+                                                                ? 'bg-indigo-50/90 dark:bg-indigo-950/60 border-l-4 border-indigo-600 font-semibold text-indigo-950 dark:text-indigo-100'
+                                                                : 'hover:bg-slate-50 dark:hover:bg-brand-dark-800/60'
+                                                        }`}
+                                                        onClick={() => handleSelectNota(nota)}
+                                                    >
+                                                        {/* 1. EMISSÃO */}
+                                                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap font-mono text-xs text-slate-600 dark:text-gray-300">
+                                                            {formatDate(nota.issue_date)}
+                                                        </td>
 
-                                                    {/* 2. NOTA & TIPO */}
-                                                    <td className="px-4 py-3.5 whitespace-nowrap">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="font-semibold text-slate-900 dark:text-white text-xs">
-                                                                {nota.invoice_number || 'Sem Nº'}
+                                                        {/* 2. NOTA & TIPO / FORNECEDOR */}
+                                                        <td className="px-3 sm:px-4 py-3 min-w-0">
+                                                            <div className="flex flex-col min-w-0">
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    <span className={`text-xs truncate ${isSelected ? 'font-bold text-indigo-700 dark:text-indigo-300' : 'font-semibold text-slate-900 dark:text-white'}`}>
+                                                                        {nota.invoice_number || 'Sem Nº'}
+                                                                    </span>
+                                                                    <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider ${
+                                                                        isRec
+                                                                            ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/60'
+                                                                            : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700'
+                                                                    }`}>
+                                                                        {isRec ? 'RECIBO' : 'NF-e'}
+                                                                    </span>
+                                                                    {(!selectedNota || !isDesktop) && nota.item_count > 0 && (
+                                                                        <span className="text-[10px] font-semibold text-slate-600 dark:text-gray-300 bg-slate-100 dark:bg-brand-dark-800 border border-slate-200 dark:border-gray-700 px-1.5 py-0.2 rounded flex items-center gap-1">
+                                                                            <PackageIcon className="w-3 h-3 text-slate-400" />
+                                                                            {nota.item_count}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {/* Subtítulo do Fornecedor quando retraída */}
+                                                                {selectedNota && isDesktop && (
+                                                                    <span className="text-[11px] text-slate-500 dark:text-gray-400 truncate max-w-[150px] sm:max-w-[200px]" title={nota.suppliers?.name || 'Não informado'}>
+                                                                        {nota.suppliers?.name || 'Não informado'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        {/* 3. FORNECEDOR */}
+                                                        <td className={selectedNota && isDesktop ? 'hidden' : 'px-4 py-3.5 max-w-xs'}>
+                                                            <span className="font-semibold text-slate-900 dark:text-white text-xs truncate block" title={nota.suppliers?.name || 'Não informado'}>
+                                                                {nota.suppliers?.name || 'Não informado'}
                                                             </span>
-                                                            <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider ${
-                                                                isRec
-                                                                    ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/60'
-                                                                    : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700'
-                                                            }`}>
-                                                                {isRec ? 'RECIBO' : 'NF-e'}
+                                                        </td>
+
+                                                        {/* 4. OBRA / DESTINO */}
+                                                        <td className={selectedNota && isDesktop ? 'hidden' : 'px-4 py-3.5'}>
+                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 dark:bg-brand-dark-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 max-w-[200px] truncate" title={nota.projects?.name || 'Geral / Matriz'}>
+                                                                <ConstructionIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                                <span className="truncate">{nota.projects?.name || 'Geral / Matriz'}</span>
                                                             </span>
-                                                            {nota.item_count > 0 && (
-                                                                <span className="text-[10px] font-semibold text-slate-600 dark:text-gray-300 bg-slate-100 dark:bg-brand-dark-800 border border-slate-200 dark:border-gray-700 px-1.5 py-0.2 rounded flex items-center gap-1">
-                                                                    <PackageIcon className="w-3 h-3 text-slate-400" />
-                                                                    {nota.item_count}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </td>
+                                                        </td>
 
-                                                    {/* 3. FORNECEDOR */}
-                                                    <td className="px-4 py-3.5 max-w-xs">
-                                                        <span className="font-semibold text-slate-900 dark:text-white text-xs truncate block" title={nota.suppliers?.name || 'Não informado'}>
-                                                            {nota.suppliers?.name || 'Não informado'}
-                                                        </span>
-                                                    </td>
+                                                        {/* 5. PAGAMENTO */}
+                                                        <td className={selectedNota && isDesktop ? 'hidden' : 'px-4 py-3.5 whitespace-nowrap'}>
+                                                            <Badge variant="outline" className="text-[11px] font-medium py-0.5 bg-slate-50 dark:bg-brand-dark-800/80 text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700">
+                                                                {PAYMENT_METHODS[nota.payment_method] || nota.payment_method || '-'}
+                                                            </Badge>
+                                                        </td>
 
-                                                    {/* 4. OBRA / DESTINO */}
-                                                    <td className="px-4 py-3.5">
-                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 dark:bg-brand-dark-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 max-w-[200px] truncate" title={nota.projects?.name || 'Geral / Matriz'}>
-                                                            <ConstructionIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                            <span className="truncate">{nota.projects?.name || 'Geral / Matriz'}</span>
-                                                        </span>
-                                                    </td>
+                                                        {/* 6. VALOR TOTAL */}
+                                                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-right font-mono tabular-nums font-bold text-slate-900 dark:text-white text-sm">
+                                                            {formatCurrency(nota.total_value)}
+                                                        </td>
 
-                                                    {/* 5. PAGAMENTO */}
-                                                    <td className="px-4 py-3.5 whitespace-nowrap">
-                                                        <Badge variant="outline" className="text-[11px] font-medium py-0.5 bg-slate-50 dark:bg-brand-dark-800/80 text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700">
-                                                            {PAYMENT_METHODS[nota.payment_method] || nota.payment_method || '-'}
-                                                        </Badge>
-                                                    </td>
+                                                        {/* 7. AÇÕES */}
+                                                        <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button 
+                                                                        variant="ghost" 
+                                                                        size="icon" 
+                                                                        className="h-7 w-7 sm:h-8 sm:w-8 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-brand-dark-800 rounded-lg cursor-pointer"
+                                                                    >
+                                                                        <MoreVerticalIcon className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end" className="w-44 bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 shadow-xl rounded-xl p-1 z-30">
+                                                                    <DropdownMenuItem onSelect={() => handleSelectNota(nota)} className="text-xs py-2 px-2.5 rounded-lg cursor-pointer">
+                                                                        <EyeIcon className="h-4 w-4 mr-2 text-slate-400" /> Visualizar Detalhes
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onSelect={() => handleEditNota(nota)} className="text-xs py-2 px-2.5 rounded-lg cursor-pointer">
+                                                                        <EditIcon className="h-4 w-4 mr-2 text-slate-400" /> Editar Nota
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onSelect={() => handleDeleteNota(nota)} className="text-xs py-2 px-2.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer font-semibold">
+                                                                        <Trash2Icon className="h-4 w-4 mr-2 text-rose-600" /> Excluir Nota
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
 
-                                                    {/* 6. VALOR TOTAL */}
-                                                    <td className="px-4 py-3.5 whitespace-nowrap text-right font-mono tabular-nums font-bold text-slate-900 dark:text-white text-sm">
-                                                        {formatCurrency(nota.total_value)}
-                                                    </td>
-
-                                                    {/* 7. AÇÕES */}
-                                                    <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button 
-                                                                    variant="ghost" 
-                                                                    size="icon" 
-                                                                    className="h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-brand-dark-800 rounded-lg cursor-pointer"
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                >
-                                                                    <MoreVerticalIcon className="h-4 w-4" />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" className="w-44 bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 shadow-xl rounded-xl p-1 z-30">
-                                                                <DropdownMenuItem onSelect={() => handleSelectNota(nota)} className="text-xs py-2 px-2.5 rounded-lg cursor-pointer">
-                                                                    <EyeIcon className="h-4 w-4 mr-2 text-slate-400" /> Visualizar Detalhes
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem onSelect={() => handleEditNota(nota)} className="text-xs py-2 px-2.5 rounded-lg cursor-pointer">
-                                                                    <EditIcon className="h-4 w-4 mr-2 text-slate-400" /> Editar Nota
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem onSelect={() => handleDeleteNota(nota)} className="text-xs py-2 px-2.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer font-semibold">
-                                                                    <Trash2Icon className="h-4 w-4 mr-2 text-rose-600" /> Excluir Nota
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
+                                {/* Botão Carregar Mais Notas */}
+                                {hasNextPage && (
+                                    <div className="flex justify-center p-3 border-t border-slate-100 dark:border-gray-800">
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm"
+                                            onClick={() => fetchNextPage()} 
+                                            isLoading={isFetchingNextPage}
+                                            className="h-8 text-xs font-semibold cursor-pointer"
+                                        >
+                                            {isFetchingNextPage ? 'Carregando...' : 'Carregar mais notas'}
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Botão Carregar Mais Notas */}
-                            {hasNextPage && (
-                                <div className="flex justify-center p-4 border-t border-slate-100 dark:border-gray-800">
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        onClick={() => fetchNextPage()} 
-                                        isLoading={isFetchingNextPage}
-                                        className="h-8 text-xs font-semibold"
-                                    >
-                                        {isFetchingNextPage ? 'Carregando...' : 'Carregar mais notas'}
-                                    </Button>
+                            {/* Desktop: Painel Direito (Mestre-Detalhe Embutido - Sem Modal / Sem Backdrop) */}
+                            {selectedNota && isDesktop && (
+                                <div className="w-full lg:w-[52%] xl:w-[54%] shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col transition-all duration-300 ease-in-out animate-in fade-in-0 slide-in-from-right-2">
+                                    <NotaDetailPanel
+                                        nota={selectedNota}
+                                        onClose={() => setSelectedNota(null)}
+                                        onEdit={handleEditNota}
+                                        onDelete={handleDeleteNota}
+                                        onPrevNota={handlePrevNota}
+                                        onNextNota={handleNextNota}
+                                        hasPrev={hasPrevNota}
+                                        hasNext={hasNextNota}
+                                        currentIndex={selectedNotaIndex}
+                                        totalCount={allNotas.length}
+                                    />
                                 </div>
                             )}
                         </>

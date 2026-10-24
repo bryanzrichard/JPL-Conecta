@@ -284,8 +284,8 @@ const UploadNotaModal: React.FC<UploadNotaModalProps> = ({ isOpen, onClose, onSu
     }
 
     return (
-        <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="dialog">
-            <ResponsiveModalContent size="xl" fullHeight className="">
+        <ResponsiveModal isOpen={isOpen} onOpenChange={onClose} displayMode="drawer">
+            <ResponsiveModalContent size="xl" fullHeight className="max-w-3xl">
                 <ResponsiveModalHeader className="px-5 py-3 border-b border-gray-800 bg-brand-dark-900 flex-shrink-0">
                     <ResponsiveModalTitle className="text-lg">{getTitle()}</ResponsiveModalTitle>
                     <ResponsiveModalDescription className="text-xs">{getDescription()}</ResponsiveModalDescription>
