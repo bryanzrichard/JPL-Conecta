@@ -7,7 +7,7 @@ import { ThemeToggle } from './ui/ThemeToggle';
 import { GlobalSearchModal } from './GlobalSearchModal';
 import { 
     MenuIcon, XIcon, PlusIcon, ClipboardListIcon, FileTextIcon, 
-    LayoutIcon, ConstructionIcon, HistoryIcon, ActivityIcon, BuildingIcon,
+    LayoutIcon, ConstructionIcon, ActivityIcon, BuildingIcon,
     LogOutIcon, ChevronRightIcon, UploadCloudIcon, SearchIcon
 } from '../lib/icons';
 
@@ -56,7 +56,6 @@ const MainLayout: React.FC = () => {
             icon: ClipboardListIcon, 
             badge: delayedTasks > 0 ? { count: delayedTasks, color: 'bg-red-500/20 text-red-400 border-red-500/30' } : null 
         },
-        { name: 'Histórico', path: '/historico', icon: HistoryIcon, badge: null },
         { name: 'Cadastros', path: '/registro', icon: ActivityIcon, badge: null },
     ];
 
@@ -72,8 +71,6 @@ const MainLayout: React.FC = () => {
                 return { module: 'Despesas de Cartório', description: 'Registro de emolumentos' };
             case '/tarefas':
                 return { module: 'Gerenciador de Tarefas', description: 'Status de obras e cronogramas' };
-            case '/historico':
-                return { module: 'Histórico & Extratos', description: 'Consulta de registros passados' };
             case '/registro':
                 return { module: 'Cadastros Gerais', description: 'Fornecedores, obras e colaboradores' };
             default:
@@ -369,13 +366,6 @@ const MainLayout: React.FC = () => {
                                         {delayedTasks} atrasadas
                                     </span>
                                 )}
-                            </NavLink>
-                            <NavLink
-                                to="/historico"
-                                className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${isActive ? 'bg-brand-dark-800 text-brand-blue-500' : 'text-gray-200 hover:bg-brand-dark-800'}`}
-                            >
-                                <HistoryIcon className="h-5 w-5" />
-                                <span className="font-medium">Histórico</span>
                             </NavLink>
                             <NavLink
                                 to="/registro"
