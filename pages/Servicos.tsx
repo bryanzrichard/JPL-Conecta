@@ -58,9 +58,18 @@ type AdvanceFilters = {
     collaboratorId: string | null;
     projectId: string | null;
     dateRange: DateRange | undefined;
+    serviceId?: string | null;
 };
 
 const PAGE_SIZE = 10;
+
+// Formata Date em yyyy-MM-dd no fuso local (evita deslocamento de dia causado por toISOString/UTC)
+const toDateStr = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+};
 
 const QUICK_PERIOD_SHORTCUTS = [
     { label: 'Hoje', daysAgo: 0 },
@@ -119,6 +128,8 @@ const Servicos: React.FC = () => {
     const [projectSearch, setProjectSearch] = useState('');
     const [isCollaboratorPopoverOpen, setCollaboratorPopoverOpen] = useState(false);
     const [isProjectPopoverOpen, setProjectPopoverOpen] = useState(false);
+    const [isAdvCollaboratorPopoverOpen, setAdvCollaboratorPopoverOpen] = useState(false);
+    const [isAdvProjectPopoverOpen, setAdvProjectPopoverOpen] = useState(false);
 
     // Modais e Estados de Edição/Exclusão
     const [selectedService, setSelectedService] = useState<ServiceWithDetails | null>(null);
@@ -170,7 +181,7 @@ const Servicos: React.FC = () => {
         handledIdRef.current = targetId;
 
         // Limpar parâmetros da URL preservando outros possíveis
-        navigate(location.pathname, { replace: true, state: {} });
+        navigate(`${location.pathname}?tab=${editAdvanceId && !editServiceId ? 'adiantamentos' : 'servicos'}`, { replace: true, state: {} });
 
         let isMounted = true;
 
@@ -257,10 +268,10 @@ const Servicos: React.FC = () => {
             query = query.eq('project_id', filters.projectId);
         }
         if (filters.startDate) {
-            query = query.gte('start_date', filters.startDate.toISOString());
+            query = query.gte('start_date', toDateStr(filters.startDate));
         }
         if (filters.endDate) {
-            query = query.lte('end_date', filters.endDate.toISOString());
+            query = query.lte('end_date', toDateStr(filters.endDate));
         }
 
         const from = pageParam * PAGE_SIZE;
@@ -328,8 +339,8 @@ const Servicos: React.FC = () => {
             if (serviceFilters.searchTerm) query = query.ilike('description', `%${serviceFilters.searchTerm}%`);
             if (serviceFilters.collaboratorId) query = query.eq('collaborator_id', serviceFilters.collaboratorId);
             if (serviceFilters.projectId) query = query.eq('project_id', serviceFilters.projectId);
-            if (serviceFilters.startDate) query = query.gte('start_date', serviceFilters.startDate.toISOString());
-            if (serviceFilters.endDate) query = query.lte('end_date', serviceFilters.endDate.toISOString());
+            if (serviceFilters.startDate) query = query.gte('start_date', toDateStr(serviceFilters.startDate));
+            if (serviceFilters.endDate) query = query.lte('end_date', toDateStr(serviceFilters.endDate));
 
             const { data, error } = await query;
             if (error) throw error;
@@ -384,6 +395,7 @@ const Servicos: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
             queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
             queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
+            queryClient.invalidateQueries({ queryKey: ['servico_adiantamentos'] });
             queryClient.invalidateQueries({ queryKey: ['services_dashboard'] });
         },
         onError: (err) => {
@@ -426,13 +438,14 @@ const Servicos: React.FC = () => {
         if (filters.projectId) {
             query = query.eq('servicos.project_id', filters.projectId);
         }
+        if (filters.serviceId) {
+            query = query.eq('service_id', filters.serviceId);
+        }
         if (filters.dateRange?.from) {
-            query = query.gte('payment_date', filters.dateRange.from.toISOString());
+            query = query.gte('payment_date', toDateStr(filters.dateRange.from));
         }
         if (filters.dateRange?.to) {
-            const toDate = new Date(filters.dateRange.to);
-            toDate.setHours(23, 59, 59, 999);
-            query = query.lte('payment_date', toDate.toISOString());
+            query = query.lte('payment_date', toDateStr(filters.dateRange.to));
         }
 
         const from = pageParam * PAGE_SIZE;
@@ -506,13 +519,14 @@ const Servicos: React.FC = () => {
             if (advanceFilters.projectId) {
                 query = query.eq('servicos.project_id', advanceFilters.projectId);
             }
+            if (advanceFilters.serviceId) {
+                query = query.eq('service_id', advanceFilters.serviceId);
+            }
             if (advanceFilters.dateRange?.from) {
-                query = query.gte('payment_date', advanceFilters.dateRange.from.toISOString());
+                query = query.gte('payment_date', toDateStr(advanceFilters.dateRange.from));
             }
             if (advanceFilters.dateRange?.to) {
-                const toDate = new Date(advanceFilters.dateRange.to);
-                toDate.setHours(23, 59, 59, 999);
-                query = query.lte('payment_date', toDate.toISOString());
+                query = query.lte('payment_date', toDateStr(advanceFilters.dateRange.to));
             }
 
             const { data, error } = await query;
@@ -556,6 +570,7 @@ const Servicos: React.FC = () => {
             toast({ title: 'Sucesso!', description: 'Adiantamento excluído com sucesso.' });
             queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
             queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
+            queryClient.invalidateQueries({ queryKey: ['servico_adiantamentos'] });
             queryClient.invalidateQueries({ queryKey: ['servicos'] });
             queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
             queryClient.invalidateQueries({ queryKey: ['services_dashboard'] });
@@ -571,18 +586,15 @@ const Servicos: React.FC = () => {
 
     // Ação: "Ver Adiantamentos" de um serviço -> troca para Aba 2 filtrando pelo serviço
     const handleViewAdvancesForService = (service: ServiceWithDetails) => {
-        setAdvanceFilters({
-            searchTerm: service.description,
-            collaboratorId: service.collaborator_id,
-            projectId: service.project_id,
+        const filters: AdvanceFilters = {
+            searchTerm: '',
+            collaboratorId: null,
+            projectId: null,
             dateRange: undefined,
-        });
-        setTempAdvanceFilters({
-            searchTerm: service.description,
-            collaboratorId: service.collaborator_id,
-            projectId: service.project_id,
-            dateRange: undefined,
-        });
+            serviceId: service.id,
+        };
+        setAdvanceFilters(filters);
+        setTempAdvanceFilters(filters);
         handleTabChange('adiantamentos');
     };
 
@@ -611,6 +623,7 @@ const Servicos: React.FC = () => {
         if (advanceFilters.searchTerm) count++;
         if (advanceFilters.collaboratorId) count++;
         if (advanceFilters.projectId) count++;
+        if (advanceFilters.serviceId) count++;
         if (advanceFilters.dateRange?.from || advanceFilters.dateRange?.to) count++;
         return count;
     }, [advanceFilters]);
@@ -1430,7 +1443,7 @@ const Servicos: React.FC = () => {
                                         id="service_start_date"
                                         type="date"
                                         className="h-9 text-xs"
-                                        value={tempServiceFilters.startDate ? tempServiceFilters.startDate.toISOString().split('T')[0] : ''}
+                                        value={tempServiceFilters.startDate ? toDateStr(tempServiceFilters.startDate) : ''}
                                         onChange={e => setTempServiceFilters(f => ({ ...f, startDate: e.target.value ? new Date(e.target.value + 'T00:00:00') : null }))}
                                     />
                                 </div>
@@ -1440,7 +1453,7 @@ const Servicos: React.FC = () => {
                                         id="service_end_date"
                                         type="date"
                                         className="h-9 text-xs"
-                                        value={tempServiceFilters.endDate ? tempServiceFilters.endDate.toISOString().split('T')[0] : ''}
+                                        value={tempServiceFilters.endDate ? toDateStr(tempServiceFilters.endDate) : ''}
                                         onChange={e => setTempServiceFilters(f => ({ ...f, endDate: e.target.value ? new Date(e.target.value + 'T00:00:00') : null }))}
                                     />
                                 </div>
@@ -1528,7 +1541,7 @@ const Servicos: React.FC = () => {
                                 <ConstructionIcon className="h-3.5 w-3.5 text-brand-blue-500" />
                                 Obra / Projeto
                             </Label>
-                            <Popover open={isProjectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
+                            <Popover open={isAdvProjectPopoverOpen} onOpenChange={setAdvProjectPopoverOpen}>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white">
                                         <span className="truncate">
@@ -1546,14 +1559,14 @@ const Servicos: React.FC = () => {
                                             <CommandEmpty className="py-2 text-center text-xs text-gray-400">Nenhuma obra encontrada.</CommandEmpty>
                                             <CommandItem className="cursor-pointer text-xs" onSelect={() => {
                                                 setTempAdvanceFilters(f => ({ ...f, projectId: null }));
-                                                setProjectPopoverOpen(false);
+                                                setAdvProjectPopoverOpen(false);
                                             }}>
                                                 -- Todas as obras --
                                             </CommandItem>
                                             {projects.filter(p => p.name.toLowerCase().includes(projectSearch.toLowerCase())).map(p => (
                                                 <CommandItem key={p.id} className="cursor-pointer text-xs" onSelect={() => {
                                                     setTempAdvanceFilters(f => ({ ...f, projectId: p.id }));
-                                                    setProjectPopoverOpen(false);
+                                                    setAdvProjectPopoverOpen(false);
                                                 }}>
                                                     {p.name}
                                                 </CommandItem>
@@ -1570,7 +1583,7 @@ const Servicos: React.FC = () => {
                                 <UserIcon className="h-3.5 w-3.5 text-brand-blue-500" />
                                 Colaborador / Prestador
                             </Label>
-                            <Popover open={isCollaboratorPopoverOpen} onOpenChange={setCollaboratorPopoverOpen}>
+                            <Popover open={isAdvCollaboratorPopoverOpen} onOpenChange={setAdvCollaboratorPopoverOpen}>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" className="w-full justify-between font-normal text-left h-9 px-3 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800 text-gray-900 dark:text-white">
                                         <span className="truncate">
@@ -1588,14 +1601,14 @@ const Servicos: React.FC = () => {
                                             <CommandEmpty className="py-2 text-center text-xs text-gray-400">Nenhum colaborador encontrado.</CommandEmpty>
                                             <CommandItem className="cursor-pointer text-xs" onSelect={() => {
                                                 setTempAdvanceFilters(f => ({ ...f, collaboratorId: null }));
-                                                setCollaboratorPopoverOpen(false);
+                                                setAdvCollaboratorPopoverOpen(false);
                                             }}>
                                                 -- Todos os colaboradores --
                                             </CommandItem>
                                             {collaborators.filter(c => c.name.toLowerCase().includes(collaboratorSearch.toLowerCase())).map(c => (
                                                 <CommandItem key={c.id} className="cursor-pointer text-xs" onSelect={() => {
                                                     setTempAdvanceFilters(f => ({ ...f, collaboratorId: c.id }));
-                                                    setCollaboratorPopoverOpen(false);
+                                                    setAdvCollaboratorPopoverOpen(false);
                                                 }}>
                                                     {c.name}
                                                 </CommandItem>
@@ -1699,6 +1712,7 @@ const Servicos: React.FC = () => {
                             queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
                             queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
                             queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
+                            queryClient.invalidateQueries({ queryKey: ['servico_adiantamentos'] });
                         }}
                         service={selectedService}
                         collaborators={collaborators}
@@ -1716,6 +1730,7 @@ const Servicos: React.FC = () => {
                             queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
                             queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
                             queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
+                            queryClient.invalidateQueries({ queryKey: ['servico_adiantamentos'] });
                         }}
                         service={selectedService}
                     />
@@ -1733,6 +1748,7 @@ const Servicos: React.FC = () => {
                             setSelectedAdvance(null);
                             queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
                             queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
+                            queryClient.invalidateQueries({ queryKey: ['servico_adiantamentos'] });
                             queryClient.invalidateQueries({ queryKey: ['servicos'] });
                             queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
                         }}

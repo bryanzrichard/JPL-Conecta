@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ServiceWithDetails, Advance } from '../../types';
 import { 
   ResponsiveModal, 
@@ -20,7 +21,6 @@ import {
   TrendingUpIcon, 
   PaperclipIcon, 
   ExternalLinkIcon,
-  CheckCircle2Icon,
   EditIcon,
   Trash2Icon,
   PlusIcon,
@@ -48,40 +48,31 @@ const DetalhesServicoModal: React.FC<DetalhesServicoModalProps> = ({
   onAddAdvance 
 }) => {
   const { toast } = useToast();
-  const [advances, setAdvances] = useState<Advance[]>([]);
-  const [loadingAdvances, setLoadingAdvances] = useState(false);
-  const [errorAdvances, setErrorAdvances] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'resumo' | 'anexo'>('resumo');
 
-  // Buscar adiantamentos vinculados a este serviço
-  const fetchAdvances = useCallback(async () => {
-    if (!service?.id) return;
-    setLoadingAdvances(true);
-    setErrorAdvances(null);
-    try {
+  // Adiantamentos vinculados ao serviço (cache compartilhado via React Query)
+  const {
+    data: advances = [],
+    isLoading: loadingAdvances,
+    isError,
+  } = useQuery({
+    queryKey: ['servico_adiantamentos', service?.id],
+    enabled: isOpen && !!service?.id,
+    queryFn: async (): Promise<Advance[]> => {
       const { data, error } = await supabase
         .from('adiantamentos')
         .select('*')
-        .eq('service_id', service.id)
+        .eq('service_id', service!.id)
         .order('payment_date', { ascending: false });
-
       if (error) throw error;
-      setAdvances(data || []);
-    } catch (err) {
-      console.error("Erro ao carregar medições do serviço:", err);
-      setErrorAdvances("Não foi possível carregar as medições deste serviço.");
-    } finally {
-      setLoadingAdvances(false);
-    }
-  }, [service?.id]);
+      return (data || []) as Advance[];
+    },
+  });
+  const errorAdvances = isError ? 'Não foi possível carregar as medições deste serviço.' : null;
 
   useEffect(() => {
-    if (isOpen && service) {
-      setActiveTab('resumo');
-      fetchAdvances();
-    }
-  }, [isOpen, service, fetchAdvances]);
-
+    if (isOpen) setActiveTab('resumo');
+  }, [isOpen, service?.id]);
   const handleViewFile = async (path: string) => {
     try {
       await openStorageFile(path);
@@ -100,8 +91,8 @@ const DetalhesServicoModal: React.FC<DetalhesServicoModalProps> = ({
     
     let estimatedDays: number | null = null;
     if (service.start_date && service.end_date) {
-      const start = new Date(service.start_date);
-      const end = new Date(service.end_date);
+      const start = new Date(`${service.start_date}T00:00:00`);
+      const end = new Date(`${service.end_date}T00:00:00`);
       const diffTime = end.getTime() - start.getTime();
       const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       estimatedDays = days >= 0 ? days : null;
@@ -128,7 +119,7 @@ const DetalhesServicoModal: React.FC<DetalhesServicoModalProps> = ({
   const isCompleted = service.status === 'Concluído';
 
   return (
-    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="drawer">
+    <ResponsiveModal open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} displayMode="drawer">
       <ResponsiveModalContent size="xl" className="max-w-4xl flex flex-col p-0">
         
         {/* Header do Dossier do Serviço */}
