@@ -334,9 +334,11 @@ export const Orcamentos: React.FC = () => {
   }, [etapas]);
 
   // Auto-expandir todas as etapas principais no primeiro carregamento
+  const hasInitializedExpand = useRef(false);
   useEffect(() => {
-    if (rawMainEtapas.length > 0 && expandedEtapaIds.size === 0) {
+    if (!hasInitializedExpand.current && rawMainEtapas.length > 0) {
       setExpandedEtapaIds(new Set(rawMainEtapas.map(m => m.id)));
+      hasInitializedExpand.current = true;
     }
   }, [rawMainEtapas]);
 
@@ -426,12 +428,14 @@ export const Orcamentos: React.FC = () => {
     });
   }, [enrichedMainEtapas, searchTerm]);
 
-  // Selecionar automaticamente a primeira etapa se nada estiver selecionado
+  // Selecionar a primeira etapa apenas uma vez no carregamento inicial da página
+  const hasInitializedSelection = useRef(false);
   useEffect(() => {
-    if (!selectedEtapaId && enrichedMainEtapas.length > 0) {
+    if (!hasInitializedSelection.current && enrichedMainEtapas.length > 0) {
       setSelectedEtapaId(enrichedMainEtapas[0].id);
+      hasInitializedSelection.current = true;
     }
-  }, [enrichedMainEtapas, selectedEtapaId]);
+  }, [enrichedMainEtapas]);
 
   // Etapa ou sub-passo atualmente selecionado para o Inspector
   const selectedEtapaOrSub = useMemo(() => {
@@ -688,6 +692,7 @@ export const Orcamentos: React.FC = () => {
     },
     onError: (err) => {
       toast({ variant: 'destructive', title: 'Erro ao excluir', description: formatApiError(err) });
+      setEtapaToDelete(null);
     },
   });
 
@@ -824,6 +829,7 @@ export const Orcamentos: React.FC = () => {
     },
     onError: (err) => {
       toast({ variant: 'destructive', title: 'Erro ao excluir item', description: formatApiError(err) });
+      setItemToDelete(null);
     },
   });
 
@@ -2327,14 +2333,15 @@ export const Orcamentos: React.FC = () => {
         <ConfirmationModal
           isOpen={true}
           title={etapaToDelete.parent_id ? 'Excluir Sub-passo' : 'Excluir Etapa Principal'}
-          message={`Tem certeza que deseja excluir "${etapaToDelete.nome}"? ${
-            !etapaToDelete.parent_id ? 'Todos os sub-passos e insumos vinculados a esta etapa também serão removidos.' : 'Todos os insumos deste sub-passo serão removidos.'
-          }`}
+          description={
+            etapaToDelete.parent_id
+              ? `Tem certeza que deseja excluir o sub-passo "${etapaToDelete.nome}"? Todos os insumos deste sub-passo serão removidos.`
+              : `Tem certeza que deseja excluir "${etapaToDelete.nome}"? Todos os sub-passos e insumos vinculados a esta etapa também serão removidos.`
+          }
           confirmText="Excluir Definitivamente"
-          cancelText="Cancelar"
-          isDanger={true}
+          isLoading={deleteEtapaMutation.isPending}
           onConfirm={() => deleteEtapaMutation.mutate(etapaToDelete)}
-          onCancel={() => setEtapaToDelete(null)}
+          onClose={() => setEtapaToDelete(null)}
         />
       )}
 
@@ -2342,12 +2349,11 @@ export const Orcamentos: React.FC = () => {
         <ConfirmationModal
           isOpen={true}
           title="Excluir Insumo"
-          message={`Tem certeza que deseja remover o item "${itemToDelete.descricao}" do orçamento?`}
+          description={`Tem certeza que deseja remover o item "${itemToDelete.descricao}" do orçamento?`}
           confirmText="Remover Item"
-          cancelText="Cancelar"
-          isDanger={true}
+          isLoading={deleteItemMutation.isPending}
           onConfirm={() => deleteItemMutation.mutate(itemToDelete)}
-          onCancel={() => setItemToDelete(null)}
+          onClose={() => setItemToDelete(null)}
         />
       )}
     </div>
