@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { GoogleGenAI } from 'npm:@google/genai@^1.29.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 declare const Deno: any;
 
@@ -38,6 +39,13 @@ serve(async (req) => {
     }
 
     try {
+        const jwt = (req.headers.get('Authorization') || '').replace('Bearer ', '');
+        const authClient = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_ANON_KEY'));
+        const { data: { user }, error: userError } = await authClient.auth.getUser(jwt);
+        if (userError || !user) {
+            return new Response(JSON.stringify({ error: 'Usuario nao autenticado.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
         const payload = await req.json();
         const geminiApiKey = 
             Deno.env.get('API_KEY') || 

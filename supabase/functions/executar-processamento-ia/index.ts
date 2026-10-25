@@ -189,8 +189,20 @@ serve(async (req) => {
 
         // --- Flow 2: DB Trigger for Full Processing ---
         else if (payload.record) {
-            job = payload.record;
-            if (!job || !job.id) throw new Error('Invalid payload: missing job record or ID.');
+            const triggerToken = (req.headers.get('Authorization') || '').replace('Bearer ', '');
+            let triggerRole = null;
+            try {
+                const b64 = triggerToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                triggerRole = JSON.parse(atob(b64.padEnd(b64.length + (4 - b64.length % 4) % 4, '='))).role;
+            } catch (_) { triggerRole = null; }
+            if (triggerRole !== 'service_role') {
+                return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+
+            if (!payload.record.id) throw new Error('Invalid payload: missing job record or ID.');
+            const { data: dbJob, error: dbJobError } = await supabaseAdmin.from('ai_process_jobs').select('*').eq('id', payload.record.id).single();
+            if (dbJobError || !dbJob) throw new Error('Job not found.');
+            job = dbJob;
             
             // Check if job was already archived before starting
             const { data: initialJob } = await supabaseAdmin.from('ai_process_jobs').select('status').eq('id', job.id).single();
