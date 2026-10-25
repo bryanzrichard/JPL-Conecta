@@ -249,3 +249,20 @@ export const collaboratorSchema = z.object({
     observations: z.string().optional().nullable(),
 });
 export type CollaboratorFormValues = z.infer<typeof collaboratorSchema>;
+
+// --- Orçamento ---
+export const orcamentoEtapaSchema = z.object({
+  nome: z.string({ message: "O nome da etapa é obrigatório." }).min(2, "O nome deve ter pelo menos 2 caracteres."),
+  status: z.enum(['Planejado', 'Em Execução', 'Concluído'] as const, { message: "Status inválido." }).default('Planejado'),
+  ordem: z.number().int().min(1).default(1),
+});
+export type OrcamentoEtapaFormValues = z.infer<typeof orcamentoEtapaSchema>;
+
+export const orcamentoItemSchema = z.object({
+  descricao: z.string({ message: "A descrição é obrigatória." }).min(2, "A descrição deve ter pelo menos 2 caracteres."),
+  tipo: z.enum(['material', 'mao_de_obra'] as const, { message: "O tipo deve ser material ou mão de obra." }),
+  categoria: z.enum(CATEGORIA_NOTA_ENUM, { message: "A categoria é obrigatória." }),
+  quantidade: z.preprocess(stringToNumberPreprocessor, z.number({ message: "A quantidade deve ser um número." }).gt(0, "A quantidade deve ser maior que zero.")),
+  valor_unitario: z.preprocess(stringToNumberPreprocessor, z.number({ message: "O valor unitário deve ser um número." }).min(0, "O valor não pode ser negativo.")),
+});
+export type OrcamentoItemFormValues = z.infer<typeof orcamentoItemSchema>;

@@ -103,6 +103,42 @@ const FormStep: React.FC<FormStepProps> = ({ job, onSuccess, onClose, suppliers,
       const normalizedCat = normalize(cat);
       const found = CATEGORIA_NOTA_ENUM.find(c => normalize(c) === normalizedCat);
       if (found) return found;
+
+      // Mapeamento de segurança com sinônimos e palavras-chave (incluindo as 3 novas categorias)
+      if (/preliminar|terraplenag|topograf|locacao|escavaca|demol|limpeza.*terreno/i.test(normalizedCat)) {
+        return 'Serviços Preliminares e Terraplenagem';
+      }
+      if (/esquadria|vidro|janela|blindex|box|porta.*vidro|aluminio.*vidro/i.test(normalizedCat)) {
+        return 'Esquadrias e Vidros';
+      }
+      if (/pintur|tinta|selador|massa.*corrida|verniz|esmalte|textura|primer/i.test(normalizedCat)) {
+        return 'Pintura';
+      }
+      if (/madeira|marcenaria|carpintaria|tabua|compensado|mdf|sarafo/i.test(normalizedCat)) {
+        return 'Carpintaria e Marcenaria';
+      }
+      if (/telha|cobertura|impermeabiliz|manta|calha|rufo/i.test(normalizedCat)) {
+        return 'Cobertura e Impermeabilização';
+      }
+      if (/alvenaria|vedacao|tijolo|bloco|cimento|argamassa|areia|brita/i.test(normalizedCat)) {
+        return 'Alvenaria e Vedação';
+      }
+      if (/hidraulic|hidrossanit|tubo|cano|esgoto|registro|conexao|torneira/i.test(normalizedCat)) {
+        return 'Instalação Hidráulica';
+      }
+      if (/eletric|fio|cabo|disjuntor|tomada|interruptor|conduite|iluminac|lampada/i.test(normalizedCat)) {
+        return 'Instalação Elétrica';
+      }
+      if (/acabamento|revestimento|piso|porcelanato|ceramica|rejunte|gesso/i.test(normalizedCat)) {
+        return 'Acabamento e Revestimento';
+      }
+      if (/estrutura|fundacao|concreto|ferro|aco|viga|pilar|sapata|estaca/i.test(normalizedCat)) {
+        return 'Estrutura e Fundação';
+      }
+      if (/geral|epi|ferramenta|consumo|limpeza|combustivel|cartorio/i.test(normalizedCat)) {
+        return 'Gastos Gerais';
+      }
+
       return 'Estrutura e Fundação';
     };
     

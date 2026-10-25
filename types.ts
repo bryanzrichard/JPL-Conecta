@@ -14,15 +14,66 @@ export const PAYMENT_METHODS: { [key: string]: string } = {
 // no seu banco de dados Supabase (em public.categoria_nota_enum).
 // Qualquer inconsistência causará erros ao salvar notas fiscais.
 export const CATEGORIA_NOTA_ENUM = [
+  'Serviços Preliminares e Terraplenagem',
   'Estrutura e Fundação',
+  'Carpintaria e Marcenaria',
+  'Alvenaria e Vedação',
+  'Cobertura e Impermeabilização',
   'Instalação Hidráulica',
   'Instalação Elétrica',
-  'Alvenaria e Vedação',
   'Acabamento e Revestimento',
-  'Carpintaria e Marcenaria',
-  'Cobertura e Impermeabilização',
+  'Esquadrias e Vidros',
+  'Pintura',
   'Gastos Gerais'
 ] as const;
+
+export type CategoriaNota = typeof CATEGORIA_NOTA_ENUM[number];
+
+export const ORCAMENTO_ETAPA_STATUSES = ['Planejado', 'Em Execução', 'Concluído'] as const;
+export type OrcamentoEtapaStatus = typeof ORCAMENTO_ETAPA_STATUSES[number];
+
+export const ORCAMENTO_ITEM_TIPOS = ['material', 'mao_de_obra'] as const;
+export type OrcamentoItemTipo = typeof ORCAMENTO_ITEM_TIPOS[number];
+
+export type OrcamentoEtapa = {
+  id: string;
+  company_id: string;
+  project_id: string;
+  nome: string;
+  ordem: number;
+  status: OrcamentoEtapaStatus;
+  created_at: string;
+};
+
+export type OrcamentoItem = {
+  id: string;
+  company_id: string;
+  etapa_id: string;
+  descricao: string;
+  tipo: OrcamentoItemTipo;
+  categoria: CategoriaNota;
+  quantidade: number;
+  valor_unitario: number;
+  valor_total: number;
+  created_at: string;
+};
+
+export interface OrcamentoEtapaWithDetails extends OrcamentoEtapa {
+  itens_count?: number;
+  total_previsto?: number;
+  total_material?: number;
+  total_mao_de_obra?: number;
+  categorias?: CategoriaNota[];
+  itens?: OrcamentoItem[];
+}
+
+export type OrcamentoCategorySummary = {
+  categoria: CategoriaNota;
+  orcado_material: number;
+  orcado_mao_de_obra: number;
+  orcado_total: number;
+  realizado_notas: number;
+};
 
 export const PROJECT_STATUSES = ['Planejamento', 'Em Andamento', 'Concluído'] as const;
 export type ProjectStatus = typeof PROJECT_STATUSES[number];
@@ -296,6 +347,8 @@ export type Database = {
       adiantamentos: { Row: Advance; Insert: Partial<Omit<Advance, 'id' | 'created_at'>>; Update: Partial<Omit<Advance, 'id' | 'created_at'>>; Relationships: []; };
       notas_fiscais: { Row: NotaFiscal; Insert: Partial<Omit<NotaFiscal, 'id' | 'created_at' | 'suppliers' | 'projects'>>; Update: Partial<Omit<NotaFiscal, 'id' | 'created_at' | 'suppliers' | 'projects'>>; Relationships: []; };
       itens_nota_fiscal: { Row: ItemNotaFiscal; Insert: Partial<Omit<ItemNotaFiscal, 'id'>>; Update: Partial<Omit<ItemNotaFiscal, 'id'>>; Relationships: []; };
+      orcamento_etapas: { Row: OrcamentoEtapa; Insert: Partial<Omit<OrcamentoEtapa, 'id' | 'created_at'>> & { company_id: string; project_id: string; nome: string }; Update: Partial<Omit<OrcamentoEtapa, 'id' | 'created_at'>>; Relationships: []; };
+      orcamento_itens: { Row: OrcamentoItem; Insert: Partial<Omit<OrcamentoItem, 'id' | 'created_at'>> & { company_id: string; etapa_id: string; descricao: string; tipo: OrcamentoItemTipo; categoria: CategoriaNota }; Update: Partial<Omit<OrcamentoItem, 'id' | 'created_at'>>; Relationships: []; };
       ai_process_jobs: { Row: AIProcessJob; Insert: Partial<Omit<AIProcessJob, 'id' | 'created_at'>>; Update: Partial<Omit<AIProcessJob, 'id' | 'created_at'>>; Relationships: []; };
       profiles: { Row: Profile; Insert: Partial<Omit<Profile, 'id' | 'company_keys' | 'companies'>>; Update: Partial<Omit<Profile, 'id' | 'company_keys' | 'companies'>>; Relationships: []; };
       cartorio_records: { Row: CartorioRecord; Insert: Partial<Omit<CartorioRecord, 'id' | 'created_at'>>; Update: Partial<Omit<CartorioRecord, 'id' | 'created_at'>>; Relationships: []; };
@@ -332,6 +385,10 @@ export type Database = {
       register_company_key: {
         Args: { p_key: string; p_company_name: string; p_user_id: string };
         Returns: boolean;
+      };
+      get_project_budget_by_category: {
+        Args: { p_company_id: string; p_project_id: string };
+        Returns: OrcamentoCategorySummary[];
       };
     };
     Enums: {

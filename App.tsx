@@ -14,6 +14,7 @@ import { useAuth } from './hooks/useAuth';
 import MainLayout from './components/MainLayout';
 import Notas from './pages/Notas';
 import Servicos from './pages/Servicos';
+import Orcamentos from './pages/Orcamentos';
 import Registros from './pages/Registros';
 import Cartorio from './pages/Cartorio';
 import Tarefas from './pages/Tarefas';
@@ -83,6 +84,8 @@ function App() {
                 <Route element={<MainLayout />}>
                   <Route path="/" element={<Home />} />
                   <Route path="/notas" element={<Notas />} />
+                  <Route path="/orcamentos" element={<Orcamentos />} />
+                  <Route path="/orcamento" element={<Navigate to="/orcamentos" replace />} />
                   <Route path="/servicos" element={<Servicos />} />
                   <Route path="/historico" element={<Navigate to="/notas" replace />} />
                   <Route path="/registro" element={<Registros />} />

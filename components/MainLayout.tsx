@@ -10,7 +10,7 @@ import {
     MenuIcon, XIcon, PlusIcon, ClipboardListIcon, FileTextIcon, 
     LayoutIcon, ConstructionIcon, ActivityIcon, BuildingIcon,
     LogOutIcon, ChevronRightIcon, UploadCloudIcon, SearchIcon,
-    KeyRoundIcon, MoreVerticalIcon
+    KeyRoundIcon, MoreVerticalIcon, CalculatorIcon
 } from '../lib/icons';
 import { formatDateBR } from '../lib/utils';
 
@@ -81,6 +81,7 @@ const MainLayout: React.FC = () => {
             icon: FileTextIcon, 
             badge: pendingAi > 0 ? { count: pendingAi, color: 'bg-amber-500/20 text-amber-500 border-amber-500/30' } : null 
         },
+        { name: 'Orçamentos', path: '/orcamentos', icon: CalculatorIcon, badge: null },
         { name: 'Serviços', path: '/servicos', icon: ConstructionIcon, badge: null },
         { name: 'Cartório', path: '/cartorio', icon: BuildingIcon, badge: null },
         { 
@@ -98,6 +99,9 @@ const MainLayout: React.FC = () => {
                 return { module: 'Visão Geral & Indicadores', description: 'Métricas financeiras e auditoria' };
             case '/notas':
                 return { module: 'Gestão de Notas Fiscais', description: 'Lançamentos, IA e conciliação' };
+            case '/orcamentos':
+            case '/orcamento':
+                return { module: 'Orçamentos & Planejamento', description: 'Etapas executivas e controle previsto vs realizado' };
             case '/servicos':
                 return { module: 'Ordem de Serviços', description: 'Medições e prestadores' };
             case '/cartorio':
@@ -117,7 +121,7 @@ const MainLayout: React.FC = () => {
     const userEmail = user?.email || 'bryanrichardjpl@icloud.com';
     const userInitial = userEmail.charAt(0).toUpperCase();
     const isFullBleedRoute = false;
-    const isCompactTopRoute = ['/servicos', '/notas', '/registro', '/registros'].includes(location.pathname);
+    const isCompactTopRoute = ['/servicos', '/notas', '/registro', '/registros', '/orcamentos', '/orcamento'].includes(location.pathname);
 
     const formattedKeyExpiry = profile?.company_keys?.expires_at 
         ? formatDateBR(profile.company_keys.expires_at)
@@ -466,6 +470,13 @@ const MainLayout: React.FC = () => {
                                     <LogOutIcon className="h-3.5 w-3.5" /> Sair
                                 </button>
                             </div>
+                            <NavLink
+                                to="/orcamentos"
+                                className={({ isActive }) => `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors ${isActive ? 'bg-indigo-50 dark:bg-brand-dark-800 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-brand-dark-800'}`}
+                            >
+                                <CalculatorIcon className="h-5 w-5" />
+                                <span className="font-medium text-sm">Orçamentos</span>
+                            </NavLink>
                             <NavLink
                                 to="/tarefas"
                                 className={({ isActive }) => `flex items-center justify-between px-4 py-2.5 rounded-xl transition-colors ${isActive ? 'bg-indigo-50 dark:bg-brand-dark-800 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-brand-dark-800'}`}

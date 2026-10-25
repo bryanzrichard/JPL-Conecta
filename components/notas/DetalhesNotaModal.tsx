@@ -55,26 +55,38 @@ const formatDate = (dateStr: string | null | undefined) => {
 
 const getCategoryBadgeClass = (category: string) => {
   switch (category) {
+    case 'Serviços Preliminares e Terraplenagem':
+      return 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20';
     case 'Estrutura':
     case 'Estrutura e Fundação':
       return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+    case 'Carpintaria e Marcenaria':
+      return 'bg-amber-600/15 text-amber-800 dark:text-amber-300 border-amber-600/30';
     case 'Alvenaria':
+    case 'Alvenaria e Vedação':
     case 'Alvenaria e Vedações':
       return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
-    case 'Elétrica':
-    case 'Instalações Elétricas':
-      return 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20';
+    case 'Cobertura e Impermeabilização':
+      return 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20';
     case 'Hidráulica':
+    case 'Instalação Hidráulica':
     case 'Instalações Hidrossanitárias':
       return 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20';
-    case 'Pintura':
-      return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
+    case 'Elétrica':
+    case 'Instalação Elétrica':
+    case 'Instalações Elétricas':
+      return 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20';
     case 'Acabamento':
+    case 'Acabamento e Revestimento':
     case 'Acabamentos e Revestimentos':
       return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+    case 'Esquadrias e Vidros':
+      return 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20';
+    case 'Pintura':
+      return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
+    case 'Gastos Gerais':
     case 'Ferramentas':
     case 'Ferramentas e Equipamentos':
-      return 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20';
     default:
       return 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20';
   }

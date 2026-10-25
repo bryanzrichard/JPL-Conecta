@@ -54,26 +54,38 @@ const isReceipt = (invoiceNumber?: string | null) => {
 
 const getCategoryBadgeClass = (category: string) => {
   switch (category) {
+    case 'Serviços Preliminares e Terraplenagem':
+      return 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/[0.12] dark:text-amber-300 dark:border-amber-500/20';
     case 'Estrutura':
     case 'Estrutura e Fundação':
       return 'bg-[#EEF2FF] text-[#4338CA] border-indigo-200/80 dark:bg-indigo-500/[0.12] dark:text-[#818CF8] dark:border-indigo-500/20';
+    case 'Carpintaria e Marcenaria':
+      return 'bg-amber-100/60 text-amber-900 border-amber-300/80 dark:bg-amber-600/[0.15] dark:text-amber-200 dark:border-amber-500/30';
     case 'Alvenaria':
+    case 'Alvenaria e Vedação':
     case 'Alvenaria e Vedações':
       return 'bg-[#FFFBEB] text-[#B45309] border-amber-200/80 dark:bg-amber-500/[0.12] dark:text-[#FBBF24] dark:border-amber-500/20';
-    case 'Elétrica':
-    case 'Instalações Elétricas':
-      return 'bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-500/[0.12] dark:text-yellow-400 dark:border-yellow-500/20';
+    case 'Cobertura e Impermeabilização':
+      return 'bg-teal-50 text-teal-800 border-teal-200 dark:bg-teal-500/[0.12] dark:text-teal-300 dark:border-teal-500/20';
     case 'Hidráulica':
+    case 'Instalação Hidráulica':
     case 'Instalações Hidrossanitárias':
       return 'bg-cyan-50 text-cyan-800 border-cyan-200 dark:bg-cyan-500/[0.12] dark:text-cyan-400 dark:border-cyan-500/20';
-    case 'Pintura':
-      return 'bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-500/[0.12] dark:text-purple-400 dark:border-purple-500/20';
+    case 'Elétrica':
+    case 'Instalação Elétrica':
+    case 'Instalações Elétricas':
+      return 'bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-500/[0.12] dark:text-yellow-400 dark:border-yellow-500/20';
     case 'Acabamento':
+    case 'Acabamento e Revestimento':
     case 'Acabamentos e Revestimentos':
       return 'bg-[#ECFDF5] text-[#047857] border-emerald-200/80 dark:bg-emerald-500/[0.12] dark:text-[#34D399] dark:border-emerald-500/20';
+    case 'Esquadrias e Vidros':
+      return 'bg-sky-50 text-sky-800 border-sky-200 dark:bg-sky-500/[0.12] dark:text-sky-300 dark:border-sky-500/20';
+    case 'Pintura':
+      return 'bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-500/[0.12] dark:text-purple-400 dark:border-purple-500/20';
+    case 'Gastos Gerais':
     case 'Ferramentas':
     case 'Ferramentas e Equipamentos':
-      return 'bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-500/[0.12] dark:text-orange-400 dark:border-orange-500/20';
     default:
       return 'bg-[#F1F5F9] text-[#475569] border-slate-200 dark:bg-[#1E293B] dark:text-[#94A3B8] dark:border-slate-700/60';
   }
