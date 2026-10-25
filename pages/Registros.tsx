@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, lazy, Suspense, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useMediaQuery } from '../hooks/use-media-query';
@@ -17,7 +17,7 @@ import {
   BuildingIcon, ConstructionIcon, UsersIcon, PlusIcon, SearchIcon, 
   DownloadIcon, EditIcon, Trash2Icon, MoreVerticalIcon, PhoneIcon,
   MapPinIcon, CopyIcon, CheckIcon, ExternalLinkIcon, XIcon,
-  ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon
+  ChevronUpIcon, ChevronDownIcon
 } from '../lib/icons';
 import { 
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger 
@@ -29,7 +29,7 @@ const CollaboratorModal = lazy(() => import('../components/registros/Collaborato
 
 type ActiveTab = 'suppliers' | 'projects' | 'collaborators';
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 20;
 
 // Format helper for documents (CPF 11 digits or CNPJ 14 digits)
 const formatDocument = (doc?: string | null): string => {
@@ -105,7 +105,6 @@ const Registros: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('suppliers');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page, setPage] = useState(0);
 
   // Status Filter for Obras
   const [statusFilter, setStatusFilter] = useState<string>('todos');
@@ -114,6 +113,10 @@ const Registros: React.FC = () => {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedCollaborator, setSelectedCollaborator] = useState<Collaborator | null>(null);
+
+  // Sentinel and sequential navigation refs for infinite scroll
+  const tableSentinelRef = useRef<HTMLDivElement | null>(null);
+  const pendingAdvanceAfterFetchRef = useRef(false);
 
   // Modal states
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
@@ -149,16 +152,14 @@ const Registros: React.FC = () => {
   // Debounce search query
   useEffect(() => {
     const handler = setTimeout(() => {
-      setPage(0);
       setDebouncedSearch(searchQuery);
     }, 350);
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Reset page and selection on tab change
+  // Reset selection on tab change
   const handleTabChange = (tab: ActiveTab) => {
     setActiveTab(tab);
-    setPage(0);
     setSearchQuery('');
     setDebouncedSearch('');
     setStatusFilter('todos');
@@ -246,10 +247,16 @@ const Registros: React.FC = () => {
     enabled: !!profile?.company_id,
   });
 
-  // Query: Suppliers
-  const { data: suppliersData, isLoading: isLoadingSuppliers } = useQuery<{ data: Supplier[]; count: number }>({
-    queryKey: ['suppliers', profile?.company_id, page, debouncedSearch],
-    queryFn: async () => {
+  // Query: Suppliers (Infinite Scroll)
+  const {
+    data: suppliersData,
+    fetchNextPage: fetchNextSuppliers,
+    hasNextPage: hasNextSuppliers,
+    isFetchingNextPage: isFetchingNextSuppliers,
+    isLoading: isLoadingSuppliers,
+  } = useInfiniteQuery({
+    queryKey: ['suppliers', profile?.company_id, debouncedSearch],
+    queryFn: async ({ pageParam = 0 }) => {
       let query = (supabase as any)
         .from('suppliers')
         .select('*', { count: 'exact' })
@@ -259,20 +266,31 @@ const Registros: React.FC = () => {
         query = query.or(`name.ilike.%${debouncedSearch}%,cnpj.ilike.%${debouncedSearch}%,seller.ilike.%${debouncedSearch}%`);
       }
 
-      const from = page * PAGE_SIZE;
+      const from = pageParam * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       const { data, count, error } = await query.order('name', { ascending: true }).range(from, to);
       if (error) throw error;
-      return { data: (data as Supplier[]) || [], count: count ?? 0 };
+      return {
+        data: (data as Supplier[]) || [],
+        count: count ?? 0,
+        nextPage: data && data.length === PAGE_SIZE ? pageParam + 1 : undefined,
+      };
     },
     enabled: !!profile?.company_id && activeTab === 'suppliers',
-    placeholderData: (previousData) => previousData,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 0,
   });
 
-  // Query: Projects
-  const { data: projectsData, isLoading: isLoadingProjects } = useQuery<{ data: Project[]; count: number }>({
-    queryKey: ['projects', profile?.company_id, page, debouncedSearch, statusFilter],
-    queryFn: async () => {
+  // Query: Projects (Infinite Scroll)
+  const {
+    data: projectsData,
+    fetchNextPage: fetchNextProjects,
+    hasNextPage: hasNextProjects,
+    isFetchingNextPage: isFetchingNextProjects,
+    isLoading: isLoadingProjects,
+  } = useInfiniteQuery({
+    queryKey: ['projects', profile?.company_id, debouncedSearch, statusFilter],
+    queryFn: async ({ pageParam = 0 }) => {
       const todayStr = new Date().toLocaleDateString('en-CA');
       let query = (supabase as any)
         .from('projects')
@@ -291,7 +309,7 @@ const Registros: React.FC = () => {
         query = query.eq('status', 'Planejamento');
       }
 
-      const from = page * PAGE_SIZE;
+      const from = pageParam * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       const { data, count, error } = await query.order('created_at', { ascending: false }).range(from, to);
       if (error) throw error;
@@ -301,35 +319,48 @@ const Registros: React.FC = () => {
         status: getEffectiveProjectStatus(p)
       }));
 
-      // Background auto-sync out-of-sync projects to Supabase
-      const outOfSync = ((data as Project[]) || []).filter(p => {
-        const cleanEnd = p.end_date ? (p.end_date.includes('T') ? p.end_date.split('T')[0] : p.end_date) : '';
-        return p.status !== 'Concluído' && cleanEnd && cleanEnd <= todayStr;
-      });
+      // Background auto-sync out-of-sync projects to Supabase (somente na 1ª página)
+      if (pageParam === 0) {
+        const outOfSync = ((data as Project[]) || []).filter(p => {
+          const cleanEnd = p.end_date ? (p.end_date.includes('T') ? p.end_date.split('T')[0] : p.end_date) : '';
+          return p.status !== 'Concluído' && cleanEnd && cleanEnd <= todayStr;
+        });
 
-      if (outOfSync.length > 0 && profile?.company_id) {
-        const ids = outOfSync.map(p => p.id);
-        (supabase as any)
-          .from('projects')
-          .update({ status: 'Concluído' })
-          .in('id', ids)
-          .eq('company_id', profile.company_id)
-          .then(() => {
-            queryClient.invalidateQueries({ queryKey: ['registros_counts'] });
-          })
-          .catch((err: any) => console.error('Erro ao sincronizar status da obra:', err));
+        if (outOfSync.length > 0 && profile?.company_id) {
+          const ids = outOfSync.map(p => p.id);
+          (supabase as any)
+            .from('projects')
+            .update({ status: 'Concluído' })
+            .in('id', ids)
+            .eq('company_id', profile.company_id)
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ['registros_counts'] });
+            })
+            .catch((err: any) => console.error('Erro ao sincronizar status da obra:', err));
+        }
       }
 
-      return { data: mapped, count: count ?? 0 };
+      return {
+        data: mapped,
+        count: count ?? 0,
+        nextPage: data && data.length === PAGE_SIZE ? pageParam + 1 : undefined,
+      };
     },
     enabled: !!profile?.company_id && activeTab === 'projects',
-    placeholderData: (previousData) => previousData,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 0,
   });
 
-  // Query: Collaborators
-  const { data: collaboratorsData, isLoading: isLoadingCollaborators } = useQuery<{ data: Collaborator[]; count: number }>({
-    queryKey: ['collaborators', profile?.company_id, page, debouncedSearch],
-    queryFn: async () => {
+  // Query: Collaborators (Infinite Scroll)
+  const {
+    data: collaboratorsData,
+    fetchNextPage: fetchNextCollaborators,
+    hasNextPage: hasNextCollaborators,
+    isFetchingNextPage: isFetchingNextCollaborators,
+    isLoading: isLoadingCollaborators,
+  } = useInfiniteQuery({
+    queryKey: ['collaborators', profile?.company_id, debouncedSearch],
+    queryFn: async ({ pageParam = 0 }) => {
       let query = (supabase as any)
         .from('collaborators')
         .select('*', { count: 'exact' })
@@ -339,35 +370,45 @@ const Registros: React.FC = () => {
         query = query.or(`name.ilike.%${debouncedSearch}%,role.ilike.%${debouncedSearch}%,document.ilike.%${debouncedSearch}%`);
       }
 
-      const from = page * PAGE_SIZE;
+      const from = pageParam * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       const { data, count, error } = await query.order('name', { ascending: true }).range(from, to);
       if (error) throw error;
-      return { data: (data as Collaborator[]) || [], count: count ?? 0 };
+      return {
+        data: (data as Collaborator[]) || [],
+        count: count ?? 0,
+        nextPage: data && data.length === PAGE_SIZE ? pageParam + 1 : undefined,
+      };
     },
     enabled: !!profile?.company_id && activeTab === 'collaborators',
-    placeholderData: (previousData) => previousData,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 0,
   });
+
+  // Flattened lists for infinite scroll
+  const allSuppliers = useMemo(() => suppliersData?.pages.flatMap(p => p.data) ?? [], [suppliersData]);
+  const allProjects = useMemo(() => projectsData?.pages.flatMap(p => p.data) ?? [], [projectsData]);
+  const allCollaborators = useMemo(() => collaboratorsData?.pages.flatMap(p => p.data) ?? [], [collaboratorsData]);
 
   // Keep selection synchronized with updated data
   useEffect(() => {
-    if (activeTab === 'suppliers' && suppliersData?.data.length) {
+    if (activeTab === 'suppliers' && allSuppliers.length) {
       if (selectedSupplier) {
-        const refreshed = suppliersData.data.find(s => s.id === selectedSupplier.id);
+        const refreshed = allSuppliers.find(s => s.id === selectedSupplier.id);
         if (refreshed) setSelectedSupplier(refreshed);
       }
-    } else if (activeTab === 'projects' && projectsData?.data.length) {
+    } else if (activeTab === 'projects' && allProjects.length) {
       if (selectedProject) {
-        const refreshed = projectsData.data.find(p => p.id === selectedProject.id);
+        const refreshed = allProjects.find(p => p.id === selectedProject.id);
         if (refreshed) setSelectedProject(refreshed);
       }
-    } else if (activeTab === 'collaborators' && collaboratorsData?.data.length) {
+    } else if (activeTab === 'collaborators' && allCollaborators.length) {
       if (selectedCollaborator) {
-        const refreshed = collaboratorsData.data.find(c => c.id === selectedCollaborator.id);
+        const refreshed = allCollaborators.find(c => c.id === selectedCollaborator.id);
         if (refreshed) setSelectedCollaborator(refreshed);
       }
     }
-  }, [suppliersData, projectsData, collaboratorsData, activeTab]);
+  }, [allSuppliers, allProjects, allCollaborators, activeTab]);
 
   // Generic Delete Mutation
   const deleteMutation = useMutation({
@@ -405,28 +446,62 @@ const Registros: React.FC = () => {
     }
   });
 
-  // Current active list & selection index for sequential navigation
+  // Current active list
   const activeList = useMemo(() => {
-    if (activeTab === 'suppliers') return suppliersData?.data || [];
-    if (activeTab === 'projects') return projectsData?.data || [];
-    return collaboratorsData?.data || [];
-  }, [activeTab, suppliersData, projectsData, collaboratorsData]);
+    if (activeTab === 'suppliers') return allSuppliers;
+    if (activeTab === 'projects') return allProjects;
+    return allCollaborators;
+  }, [activeTab, allSuppliers, allProjects, allCollaborators]);
+
+  // Active tab pagination controller
+  const activePagination = useMemo(() => {
+    if (activeTab === 'suppliers') {
+      return {
+        fetchNextPage: fetchNextSuppliers,
+        hasNextPage: !!hasNextSuppliers,
+        isFetchingNextPage: !!isFetchingNextSuppliers,
+        totalCount: suppliersData?.pages[0]?.count ?? 0,
+        isLoading: isLoadingSuppliers,
+      };
+    }
+    if (activeTab === 'projects') {
+      return {
+        fetchNextPage: fetchNextProjects,
+        hasNextPage: !!hasNextProjects,
+        isFetchingNextPage: !!isFetchingNextProjects,
+        totalCount: projectsData?.pages[0]?.count ?? 0,
+        isLoading: isLoadingProjects,
+      };
+    }
+    return {
+      fetchNextPage: fetchNextCollaborators,
+      hasNextPage: !!hasNextCollaborators,
+      isFetchingNextPage: !!isFetchingNextCollaborators,
+      totalCount: collaboratorsData?.pages[0]?.count ?? 0,
+      isLoading: isLoadingCollaborators,
+    };
+  }, [
+    activeTab,
+    fetchNextSuppliers, hasNextSuppliers, isFetchingNextSuppliers, suppliersData, isLoadingSuppliers,
+    fetchNextProjects, hasNextProjects, isFetchingNextProjects, projectsData, isLoadingProjects,
+    fetchNextCollaborators, hasNextCollaborators, isFetchingNextCollaborators, collaboratorsData, isLoadingCollaborators,
+  ]);
 
   const selectedIndex = useMemo(() => {
     if (activeTab === 'suppliers') {
       if (!selectedSupplier) return -1;
-      return (suppliersData?.data || []).findIndex(s => s.id === selectedSupplier.id);
+      return allSuppliers.findIndex(s => s.id === selectedSupplier.id);
     }
     if (activeTab === 'projects') {
       if (!selectedProject) return -1;
-      return (projectsData?.data || []).findIndex(p => p.id === selectedProject.id);
+      return allProjects.findIndex(p => p.id === selectedProject.id);
     }
     if (activeTab === 'collaborators') {
       if (!selectedCollaborator) return -1;
-      return (collaboratorsData?.data || []).findIndex(c => c.id === selectedCollaborator.id);
+      return allCollaborators.findIndex(c => c.id === selectedCollaborator.id);
     }
     return -1;
-  }, [activeTab, selectedSupplier, selectedProject, selectedCollaborator, suppliersData, projectsData, collaboratorsData]);
+  }, [activeTab, selectedSupplier, selectedProject, selectedCollaborator, allSuppliers, allProjects, allCollaborators]);
 
   const hasSelectedItem = !!(selectedSupplier || selectedProject || selectedCollaborator);
   const hasPrev = selectedIndex > 0;
@@ -442,13 +517,77 @@ const Registros: React.FC = () => {
   }, [hasPrev, activeList, selectedIndex, activeTab]);
 
   const handleNext = useCallback(() => {
-    if (!hasNext) return;
-    const nextItem = activeList[selectedIndex + 1];
-    if (!nextItem) return;
-    if (activeTab === 'suppliers') setSelectedSupplier(nextItem as Supplier);
-    else if (activeTab === 'projects') setSelectedProject(nextItem as Project);
-    else setSelectedCollaborator(nextItem as Collaborator);
-  }, [hasNext, activeList, selectedIndex, activeTab]);
+    if (hasNext) {
+      const nextItem = activeList[selectedIndex + 1];
+      if (nextItem) {
+        if (activeTab === 'suppliers') setSelectedSupplier(nextItem as Supplier);
+        else if (activeTab === 'projects') setSelectedProject(nextItem as Project);
+        else setSelectedCollaborator(nextItem as Collaborator);
+      }
+      // Se estiver nos últimos 3 itens e houver próxima página, pré-carrega em background!
+      if (selectedIndex >= activeList.length - 3 && activePagination.hasNextPage && !activePagination.isFetchingNextPage) {
+        activePagination.fetchNextPage();
+      }
+    } else if (activePagination.hasNextPage && !activePagination.isFetchingNextPage) {
+      pendingAdvanceAfterFetchRef.current = true;
+      activePagination.fetchNextPage();
+    }
+  }, [hasNext, activeList, selectedIndex, activeTab, activePagination]);
+
+  // Avançar automaticamente para o item recém-carregado quando pendingAdvanceAfterFetchRef for true
+  useEffect(() => {
+    if (pendingAdvanceAfterFetchRef.current && activeList.length > 0) {
+      pendingAdvanceAfterFetchRef.current = false;
+      if (selectedIndex >= 0 && selectedIndex < activeList.length - 1) {
+        const nextItem = activeList[selectedIndex + 1];
+        if (nextItem) {
+          if (activeTab === 'suppliers') setSelectedSupplier(nextItem as Supplier);
+          else if (activeTab === 'projects') setSelectedProject(nextItem as Project);
+          else setSelectedCollaborator(nextItem as Collaborator);
+        }
+      }
+    }
+  }, [activeList, selectedIndex, activeTab]);
+
+  // Observer para scroll infinito automático via IntersectionObserver
+  useEffect(() => {
+    const sentinel = tableSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && activePagination.hasNextPage && !activePagination.isFetchingNextPage) {
+        activePagination.fetchNextPage();
+      }
+    }, { threshold: 0.1 });
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [activePagination.hasNextPage, activePagination.isFetchingNextPage, activePagination.fetchNextPage]);
+
+  // Scroll listener no container interno
+  const handleTableScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+    if (distanceToBottom < 200 && activePagination.hasNextPage && !activePagination.isFetchingNextPage) {
+      activePagination.fetchNextPage();
+    }
+  }, [activePagination]);
+
+  // Scroll listener na janela (quando a página toda rola sem split view desktop)
+  useEffect(() => {
+    if (hasSelectedItem && isDesktop) return;
+
+    const handleWindowScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 300) {
+        if (activePagination.hasNextPage && !activePagination.isFetchingNextPage) {
+          activePagination.fetchNextPage();
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleWindowScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleWindowScroll);
+  }, [hasSelectedItem, isDesktop, activePagination]);
 
   const handleCloseDetail = useCallback(() => {
     setSelectedSupplier(null);
@@ -657,9 +796,8 @@ const Registros: React.FC = () => {
           title: 'Fornecedores',
           singular: 'Fornecedor',
           searchPlaceholder: 'Buscar fornecedor por nome, CNPJ ou vendedor...',
-          totalCount: suppliersData?.count ?? 0,
-          totalPages: Math.ceil((suppliersData?.count ?? 0) / PAGE_SIZE),
-          isLoading: isLoadingSuppliers,
+          totalCount: activePagination.totalCount,
+          isLoading: activePagination.isLoading,
           onAddNew: () => {
             setModalEditSupplier(null);
             setIsSupplierModalOpen(true);
@@ -670,9 +808,8 @@ const Registros: React.FC = () => {
           title: 'Obras',
           singular: 'Obra',
           searchPlaceholder: 'Buscar obra por nome, mestre ou cidade...',
-          totalCount: projectsData?.count ?? 0,
-          totalPages: Math.ceil((projectsData?.count ?? 0) / PAGE_SIZE),
-          isLoading: isLoadingProjects,
+          totalCount: activePagination.totalCount,
+          isLoading: activePagination.isLoading,
           onAddNew: () => {
             setModalEditProject(null);
             setIsProjectModalOpen(true);
@@ -683,16 +820,15 @@ const Registros: React.FC = () => {
           title: 'Colaboradores',
           singular: 'Colaborador',
           searchPlaceholder: 'Buscar colaborador por nome, função ou CPF...',
-          totalCount: collaboratorsData?.count ?? 0,
-          totalPages: Math.ceil((collaboratorsData?.count ?? 0) / PAGE_SIZE),
-          isLoading: isLoadingCollaborators,
+          totalCount: activePagination.totalCount,
+          isLoading: activePagination.isLoading,
           onAddNew: () => {
             setModalEditCollaborator(null);
             setIsCollaboratorModalOpen(true);
           }
         };
     }
-  }, [activeTab, suppliersData, projectsData, collaboratorsData, isLoadingSuppliers, isLoadingProjects, isLoadingCollaborators]);
+  }, [activeTab, activePagination]);
 
   // Helpers for Project status badges
   const getProjectStatusBadge = (status: ProjectStatus | string) => {
@@ -1242,7 +1378,7 @@ const Registros: React.FC = () => {
                   <button
                     key={st}
                     type="button"
-                    onClick={() => { setStatusFilter(st); setPage(0); }}
+                    onClick={() => setStatusFilter(st)}
                     className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer font-semibold ${
                       statusFilter === st
                         ? 'bg-white dark:bg-[#1E293B] text-indigo-600 dark:text-indigo-400 shadow-xs'
@@ -1295,7 +1431,10 @@ const Registros: React.FC = () => {
             ? 'w-full lg:w-[48%] xl:w-[46%] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800'
             : 'w-full'
         }`}>
-          <div className={`flex-1 overflow-x-auto ${hasSelectedItem && isDesktop ? 'max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar' : ''}`}>
+          <div 
+            onScroll={handleTableScroll}
+            className={`flex-1 overflow-x-auto ${hasSelectedItem && isDesktop ? 'max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar' : ''}`}
+          >
             
             {/* TABELA: FORNECEDORES */}
             {activeTab === 'suppliers' && (
@@ -1310,13 +1449,13 @@ const Registros: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-[#111827]">
-                  {tabConfig.isLoading && !suppliersData ? (
+                  {tabConfig.isLoading && allSuppliers.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-12 text-center text-slate-400 dark:text-gray-500">
                         Carregando fornecedores...
                       </td>
                     </tr>
-                  ) : !suppliersData || suppliersData.data.length === 0 ? (
+                  ) : allSuppliers.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-16 text-center">
                         <div className="max-w-xs mx-auto space-y-2">
@@ -1332,7 +1471,7 @@ const Registros: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    suppliersData.data.map((supplier) => {
+                    allSuppliers.map((supplier) => {
                       const isSelected = selectedSupplier?.id === supplier.id;
                       const whatsAppUrl = getWhatsAppUrl(supplier.seller_contact, supplier.seller || supplier.name);
 
@@ -1467,13 +1606,13 @@ const Registros: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-[#111827]">
-                  {tabConfig.isLoading && !projectsData ? (
+                  {tabConfig.isLoading && allProjects.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-gray-500">
                         Carregando obras...
                       </td>
                     </tr>
-                  ) : !projectsData || projectsData.data.length === 0 ? (
+                  ) : allProjects.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-16 text-center">
                         <div className="max-w-xs mx-auto space-y-2">
@@ -1489,7 +1628,7 @@ const Registros: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    projectsData.data.map((project) => {
+                    allProjects.map((project) => {
                       const isSelected = selectedProject?.id === project.id;
 
                       return (
@@ -1607,13 +1746,13 @@ const Registros: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-[#111827]">
-                  {tabConfig.isLoading && !collaboratorsData ? (
+                  {tabConfig.isLoading && allCollaborators.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-gray-500">
                         Carregando colaboradores...
                       </td>
                     </tr>
-                  ) : !collaboratorsData || collaboratorsData.data.length === 0 ? (
+                  ) : allCollaborators.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-16 text-center">
                         <div className="max-w-xs mx-auto space-y-2">
@@ -1629,7 +1768,7 @@ const Registros: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    collaboratorsData.data.map((collab) => {
+                    allCollaborators.map((collab) => {
                       const isSelected = selectedCollaborator?.id === collab.id;
                       const whatsAppUrl = getWhatsAppUrl(collab.phone, collab.name);
 
@@ -1744,48 +1883,47 @@ const Registros: React.FC = () => {
                 </tbody>
               </table>
             )}
+
+            {/* Sentinel de Scroll Infinito Automático (Sem necessidade de clicar em botões) */}
+            <div ref={tableSentinelRef} className="p-3 text-center border-t border-slate-100 dark:border-gray-800">
+              {activePagination.isFetchingNextPage ? (
+                <div className="flex items-center justify-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                  <div className="w-4 h-4 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                  <span>Carregando mais {tabConfig.title.toLowerCase()}...</span>
+                </div>
+              ) : activePagination.hasNextPage ? (
+                <span className="text-[11px] text-slate-400">Role ou use as setas para carregar mais</span>
+              ) : activeList.length > 0 ? (
+                <span className="text-[11px] text-slate-400">Todos os {activeList.length} {tabConfig.title.toLowerCase()} carregados</span>
+              ) : null}
+            </div>
           </div>
 
-          {/* Rodapé Fixo da Tabela com Paginação Compacta */}
-          <div className="h-12 shrink-0 bg-white dark:bg-[#111827] border-t border-[#E2E8F0] dark:border-[#1E293B] px-4 flex items-center justify-between text-xs text-slate-500 dark:text-gray-400">
+          {/* Rodapé Fixo Informativo da Tabela com Status do Scroll Infinito */}
+          <div className="h-10 shrink-0 bg-white dark:bg-[#111827] border-t border-[#E2E8F0] dark:border-[#1E293B] px-4 flex items-center justify-between text-xs text-slate-500 dark:text-gray-400">
             <div>
               <span>
-                Mostrando <strong className="text-slate-800 dark:text-white font-mono">{tabConfig.totalCount === 0 ? 0 : page * PAGE_SIZE + 1}</strong>
-                {' - '}
-                <strong className="text-slate-800 dark:text-white font-mono">
-                  {Math.min((page + 1) * PAGE_SIZE, tabConfig.totalCount)}
-                </strong>
+                Mostrando <strong className="text-slate-800 dark:text-white font-mono">{activeList.length}</strong>
                 {' de '}
-                <strong className="text-slate-800 dark:text-white font-mono">{tabConfig.totalCount}</strong> registros
+                <strong className="text-slate-800 dark:text-white font-mono">{activePagination.totalCount}</strong> {tabConfig.title.toLowerCase()}
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="h-7 px-2.5 text-xs gap-1 border-slate-200 dark:border-gray-700 cursor-pointer"
-              >
-                <ChevronLeftIcon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Anterior</span>
-              </Button>
-
-              <span className="px-2 font-mono text-[11px]">
-                {page + 1} / {Math.max(1, tabConfig.totalPages)}
-              </span>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.min(tabConfig.totalPages - 1, p + 1))}
-                disabled={page >= tabConfig.totalPages - 1 || tabConfig.totalPages === 0}
-                className="h-7 px-2.5 text-xs gap-1 border-slate-200 dark:border-gray-700 cursor-pointer"
-              >
-                <span className="hidden sm:inline">Próximo</span>
-                <ChevronRightIcon className="h-3.5 w-3.5" />
-              </Button>
+            <div className="flex items-center gap-2">
+              {activePagination.isFetchingNextPage ? (
+                <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-1.5">
+                  <div className="w-3 h-3 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                  Carregando...
+                </span>
+              ) : activePagination.hasNextPage ? (
+                <span className="text-[11px] text-slate-400 font-medium">
+                  Role para carregar mais
+                </span>
+              ) : activeList.length > 0 ? (
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                  ✓ Completo
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
@@ -1818,7 +1956,7 @@ const Registros: React.FC = () => {
               {/* Direita: Controles [↑] [↓] (X de Y), Editar, Excluir, [✕] */}
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="text-[11px] font-mono text-slate-400 dark:text-gray-500 mr-1 hidden sm:inline">
-                  {selectedIndex + 1} de {activeList.length}
+                  {selectedIndex + 1} de {activePagination.totalCount}
                 </span>
 
                 <Button
@@ -1836,7 +1974,7 @@ const Registros: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={handleNext}
-                  disabled={!hasNext}
+                  disabled={!hasNext && !activePagination.hasNextPage}
                   className="h-8 w-8 p-0 border-slate-200 dark:border-gray-700 disabled:opacity-30 cursor-pointer"
                   title="Próximo item (Seta ↓)"
                 >
