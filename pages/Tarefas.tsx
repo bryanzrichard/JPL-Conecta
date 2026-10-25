@@ -207,50 +207,107 @@ export const Tarefas: React.FC = () => {
   }, [quickInputText, projects, collaborators, fallbackProjId, projectsMap]);
 
   // -------------------------------------------------------------
-  // DITADO POR VOZ (WEB SPEECH API NATIVA)
+  // DITADO POR VOZ (WEB SPEECH API NATIVA COM PERMISSÃO E RESILIÊNCIA)
   // -------------------------------------------------------------
   const isSpeechSupported = useMemo(() => checkSpeechRecognitionSupport(), []);
 
-  const toggleVoiceRecording = () => {
-    if (!isSpeechSupported) {
-      toast({
-        variant: 'destructive',
-        title: 'Recurso não suportado',
-        description: 'Seu navegador não suporta reconhecimento de voz direto. Use o Chrome ou Edge.',
-      });
-      return;
-    }
-
+  const toggleVoiceRecording = async () => {
+    // 1. Se já estiver gravando, parar a escuta
     if (isListeningVoice) {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.warn('Erro ao interromper reconhecimento de voz:', e);
+        }
       }
       setIsListeningVoice(false);
       return;
     }
 
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast({
+        variant: 'destructive',
+        title: 'Microfone não suportado no navegador',
+        description: 'Seu navegador atual não possui suporte nativo à digitação por voz. Recomendamos usar o Google Chrome ou Microsoft Edge no PC ou smartphone.',
+      });
+      return;
+    }
+
+    // 2. Solicitar permissão de microfone antecipadamente caso não tenha sido concedida
     try {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Liberar as faixas do stream imediatamente para deixar o microfone disponível para o SpeechRecognition
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    } catch (permError: any) {
+      console.warn('Permissão de microfone negada ou erro ao solicitar:', permError);
+      toast({
+        variant: 'destructive',
+        title: 'Acesso ao Microfone Bloqueado',
+        description: 'Clique no ícone de cadeado ao lado do endereço do site (URL) no navegador e altere "Microfone" para Permitir.',
+      });
+      return;
+    }
+
+    // 3. Inicializar e configurar a instância de SpeechRecognition
+    try {
       const recognition = new SpeechRecognition();
       recognition.lang = 'pt-BR';
-      recognition.continuous = false;
+      recognition.continuous = true;
       recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
         setIsListeningVoice(true);
+        toast({
+          title: '🎙️ Ouvindo... Pode falar!',
+          description: 'Fale sua pendência com calma (ex: "Lázaro conferir nível da viga no Estrela Dalva amanhã").',
+        });
       };
 
       recognition.onresult = (event: any) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          transcript += event.results[i][0].transcript;
+        let fullTranscript = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          fullTranscript += event.results[i][0].transcript;
         }
-        setQuickInputText(transcript);
+        if (fullTranscript) {
+          setQuickInputText(fullTranscript);
+        }
       };
 
       recognition.onerror = (event: any) => {
-        console.warn('Erro no reconhecimento de voz:', event.error);
+        console.warn('Erro SpeechRecognition:', event.error);
         setIsListeningVoice(false);
+
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          toast({
+            variant: 'destructive',
+            title: 'Permissão de Microfone Negada',
+            description: 'Autorize o microfone no ícone de cadeado do seu navegador para poder ditar.',
+          });
+        } else if (event.error === 'no-speech') {
+          toast({
+            variant: 'destructive',
+            title: 'Nenhuma voz detectada',
+            description: 'Não detectamos som. Fale mais perto do microfone e tente novamente.',
+          });
+        } else if (event.error === 'audio-capture') {
+          toast({
+            variant: 'destructive',
+            title: 'Nenhum microfone encontrado',
+            description: 'Verifique se há um microfone conectado e selecionado no seu sistema.',
+          });
+        } else if (event.error === 'network') {
+          toast({
+            variant: 'destructive',
+            title: 'Falha temporária de rede',
+            description: 'O serviço de voz do navegador teve uma oscilação na conexão. Tente novamente.',
+          });
+        }
       };
 
       recognition.onend = () => {
@@ -262,9 +319,14 @@ export const Tarefas: React.FC = () => {
 
       recognitionRef.current = recognition;
       recognition.start();
-    } catch (e) {
-      console.error('Falha ao iniciar microfone:', e);
+    } catch (err: any) {
+      console.error('Falha ao iniciar reconhecimento de voz:', err);
       setIsListeningVoice(false);
+      toast({
+        variant: 'destructive',
+        title: 'Falha ao ligar microfone',
+        description: 'Não foi possível inicializar a escuta de voz. Tente novamente.',
+      });
     }
   };
 
@@ -605,17 +667,34 @@ export const Tarefas: React.FC = () => {
     createQuickTaskMutation.mutate(parsedPreview);
   };
 
-  // Handler de Cópia WhatsApp
+  // Handlers de Envio para WhatsApp
   const handleCopyWhatsApp = async () => {
     const success = await copyTextToClipboard(formattedWhatsAppText);
     if (success) {
       setIsCopiedSuccess(true);
       toast({
         title: '📋 Pauta Copiada!',
-        description: 'Texto formatado pronto para colar no WhatsApp da obra.',
+        description: 'Texto formatado copiado. Agora basta colar no WhatsApp.',
       });
       setTimeout(() => setIsCopiedSuccess(false), 3000);
     }
+  };
+
+  const handleDirectGroupSend = async () => {
+    const success = await copyTextToClipboard(formattedWhatsAppText);
+    if (success) {
+      setIsCopiedSuccess(true);
+      setTimeout(() => setIsCopiedSuccess(false), 3500);
+      toast({
+        title: '📋 Pauta Copiada! Abrindo WhatsApp...',
+        description: 'O grupo da JPL está abrindo na tela. Pressione Ctrl+V (ou Colar) e envie!',
+      });
+    }
+    openOfficialGroupLink();
+  };
+
+  const handleOpenWhatsAppPrefilled = () => {
+    openWhatsAppWebWithText(formattedWhatsAppText);
   };
 
   // -------------------------------------------------------------
@@ -913,6 +992,26 @@ export const Tarefas: React.FC = () => {
       {/* 2. BARRA DE ENTRADA ULTRARRÁPIDA (COM PARSER E VOZ)       */}
       {/* ========================================================= */}
       <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl p-3.5 shadow-sm space-y-2.5">
+        {/* Banner de Gravação de Voz Ativa */}
+        {isListeningVoice && (
+          <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs animate-pulse">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-3 w-3 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-600"></span>
+              </span>
+              <span className="font-bold truncate">🎙️ Gravando áudio... Pode falar a pendência agora!</span>
+            </div>
+            <button
+              type="button"
+              onClick={toggleVoiceRecording}
+              className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer shadow-xs shrink-0 transition-colors"
+            >
+              Concluir Fala ⏹️
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleQuickSubmit} className="relative flex items-center gap-2">
           {/* Ícone de Raio */}
           <div className="absolute left-3 text-emerald-600 dark:text-emerald-400">
@@ -925,27 +1024,33 @@ export const Tarefas: React.FC = () => {
             type="text"
             value={quickInputText}
             onChange={(e) => setQuickInputText(e.target.value)}
-            placeholder='Digite a pendência (ex: "Lázaro: conferir nível do baldrame no Estrela Dalva amanhã" ou "Comprar 20 tábuas")...'
-            className="w-full h-11 pl-9 pr-24 text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-900/40 border border-slate-200 dark:border-gray-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all"
+            placeholder={
+              isListeningVoice
+                ? 'Escutando sua voz em tempo real...'
+                : 'Digite ou fale a pendência (ex: "Lázaro: conferir nível do baldrame no Estrela Dalva amanhã" ou "Comprar 20 tábuas")...'
+            }
+            className={`w-full h-11 pl-9 pr-24 text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-900/40 border rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none transition-all ${
+              isListeningVoice
+                ? 'border-rose-400 ring-2 ring-rose-400/30'
+                : 'border-slate-200 dark:border-gray-800 focus:ring-2 focus:ring-emerald-500/40'
+            }`}
           />
 
           {/* Botões Internos: Ditado por Voz e Salvar */}
           <div className="absolute right-2 flex items-center gap-1.5">
             {/* Botão Microfone de Ditado */}
-            {isSpeechSupported && (
-              <button
-                type="button"
-                onClick={toggleVoiceRecording}
-                className={`p-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  isListeningVoice
-                    ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/30'
-                    : 'text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-                title={isListeningVoice ? 'Parar gravação de voz' : 'Falar pendência ao microfone (Ditado por Voz)'}
-              >
-                {isListeningVoice ? <MicOffIcon className="h-4 w-4" /> : <MicIcon className="h-4 w-4" />}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={toggleVoiceRecording}
+              className={`p-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                isListeningVoice
+                  ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/40 ring-2 ring-rose-300'
+                  : 'text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title={isListeningVoice ? 'Parar gravação de voz' : 'Falar pendência ao microfone (Ditado por Voz)'}
+            >
+              {isListeningVoice ? <MicOffIcon className="h-4 w-4" /> : <MicIcon className="h-4 w-4" />}
+            </button>
 
             {/* Botão Salvar (Enter) */}
             <Button
@@ -1243,8 +1348,21 @@ export const Tarefas: React.FC = () => {
               </span>
             </div>
 
+            {/* Explicação de como funciona o envio direto */}
+            <div className="px-3.5 py-2.5 bg-emerald-50/80 dark:bg-emerald-950/20 border-b border-slate-100 dark:border-gray-800 text-[11px] text-emerald-900 dark:text-emerald-300 space-y-1">
+              <div className="font-bold flex items-center gap-1.5 text-xs text-emerald-800 dark:text-emerald-300">
+                <span>💡 Como funciona o Envio em 1 Clique:</span>
+              </div>
+              <p className="text-[11px] leading-tight text-slate-600 dark:text-gray-300">
+                1. O botão verde copia a pauta e já abre o grupo da JPL no WhatsApp.
+              </p>
+              <p className="text-[11px] leading-tight text-slate-600 dark:text-gray-300">
+                2. No WhatsApp, você apenas pressiona <strong>Ctrl + V</strong> (ou segure o dedo e clique em <strong>Colar</strong> no celular) e aperta enviar!
+              </p>
+            </div>
+
             {/* Balão de Mensagem Estilo WhatsApp (Live Preview) */}
-            <div className="p-3.5 bg-[#EFEAE2]/60 dark:bg-[#0D1418] max-h-[360px] overflow-y-auto custom-scrollbar">
+            <div className="p-3.5 bg-[#EFEAE2]/60 dark:bg-[#0D1418] max-h-[300px] overflow-y-auto custom-scrollbar">
               <div className="bg-white dark:bg-[#1F2C34] border border-slate-200/60 dark:border-gray-700/50 rounded-xl p-3 shadow-xs text-xs font-mono text-slate-800 dark:text-[#E9EDEF] whitespace-pre-wrap leading-relaxed select-all">
                 {formattedWhatsAppText}
               </div>
@@ -1252,41 +1370,39 @@ export const Tarefas: React.FC = () => {
 
             {/* Botões de Ação da Pauta */}
             <div className="p-3 bg-white dark:bg-[#111827] border-t border-slate-100 dark:border-gray-800 space-y-2">
+              {/* Botão de Destaque 1 Clique */}
+              <button
+                type="button"
+                onClick={handleDirectGroupSend}
+                className="w-full h-10 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                title="Copia o texto da pauta e abre direto o grupo do WhatsApp da JPL para você só colar e enviar"
+              >
+                <SendIcon className="h-4 w-4" />
+                <span>{isCopiedSuccess ? '✅ Copiado! Abrindo Grupo...' : '🟢 Enviar no Grupo JPL (1 Clique)'}</span>
+              </button>
+
               <div className="grid grid-cols-2 gap-2">
-                {/* 1. Botão Copiar */}
+                {/* 1. Botão Apenas Copiar */}
                 <button
                   type="button"
                   onClick={handleCopyWhatsApp}
-                  className={`w-full h-9 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    isCopiedSuccess
-                      ? 'bg-emerald-700 text-white'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-                  }`}
+                  className="h-8 rounded-lg font-semibold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
-                  <CopyIcon className="h-3.5 w-3.5" />
-                  <span>{isCopiedSuccess ? 'Copiado! ✅' : 'Copiar Pauta'}</span>
+                  <CopyIcon className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Apenas Copiar</span>
                 </button>
 
-                {/* 2. Botão Abrir Grupo WhatsApp Oficial */}
+                {/* 2. Botão wa.me com texto pré-digitado */}
                 <button
                   type="button"
-                  onClick={openOfficialGroupLink}
-                  className="w-full h-9 rounded-xl font-semibold text-xs bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-gray-200 border border-slate-200 dark:border-gray-700 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                  title="Abrir o grupo do WhatsApp da JPL para colar a mensagem"
+                  onClick={handleOpenWhatsAppPrefilled}
+                  className="h-8 rounded-lg font-semibold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  title="Abre o WhatsApp com o texto já na barra de digitação para você escolher o contato ou grupo"
                 >
                   <SendIcon className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Abrir Grupo</span>
+                  <span>wa.me (Pré-digitado)</span>
                 </button>
               </div>
-
-              {/* 3. Botão Compartilhar via WhatsApp Web */}
-              <button
-                type="button"
-                onClick={() => openWhatsAppWebWithText(formattedWhatsAppText)}
-                className="w-full h-8 text-[11px] font-semibold text-slate-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-400 flex items-center justify-center gap-1 cursor-pointer transition-colors"
-              >
-                <span>Encaminhar no WhatsApp (Seletor de conversas) →</span>
-              </button>
             </div>
           </div>
         </div>
@@ -1318,6 +1434,110 @@ export const Tarefas: React.FC = () => {
         description={`Tem certeza que deseja excluir "${taskToDelete?.title}"?`}
         isLoading={deleteTaskMutation.isPending}
       />
+
+      {/* ========================================================= */}
+      {/* 6. MODAL RESPONSIVO: PAUTA WHATSAPP NO CELULAR / MOBILE   */}
+      {/* ========================================================= */}
+      {isMobileWhatsappPreviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-in fade-in-50">
+          <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-gray-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Cabeçalho */}
+            <div className="p-3.5 bg-emerald-600 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <SendIcon className="h-4 w-4" />
+                <div>
+                  <h3 className="text-xs font-bold">Pauta para WhatsApp</h3>
+                  <p className="text-[10px] text-emerald-100">
+                    Alimenta o grupo da JPL com 1 clique
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobileWhatsappPreviewOpen(false)}
+                className="p-1 rounded-lg hover:bg-white/20 text-white cursor-pointer"
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Alternador de Data e Progresso */}
+            <div className="px-3.5 py-2 bg-slate-50 dark:bg-slate-900/40 border-b border-slate-100 dark:border-gray-800 flex items-center justify-between text-xs">
+              <div className="inline-flex rounded-lg bg-slate-200 dark:bg-slate-800 p-0.5 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setPreviewDateMode('today')}
+                  className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                    previewDateMode === 'today'
+                      ? 'bg-white dark:bg-gray-700 text-slate-900 dark:text-white font-bold shadow-xs'
+                      : 'text-slate-600 dark:text-gray-400'
+                  }`}
+                >
+                  Hoje
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewDateMode('tomorrow')}
+                  className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                    previewDateMode === 'tomorrow'
+                      ? 'bg-white dark:bg-gray-700 text-slate-900 dark:text-white font-bold shadow-xs'
+                      : 'text-slate-600 dark:text-gray-400'
+                  }`}
+                >
+                  Amanhã
+                </button>
+              </div>
+
+              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                {dailyProgress}% concluído
+              </span>
+            </div>
+
+            {/* Balão de Mensagem */}
+            <div className="p-3.5 bg-[#EFEAE2]/60 dark:bg-[#0D1418] overflow-y-auto flex-1 text-xs font-mono text-slate-800 dark:text-[#E9EDEF] whitespace-pre-wrap select-all">
+              <div className="bg-white dark:bg-[#1F2C34] border border-slate-200/60 dark:border-gray-700/50 rounded-xl p-3 shadow-xs leading-relaxed">
+                {formattedWhatsAppText}
+              </div>
+            </div>
+
+            {/* Explicação de como funciona */}
+            <div className="px-3.5 py-2 bg-emerald-50/70 dark:bg-emerald-950/20 border-t border-emerald-100 dark:border-emerald-900/30 text-[11px] text-emerald-800 dark:text-emerald-300">
+              💡 <strong>Como enviar:</strong> Clique no botão verde abaixo. O sistema copia a pauta e já abre o grupo do WhatsApp da JPL. Lá dentro, é só segurar o dedo na barra de texto, clicar em <strong>Colar</strong> e enviar!
+            </div>
+
+            {/* Botões de Ação */}
+            <div className="p-3 bg-white dark:bg-[#111827] border-t border-slate-100 dark:border-gray-800 space-y-2">
+              <button
+                type="button"
+                onClick={handleDirectGroupSend}
+                className="w-full h-10 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <SendIcon className="h-4 w-4" />
+                <span>{isCopiedSuccess ? '✅ Copiado! Abrindo Grupo...' : '🟢 Enviar no Grupo JPL (1 Clique)'}</span>
+              </button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyWhatsApp}
+                  className="h-8 rounded-lg font-semibold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <CopyIcon className="h-3.5 w-3.5" />
+                  <span>Apenas Copiar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenWhatsAppPrefilled}
+                  className="h-8 rounded-lg font-semibold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <SendIcon className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>wa.me (Pré-digitado)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
