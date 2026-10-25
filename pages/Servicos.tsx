@@ -343,7 +343,7 @@ const Servicos: React.FC = () => {
         return servicesData?.pages.flatMap(page => page.data) ?? [];
     }, [servicesData]);
 
-    // Resumo de KPIs de Serviços (Cálculo adaptado ao filtro ativo)
+    // Resumo de KPIs de Serviços
     const { data: servicesSummary } = useQuery({
         queryKey: ['servicesSummary', profile?.company_id, serviceFilters, serviceStatusFilter],
         queryFn: async () => {
@@ -946,34 +946,34 @@ const Servicos: React.FC = () => {
     }, [profile?.company_id, activeTab, serviceStatusFilter, serviceFilters, advanceFilters, toast]);
 
     return (
-        <div className="w-full px-4 sm:px-6 py-5 space-y-5 animate-in fade-in-50">
+        <div className="w-full px-3 sm:px-5 py-3 space-y-2.5 animate-in fade-in-50">
             {/* ========================================================= */}
-            {/* 1. CABEÇALHO OPERACIONAL ENXUTO                           */}
+            {/* 1. CABEÇALHO OPERACIONAL ENXUTO (COMPACTO)                */}
             {/* ========================================================= */}
-            <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/20 shrink-0">
-                        <BriefcaseIcon className="h-5 w-5" />
+            <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
+                        <BriefcaseIcon className="h-4 w-4" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                        <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                             Serviços & Adiantamentos
                         </h1>
-                        <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
-                            Controle global de contratos de serviços, medições e extrato de adiantamentos financeiros.
+                        <p className="text-[11px] text-slate-500 dark:text-gray-400">
+                            Controle global de contratos de serviços, medições e extrato financeiro.
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={handleExportCsv}
-                        className="h-9 text-xs font-semibold border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1.5 cursor-pointer"
+                        className="h-8 text-xs font-semibold border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1.5 cursor-pointer"
                         title="Exportar listagem em formato CSV"
                     >
-                        <DownloadIcon className="h-4 w-4 text-slate-500 dark:text-gray-400" />
+                        <DownloadIcon className="h-3.5 w-3.5 text-slate-500 dark:text-gray-400" />
                         <span>Exportar CSV</span>
                     </Button>
 
@@ -1000,54 +1000,54 @@ const Servicos: React.FC = () => {
                                 }
                             }
                         }}
-                        className="h-9 text-xs font-semibold border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1.5 cursor-pointer"
+                        className="h-8 text-xs font-semibold border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1.5 cursor-pointer"
                     >
-                        <PlusIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        <PlusIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                         <span>+ Nova Medição</span>
                     </Button>
 
                     <Button
                         size="sm"
                         onClick={() => { setSelectedService(null); setCreateServiceModalOpen(true); }}
-                        className="h-9 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white gap-1.5 shadow-sm shadow-indigo-600/30 cursor-pointer"
+                        className="h-8 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white gap-1.5 shadow-sm shadow-indigo-600/30 cursor-pointer"
                     >
-                        <PlusIcon className="h-4 w-4" />
+                        <PlusIcon className="h-3.5 w-3.5" />
                         <span>+ Novo Contrato</span>
                     </Button>
                 </div>
             </header>
 
             {/* ========================================================= */}
-            {/* 2. SISTEMA DE ABAS                                        */}
+            {/* 2. SISTEMA DE ABAS (COMPACTO)                             */}
             {/* ========================================================= */}
             <div className="border-b border-slate-200 dark:border-gray-800">
                 <nav className="flex space-x-6 sm:space-x-8" aria-label="Abas">
                     <button
                         onClick={() => handleTabChange('servicos')}
-                        className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+                        className={`pb-2 text-xs sm:text-sm font-bold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer ${
                             activeTab === 'servicos'
                                 ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
                                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white'
                         }`}
                     >
-                        <BriefcaseIcon className="h-4 w-4" />
+                        <BriefcaseIcon className="h-3.5 w-3.5" />
                         <span>Contratos de Serviços</span>
-                        <span className="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-400 font-semibold">
+                        <span className="ml-1 text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-400 font-semibold">
                             {servicesSummary?.count ?? '...'}
                         </span>
                     </button>
 
                     <button
                         onClick={() => handleTabChange('adiantamentos')}
-                        className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+                        className={`pb-2 text-xs sm:text-sm font-bold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer ${
                             activeTab === 'adiantamentos'
                                 ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
                                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white'
                         }`}
                     >
-                        <DollarSignIcon className="h-4 w-4" />
+                        <DollarSignIcon className="h-3.5 w-3.5" />
                         <span>Extrato de Adiantamentos</span>
-                        <span className="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-400 font-semibold">
+                        <span className="ml-1 text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-400 font-semibold">
                             {advancesSummary?.count ?? '...'}
                         </span>
                     </button>
@@ -1058,93 +1058,93 @@ const Servicos: React.FC = () => {
             {/* CONTEÚDO DA ABA 1: CONTRATOS DE SERVIÇOS                       */}
             {/* ============================================================== */}
             {activeTab === 'servicos' && (
-                <div className="space-y-5">
-                    {/* Faixa de 4 Cards Operacionais: Serviços */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className="space-y-2.5">
+                    {/* Faixa de 4 Cards Operacionais: Serviços (Alta Densidade) */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
                         {/* Card 1: Total Contratado */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
-                            <div className="flex items-center gap-3.5 min-w-0">
-                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                                    <BriefcaseIcon className="h-5 w-5" />
+                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-2.5 sm:p-3 rounded-xl shadow-xs flex items-center justify-between">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                                    <BriefcaseIcon className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Total Contratado</p>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white truncate">
+                                    <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium leading-tight">Total Contratado</p>
+                                    <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate font-mono">
                                         {formatCurrency(servicesSummary?.totalValue || 0)}
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800/60 whitespace-nowrap shrink-0">
+                            <span className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 px-1.5 py-0.2 rounded-full border border-indigo-200 dark:border-indigo-800/60 whitespace-nowrap shrink-0">
                                 {servicesSummary?.count || 0} contratos
                             </span>
                         </div>
 
-                        {/* Card 2: Total Pago / Adiantado */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
-                            <div className="flex items-center gap-3.5 min-w-0">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                                    <CheckCircle2Icon className="h-5 w-5" />
+                        {/* Card 2: Total Pago */}
+                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-2.5 sm:p-3 rounded-xl shadow-xs flex items-center justify-between">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                                    <CheckCircle2Icon className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Total Pago / Adiantado</p>
-                                    <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                                    <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium leading-tight">Total Pago</p>
+                                    <p className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 truncate font-mono">
                                         {formatCurrency(servicesSummary?.totalPaid || 0)}
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60 whitespace-nowrap shrink-0">
+                            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.2 rounded-full border border-emerald-200 dark:border-emerald-800/60 whitespace-nowrap shrink-0">
                                 {servicesSummary?.totalValue ? Math.round(((servicesSummary.totalPaid || 0) / servicesSummary.totalValue) * 100) : 0}% quitado
                             </span>
                         </div>
 
-                        {/* Card 3: Saldo Restante a Pagar */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
-                            <div className="flex items-center gap-3.5 min-w-0">
-                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                                    <TrendingUpIcon className="h-5 w-5" />
+                        {/* Card 3: Saldo Restante */}
+                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-2.5 sm:p-3 rounded-xl shadow-xs flex items-center justify-between">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                                    <TrendingUpIcon className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Saldo Restante a Pagar</p>
-                                    <p className="text-lg font-bold text-amber-600 dark:text-amber-400 truncate">
+                                    <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium leading-tight">Saldo a Pagar</p>
+                                    <p className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400 truncate font-mono">
                                         {formatCurrency(servicesSummary?.remainingValue || 0)}
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60 whitespace-nowrap shrink-0">
-                                A Pagar
+                            <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.2 rounded-full border border-amber-200 dark:border-amber-800/60 whitespace-nowrap shrink-0">
+                                Pendente
                             </span>
                         </div>
 
-                        {/* Card 4: Ticket Médio por Contrato */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
-                            <div className="flex items-center gap-3.5 min-w-0">
-                                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                                    <DollarSignIcon className="h-5 w-5" />
+                        {/* Card 4: Ticket Médio Contrato */}
+                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-2.5 sm:p-3 rounded-xl shadow-xs flex items-center justify-between">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                                    <DollarSignIcon className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Ticket Médio Contrato</p>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white truncate">
+                                    <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium leading-tight">Ticket Médio</p>
+                                    <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate font-mono">
                                         {formatCurrency(servicesSummary?.count ? ((servicesSummary.totalValue || 0) / servicesSummary.count) : 0)}
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[11px] font-medium text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-brand-dark-800 px-2 py-0.5 rounded border border-slate-200 dark:border-gray-700 whitespace-nowrap shrink-0">
-                                {allServices.length} carregados
+                            <span className="text-[10px] font-medium text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-brand-dark-800 px-1.5 py-0.2 rounded border border-slate-200 dark:border-gray-700 whitespace-nowrap shrink-0">
+                                {allServices.length} listados
                             </span>
                         </div>
                     </div>
 
                     {/* Barra de Controle e Filtros Rápidos (Colada no topo da tabela) */}
                     <div className="space-y-0">
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 rounded-t-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 rounded-t-xl px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-xs">
                             {/* Esquerda: Quick-filter pills para Obra + Pílulas de Status + Atalhos de Período */}
-                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                                 {/* Pílulas de Status */}
                                 <div className="inline-flex rounded-lg bg-slate-100 dark:bg-brand-dark-800 p-0.5 border border-slate-200 dark:border-gray-700 text-xs">
                                     <button
                                         type="button"
                                         onClick={() => setServiceStatusFilter('Em Andamento')}
-                                        className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                                        className={`px-2 py-0.5 rounded-md font-semibold text-xs transition-all cursor-pointer ${
                                             serviceStatusFilter === 'Em Andamento'
                                                 ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-xs'
                                                 : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
@@ -1155,7 +1155,7 @@ const Servicos: React.FC = () => {
                                     <button
                                         type="button"
                                         onClick={() => setServiceStatusFilter('Concluído')}
-                                        className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                                        className={`px-2 py-0.5 rounded-md font-semibold text-xs transition-all cursor-pointer ${
                                             serviceStatusFilter === 'Concluído'
                                                 ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-xs'
                                                 : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
@@ -1166,7 +1166,7 @@ const Servicos: React.FC = () => {
                                     <button
                                         type="button"
                                         onClick={() => setServiceStatusFilter('Todos')}
-                                        className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                                        className={`px-2 py-0.5 rounded-md font-semibold text-xs transition-all cursor-pointer ${
                                             serviceStatusFilter === 'Todos'
                                                 ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-xs'
                                                 : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
@@ -1176,16 +1176,16 @@ const Servicos: React.FC = () => {
                                     </button>
                                 </div>
 
-                                <div className="hidden lg:block h-4 w-px bg-slate-200 dark:bg-gray-800 mx-1" />
+                                <div className="hidden lg:block h-3.5 w-px bg-slate-200 dark:bg-gray-800 mx-0.5" />
 
                                 {/* Pílulas Rápidas de Obra */}
-                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">
+                                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">
                                     Obra:
                                 </span>
                                 <button
                                     type="button"
                                     onClick={() => setServiceFilters(prev => ({ ...prev, projectId: null }))}
-                                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                    className={`px-2 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                                         !serviceFilters.projectId
                                             ? 'bg-indigo-600 text-white shadow-xs'
                                             : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-brand-dark-700'
@@ -1198,7 +1198,7 @@ const Servicos: React.FC = () => {
                                         key={p.id}
                                         type="button"
                                         onClick={() => setServiceFilters(prev => ({ ...prev, projectId: prev.projectId === p.id ? null : p.id }))}
-                                        className={`px-2.5 py-1 rounded-lg text-xs font-medium max-w-[120px] truncate transition-all cursor-pointer ${
+                                        className={`px-2 py-0.5 rounded-md text-xs font-medium max-w-[110px] truncate transition-all cursor-pointer ${
                                             serviceFilters.projectId === p.id
                                                 ? 'bg-indigo-600 text-white font-semibold shadow-xs'
                                                 : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-brand-dark-700'
@@ -1209,7 +1209,7 @@ const Servicos: React.FC = () => {
                                     </button>
                                 ))}
 
-                                <div className="hidden xl:block h-4 w-px bg-slate-200 dark:bg-gray-800 mx-1" />
+                                <div className="hidden xl:block h-3.5 w-px bg-slate-200 dark:bg-gray-800 mx-0.5" />
 
                                 {/* Atalhos Rápidos de Período */}
                                 <div className="hidden md:flex items-center gap-1">
@@ -1218,7 +1218,7 @@ const Servicos: React.FC = () => {
                                             key={s.label}
                                             type="button"
                                             onClick={() => applyQuickPeriodServices(s)}
-                                            className="px-2 py-1 text-[11px] font-medium rounded-md text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-brand-dark-800 transition-colors cursor-pointer"
+                                            className="px-1.5 py-0.5 text-[10px] font-medium rounded text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-brand-dark-800 transition-colors cursor-pointer"
                                         >
                                             {s.label}
                                         </button>
@@ -1227,15 +1227,15 @@ const Servicos: React.FC = () => {
                             </div>
 
                             {/* Direita: Busca Rápida + Botão Drawer Filtros */}
-                            <div className="flex items-center gap-2">
-                                <div className="relative w-52 sm:w-60">
+                            <div className="flex items-center gap-1.5">
+                                <div className="relative w-48 sm:w-56">
                                     <SearchIcon className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                                     <Input
                                         type="text"
                                         value={serviceFilters.searchTerm}
                                         onChange={(e) => setServiceFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
                                         placeholder="Buscar serviço..."
-                                        className="h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-brand-dark-800/80 border-slate-200 dark:border-gray-700"
+                                        className="h-7.5 pl-8 pr-7 text-xs bg-slate-50 dark:bg-brand-dark-800/80 border-slate-200 dark:border-gray-700"
                                     />
                                     {serviceFilters.searchTerm && (
                                         <button
@@ -1252,12 +1252,12 @@ const Servicos: React.FC = () => {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => { setTempServiceFilters(serviceFilters); setServiceFilterSheetOpen(true); }}
-                                    className="h-8 px-3 text-xs font-semibold border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-brand-dark-800 text-slate-700 dark:text-gray-300 gap-1.5 cursor-pointer"
+                                    className="h-7.5 px-2.5 text-xs font-semibold border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-brand-dark-800 text-slate-700 dark:text-gray-300 gap-1 cursor-pointer"
                                 >
-                                    <FilterIcon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                                    <FilterIcon className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
                                     <span>Filtros</span>
                                     {activeServiceFiltersCount > 0 && (
-                                        <span className="ml-1 flex items-center justify-center h-4.5 min-w-[18px] px-1 text-[10px] font-bold rounded-full bg-indigo-600 text-white">
+                                        <span className="ml-1 flex items-center justify-center h-4 min-w-[16px] px-1 text-[9px] font-bold rounded-full bg-indigo-600 text-white">
                                             {activeServiceFiltersCount}
                                         </span>
                                     )}
@@ -1267,28 +1267,28 @@ const Servicos: React.FC = () => {
 
                         {/* Faixa de Filtros Ativos (se houver) */}
                         {activeServiceFiltersCount > 0 && (
-                            <div className="flex items-center justify-between gap-3 bg-indigo-50/60 dark:bg-indigo-950/20 border-x border-b border-indigo-200/80 dark:border-indigo-900/40 px-4 py-2 text-xs">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
-                                        <FilterIcon className="h-3.5 w-3.5" /> Filtros ativos ({activeServiceFiltersCount}):
+                            <div className="flex items-center justify-between gap-2 bg-indigo-50/60 dark:bg-indigo-950/20 border-x border-b border-indigo-200/80 dark:border-indigo-900/40 px-3 py-1.5 text-xs">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1 text-[11px]">
+                                        <FilterIcon className="h-3 w-3" /> Filtros ativos ({activeServiceFiltersCount}):
                                     </span>
                                     {serviceFilters.searchTerm && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-[11px]">
                                             Termo: "{serviceFilters.searchTerm}"
                                         </span>
                                     )}
                                     {serviceFilters.collaboratorId && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-[11px]">
                                             Prestador: {collaborators.find(c => c.id === serviceFilters.collaboratorId)?.name}
                                         </span>
                                     )}
                                     {serviceFilters.projectId && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-[11px]">
                                             Obra: {projects.find(p => p.id === serviceFilters.projectId)?.name}
                                         </span>
                                     )}
                                     {(serviceFilters.startDate || serviceFilters.endDate) && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-[11px]">
                                             Período: {serviceFilters.startDate ? serviceFilters.startDate.toLocaleDateString('pt-BR') : 'Início'} até {serviceFilters.endDate ? serviceFilters.endDate.toLocaleDateString('pt-BR') : 'Hoje'}
                                         </span>
                                     )}
@@ -1297,7 +1297,7 @@ const Servicos: React.FC = () => {
                                     variant="ghost" 
                                     size="sm" 
                                     onClick={() => setServiceFilters({ searchTerm: '', collaboratorId: null, projectId: null, startDate: null, endDate: null })}
-                                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline h-7 px-2 font-semibold"
+                                    className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline h-6 px-1.5 font-semibold"
                                 >
                                     Limpar todos
                                 </Button>
@@ -1306,7 +1306,7 @@ const Servicos: React.FC = () => {
 
                         {/* Tabela de Alta Densidade com Split View Retrátil Inline */}
                         <div className={`overflow-hidden rounded-b-xl border-x border-b border-slate-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 shadow-sm flex flex-col lg:flex-row ${
-                            selectedService && isDesktop ? 'items-stretch' : ''
+                            selectedService && isDesktop ? 'h-[calc(100vh-210px)] min-h-[460px] items-stretch' : ''
                         }`}>
                             {isLoadingServices ? (
                                 <>
@@ -1365,20 +1365,20 @@ const Servicos: React.FC = () => {
                                     {/* Desktop: Painel Esquerdo (Tabela Retrátil em Split View) */}
                                     <div className={`transition-all duration-300 ease-in-out ${
                                         selectedService && isDesktop
-                                            ? 'w-full lg:w-[48%] xl:w-[46%] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800'
+                                            ? 'w-full lg:w-[46%] xl:w-[44%] shrink-0 h-full flex flex-col border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800 overflow-hidden'
                                             : 'w-full'
                                     }`}>
-                                        <div className={`hidden md:block overflow-x-auto ${selectedService && isDesktop ? 'max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar' : ''}`}>
+                                        <div className={`hidden md:block overflow-x-auto ${selectedService && isDesktop ? 'flex-1 overflow-y-auto custom-scrollbar' : ''}`}>
                                             <table className="w-full text-sm text-left text-slate-600 dark:text-gray-400">
-                                                <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-brand-dark-800/60 border-b border-slate-200 dark:border-gray-800 sticky top-0 z-10">
+                                                <thead className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-brand-dark-800/60 border-b border-slate-200 dark:border-gray-800 sticky top-0 z-10">
                                                     <tr>
-                                                        <th className="px-3 sm:px-4 py-3.5 font-semibold">Serviço / Escopo</th>
-                                                        <th className={selectedService && isDesktop ? 'hidden' : 'px-4 py-3.5 font-semibold'}>Prestador</th>
-                                                        <th className={selectedService && isDesktop ? 'hidden' : 'px-4 py-3.5 font-semibold'}>Obra / Destino</th>
-                                                        <th className={selectedService && isDesktop ? 'hidden' : 'px-4 py-3.5 font-semibold'}>Cronograma & Prazo</th>
-                                                        <th className="px-3 sm:px-4 py-3.5 font-semibold text-right whitespace-nowrap">Execução Financeira</th>
-                                                        <th className={selectedService && isDesktop ? 'hidden' : 'px-4 py-3.5 font-semibold text-center'}>Status</th>
-                                                        <th className="px-2 sm:px-4 py-3.5 font-semibold text-center w-12 sm:w-16">Ações</th>
+                                                        <th className="px-3 sm:px-3.5 py-2.5 font-semibold">Serviço / Escopo</th>
+                                                        <th className={selectedService && isDesktop ? 'hidden' : 'px-3.5 py-2.5 font-semibold'}>Prestador</th>
+                                                        <th className={selectedService && isDesktop ? 'hidden' : 'px-3.5 py-2.5 font-semibold'}>Obra / Destino</th>
+                                                        <th className={selectedService && isDesktop ? 'hidden' : 'px-3.5 py-2.5 font-semibold'}>Cronograma & Prazo</th>
+                                                        <th className="px-3 sm:px-3.5 py-2.5 font-semibold text-right whitespace-nowrap">Execução Financeira</th>
+                                                        <th className={selectedService && isDesktop ? 'hidden' : 'px-3.5 py-2.5 font-semibold text-center'}>Status</th>
+                                                        <th className="px-2 sm:px-3 py-2.5 font-semibold text-center w-12 sm:w-14">Ações</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-brand-dark-900">
@@ -1397,7 +1397,7 @@ const Servicos: React.FC = () => {
                                                                 onClick={() => handleSelectService(service)}
                                                             >
                                                                 {/* 1. SERVIÇO / ESCOPO (+ PRESTADOR/OBRA quando retraída) */}
-                                                                <td className="px-3 sm:px-4 py-3 min-w-0">
+                                                                <td className="px-3 sm:px-3.5 py-2 min-w-0">
                                                                     <div className="flex flex-col min-w-0">
                                                                         <div className="flex items-center gap-1.5 flex-wrap">
                                                                             <span className={`text-xs truncate ${isSelected ? 'font-bold text-indigo-700 dark:text-indigo-300' : 'font-semibold text-slate-900 dark:text-white'}`} title={service.description}>
@@ -1419,7 +1419,7 @@ const Servicos: React.FC = () => {
                                                                             )}
                                                                         </div>
                                                                         {selectedService && isDesktop && (
-                                                                            <span className="text-[11px] text-slate-500 dark:text-gray-400 truncate max-w-[200px]" title={`${service.collaborator_name || 'Sem colaborador'} • ${service.project_name || 'Sem obra'}`}>
+                                                                            <span className="text-[10px] text-slate-500 dark:text-gray-400 truncate max-w-[180px]" title={`${service.collaborator_name || 'Sem colaborador'} • ${service.project_name || 'Sem obra'}`}>
                                                                                 {service.collaborator_name || 'Sem colaborador'} • {service.project_name || 'Sem obra'}
                                                                             </span>
                                                                         )}
@@ -1427,56 +1427,56 @@ const Servicos: React.FC = () => {
                                                                 </td>
 
                                                                 {/* 2. PRESTADOR */}
-                                                                <td className={selectedService && isDesktop ? 'hidden' : 'px-4 py-3.5 max-w-xs'}>
+                                                                <td className={selectedService && isDesktop ? 'hidden' : 'px-3.5 py-2.5 max-w-xs'}>
                                                                     <span className="font-semibold text-slate-900 dark:text-white text-xs truncate block" title={service.collaborator_name || 'Sem colaborador'}>
                                                                         {service.collaborator_name || 'Sem colaborador'}
                                                                     </span>
                                                                 </td>
 
                                                                 {/* 3. OBRA / DESTINO */}
-                                                                <td className={selectedService && isDesktop ? 'hidden' : 'px-4 py-3.5'}>
-                                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 dark:bg-brand-dark-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 max-w-[200px] truncate" title={service.project_name || 'Geral'}>
+                                                                <td className={selectedService && isDesktop ? 'hidden' : 'px-3.5 py-2.5'}>
+                                                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 dark:bg-brand-dark-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 max-w-[180px] truncate" title={service.project_name || 'Geral'}>
                                                                         <ConstructionIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                                                         <span className="truncate">{service.project_name || 'Geral'}</span>
                                                                     </span>
                                                                 </td>
 
                                                                 {/* 4. CRONOGRAMA & PRAZO */}
-                                                                <td className={selectedService && isDesktop ? 'hidden' : 'px-4 py-3.5 whitespace-nowrap text-xs text-slate-500 dark:text-gray-400'}>
+                                                                <td className={selectedService && isDesktop ? 'hidden' : 'px-3.5 py-2.5 whitespace-nowrap text-xs text-slate-500 dark:text-gray-400'}>
                                                                     <div>{formatDate(service.start_date)}</div>
-                                                                    <div className="text-[11px] text-slate-400">até {formatDate(service.end_date)}</div>
+                                                                    <div className="text-[10px] text-slate-400">até {formatDate(service.end_date)}</div>
                                                                 </td>
 
                                                                 {/* 5. EXECUÇÃO FINANCEIRA */}
-                                                                <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-right">
+                                                                <td className="px-3 sm:px-3.5 py-2 whitespace-nowrap text-right">
                                                                     <div className="flex flex-col items-end">
                                                                         <span className="font-mono tabular-nums font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
                                                                             {formatCurrency(service.total_value)}
                                                                         </span>
-                                                                        <span className={`text-[11px] font-mono font-medium ${isCompleted ? 'text-slate-400' : (service.remaining_value > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400')}`}>
+                                                                        <span className={`text-[10px] font-mono font-medium ${isCompleted ? 'text-slate-400' : (service.remaining_value > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400')}`}>
                                                                             {isCompleted ? 'Quitado' : `Resta ${formatCurrency(service.remaining_value)}`}
                                                                         </span>
                                                                     </div>
                                                                 </td>
 
                                                                 {/* 6. STATUS */}
-                                                                <td className={selectedService && isDesktop ? 'hidden' : 'px-4 py-3.5 whitespace-nowrap text-center'}>
+                                                                <td className={selectedService && isDesktop ? 'hidden' : 'px-3.5 py-2.5 whitespace-nowrap text-center'}>
                                                                     <Badge className={isCompleted 
-                                                                        ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20' 
-                                                                        : 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20'}
+                                                                        ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20 text-[10px] py-0' 
+                                                                        : 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 text-[10px] py-0'}
                                                                     >
                                                                         {service.status}
                                                                     </Badge>
                                                                 </td>
 
                                                                 {/* 7. AÇÕES */}
-                                                                <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                                                                <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                                                     <DropdownMenu>
                                                                         <DropdownMenuTrigger asChild>
                                                                             <Button 
                                                                                 variant="ghost" 
                                                                                 size="icon" 
-                                                                                className="h-7 w-7 sm:h-8 sm:w-8 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-brand-dark-800 rounded-lg cursor-pointer"
+                                                                                className="h-7 w-7 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-brand-dark-800 rounded-lg cursor-pointer"
                                                                             >
                                                                                 <MoreVerticalIcon className="h-4 w-4" />
                                                                             </Button>
@@ -1518,23 +1518,23 @@ const Servicos: React.FC = () => {
                                         </div>
 
                                         {/* Sentinel de Scroll Infinito Automático */}
-                                        <div ref={servicesSentinelRef} className="p-3 text-center border-t border-slate-100 dark:border-gray-800">
+                                        <div ref={servicesSentinelRef} className="p-2 text-center border-t border-slate-100 dark:border-gray-800 shrink-0">
                                             {isFetchingNextPageServices ? (
                                                 <div className="flex items-center justify-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                                                    <div className="w-4 h-4 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                                                    <div className="w-3.5 h-3.5 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
                                                     <span>Carregando mais contratos...</span>
                                                 </div>
                                             ) : hasNextPageServices ? (
-                                                <span className="text-[11px] text-slate-400">Role ou use as setas para carregar mais</span>
+                                                <span className="text-[10px] text-slate-400">Role ou use as setas para carregar mais</span>
                                             ) : allServices.length > 0 ? (
-                                                <span className="text-[11px] text-slate-400">Todos os {allServices.length} contratos carregados</span>
+                                                <span className="text-[10px] text-slate-400">Todos os {allServices.length} contratos carregados</span>
                                             ) : null}
                                         </div>
                                     </div>
 
                                     {/* Desktop: Painel Direito (Mestre-Detalhe Embutido - Sem Modal / Sem Backdrop) */}
                                     {selectedService && isDesktop && (
-                                        <div className="w-full lg:w-[52%] xl:w-[54%] shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col transition-all duration-300 ease-in-out animate-in fade-in-0 slide-in-from-right-2">
+                                        <div className="w-full lg:w-[54%] xl:w-[56%] shrink-0 h-full overflow-hidden flex flex-col transition-all duration-300 ease-in-out animate-in fade-in-0 slide-in-from-right-2">
                                             <ServicoDetailPanel
                                                 service={selectedService}
                                                 onClose={() => setSelectedService(null)}
@@ -1562,79 +1562,79 @@ const Servicos: React.FC = () => {
             {/* CONTEÚDO DA ABA 2: EXTRATO DE ADIANTAMENTOS                   */}
             {/* ============================================================== */}
             {activeTab === 'adiantamentos' && (
-                <div className="space-y-5">
-                    {/* Faixa de 4 Cards Operacionais: Adiantamentos */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className="space-y-2.5">
+                    {/* Faixa de 4 Cards Operacionais: Adiantamentos (Alta Densidade) */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
                         {/* Card 1: Total Liberado */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
-                            <div className="flex items-center gap-3.5 min-w-0">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                                    <DollarSignIcon className="h-5 w-5" />
+                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-2.5 sm:p-3 rounded-xl shadow-xs flex items-center justify-between">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                                    <DollarSignIcon className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Total Liberado (Filtro)</p>
-                                    <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                                    <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium leading-tight">Total Liberado</p>
+                                    <p className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 truncate font-mono">
                                         {formatCurrency(advancesSummary?.totalPaid || 0)}
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60 whitespace-nowrap shrink-0">
+                            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.2 rounded-full border border-emerald-200 dark:border-emerald-800/60 whitespace-nowrap shrink-0">
                                 {advancesSummary?.count || 0} liberações
                             </span>
                         </div>
 
                         {/* Card 2: Volume de Medições */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
-                            <div className="flex items-center gap-3.5 min-w-0">
-                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                                    <CheckCircle2Icon className="h-5 w-5" />
+                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-2.5 sm:p-3 rounded-xl shadow-xs flex items-center justify-between">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                                    <CheckCircle2Icon className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Medições Registradas</p>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white truncate">
-                                        {advancesSummary?.count || 0} medições
+                                    <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium leading-tight">Medições</p>
+                                    <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate font-mono">
+                                        {advancesSummary?.count || 0} registros
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[11px] font-medium text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-brand-dark-800 px-2 py-0.5 rounded border border-slate-200 dark:border-gray-700 whitespace-nowrap shrink-0">
-                                {allAdvances.length} carregadas
+                            <span className="text-[10px] font-medium text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-brand-dark-800 px-1.5 py-0.2 rounded border border-slate-200 dark:border-gray-700 whitespace-nowrap shrink-0">
+                                {allAdvances.length} listadas
                             </span>
                         </div>
 
                         {/* Card 3: Ticket Médio por Medição */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
-                            <div className="flex items-center gap-3.5 min-w-0">
-                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                                    <TrendingUpIcon className="h-5 w-5" />
+                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-2.5 sm:p-3 rounded-xl shadow-xs flex items-center justify-between">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                                    <TrendingUpIcon className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Valor Médio Medição</p>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white truncate">
+                                    <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium leading-tight">Média Medição</p>
+                                    <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate font-mono">
                                         {formatCurrency(advancesSummary?.count ? ((advancesSummary.totalPaid || 0) / advancesSummary.count) : 0)}
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60 whitespace-nowrap shrink-0">
+                            <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.2 rounded-full border border-amber-200 dark:border-amber-800/60 whitespace-nowrap shrink-0">
                                 Média
                             </span>
                         </div>
 
                         {/* Card 4: Obras & Centros de Custo */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
-                            <div className="flex items-center gap-3.5 min-w-0">
-                                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                                    <ConstructionIcon className="h-5 w-5" />
+                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-2.5 sm:p-3 rounded-xl shadow-xs flex items-center justify-between">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                                    <ConstructionIcon className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Centros de Custo</p>
-                                    <p className="text-base font-bold text-slate-900 dark:text-white truncate">
+                                    <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium leading-tight">Centros de Custo</p>
+                                    <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
                                         {advanceFilters.projectId
                                             ? (projects.find(p => p.id === advanceFilters.projectId)?.name || 'Obra Filtrada')
-                                            : `${projects.length} obras ativas`}
+                                            : `${projects.length} obras`}
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800/60 whitespace-nowrap shrink-0">
+                            <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.2 rounded border border-blue-200 dark:border-blue-800/60 whitespace-nowrap shrink-0">
                                 {advanceFilters.projectId ? 'Filtro Ativo' : 'Consolidado'}
                             </span>
                         </div>
@@ -1642,16 +1642,16 @@ const Servicos: React.FC = () => {
 
                     {/* Barra de Filtros de Adiantamentos */}
                     <div className="space-y-0">
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 rounded-t-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 rounded-t-xl px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-xs">
                             {/* Esquerda: Pílulas de Obra e Atalhos */}
-                            <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">
+                            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">
                                     Obra:
                                 </span>
                                 <button
                                     type="button"
                                     onClick={() => setAdvanceFilters(prev => ({ ...prev, projectId: null }))}
-                                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                    className={`px-2 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                                         !advanceFilters.projectId
                                             ? 'bg-indigo-600 text-white shadow-xs'
                                             : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-brand-dark-700'
@@ -1664,7 +1664,7 @@ const Servicos: React.FC = () => {
                                         key={p.id}
                                         type="button"
                                         onClick={() => setAdvanceFilters(prev => ({ ...prev, projectId: prev.projectId === p.id ? null : p.id }))}
-                                        className={`px-2.5 py-1 rounded-lg text-xs font-medium max-w-[120px] truncate transition-all cursor-pointer ${
+                                        className={`px-2 py-0.5 rounded-md text-xs font-medium max-w-[110px] truncate transition-all cursor-pointer ${
                                             advanceFilters.projectId === p.id
                                                 ? 'bg-indigo-600 text-white font-semibold shadow-xs'
                                                 : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-brand-dark-700'
@@ -1675,7 +1675,7 @@ const Servicos: React.FC = () => {
                                     </button>
                                 ))}
 
-                                <div className="hidden xl:block h-4 w-px bg-slate-200 dark:bg-gray-800 mx-1" />
+                                <div className="hidden xl:block h-3.5 w-px bg-slate-200 dark:bg-gray-800 mx-0.5" />
 
                                 <div className="hidden md:flex items-center gap-1">
                                     {QUICK_PERIOD_SHORTCUTS.slice(1).map(s => (
@@ -1683,7 +1683,7 @@ const Servicos: React.FC = () => {
                                             key={s.label}
                                             type="button"
                                             onClick={() => applyQuickPeriodAdvances(s)}
-                                            className="px-2 py-1 text-[11px] font-medium rounded-md text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-brand-dark-800 transition-colors cursor-pointer"
+                                            className="px-1.5 py-0.5 text-[10px] font-medium rounded text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-brand-dark-800 transition-colors cursor-pointer"
                                         >
                                             {s.label}
                                         </button>
@@ -1692,15 +1692,15 @@ const Servicos: React.FC = () => {
                             </div>
 
                             {/* Direita: Busca e Botão Filtros */}
-                            <div className="flex items-center gap-2">
-                                <div className="relative w-52 sm:w-60">
+                            <div className="flex items-center gap-1.5">
+                                <div className="relative w-48 sm:w-56">
                                     <SearchIcon className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                                     <Input
                                         type="text"
                                         value={advanceFilters.searchTerm}
                                         onChange={(e) => setAdvanceFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                                        placeholder="Buscar medição ou serviço..."
-                                        className="h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-brand-dark-800/80 border-slate-200 dark:border-gray-700"
+                                        placeholder="Buscar medição..."
+                                        className="h-7.5 pl-8 pr-7 text-xs bg-slate-50 dark:bg-brand-dark-800/80 border-slate-200 dark:border-gray-700"
                                     />
                                     {advanceFilters.searchTerm && (
                                         <button
@@ -1717,12 +1717,12 @@ const Servicos: React.FC = () => {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => { setTempAdvanceFilters(advanceFilters); setAdvanceFilterSheetOpen(true); }}
-                                    className="h-8 px-3 text-xs font-semibold border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-brand-dark-800 text-slate-700 dark:text-gray-300 gap-1.5 cursor-pointer"
+                                    className="h-7.5 px-2.5 text-xs font-semibold border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-brand-dark-800 text-slate-700 dark:text-gray-300 gap-1 cursor-pointer"
                                 >
-                                    <FilterIcon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                                    <FilterIcon className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
                                     <span>Filtros</span>
                                     {activeAdvanceFiltersCount > 0 && (
-                                        <span className="ml-1 flex items-center justify-center h-4.5 min-w-[18px] px-1 text-[10px] font-bold rounded-full bg-indigo-600 text-white">
+                                        <span className="ml-1 flex items-center justify-center h-4 min-w-[16px] px-1 text-[9px] font-bold rounded-full bg-indigo-600 text-white">
                                             {activeAdvanceFiltersCount}
                                         </span>
                                     )}
@@ -1732,33 +1732,33 @@ const Servicos: React.FC = () => {
 
                         {/* Faixa de Filtros Ativos em Adiantamentos */}
                         {activeAdvanceFiltersCount > 0 && (
-                            <div className="flex items-center justify-between gap-3 bg-indigo-50/60 dark:bg-indigo-950/20 border-x border-b border-indigo-200/80 dark:border-indigo-900/40 px-4 py-2 text-xs">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
-                                        <FilterIcon className="h-3.5 w-3.5" /> Filtros ativos ({activeAdvanceFiltersCount}):
+                            <div className="flex items-center justify-between gap-2 bg-indigo-50/60 dark:bg-indigo-950/20 border-x border-b border-indigo-200/80 dark:border-indigo-900/40 px-3 py-1.5 text-xs">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1 text-[11px]">
+                                        <FilterIcon className="h-3 w-3" /> Filtros ativos ({activeAdvanceFiltersCount}):
                                     </span>
                                     {advanceFilters.searchTerm && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-[11px]">
                                             Termo: "{advanceFilters.searchTerm}"
                                         </span>
                                     )}
                                     {advanceFilters.collaboratorId && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-[11px]">
                                             Colaborador: {collaborators.find(c => c.id === advanceFilters.collaboratorId)?.name}
                                         </span>
                                     )}
                                     {advanceFilters.projectId && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-[11px]">
                                             Obra: {projects.find(p => p.id === advanceFilters.projectId)?.name}
                                         </span>
                                     )}
                                     {advanceFilters.serviceId && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-[11px]">
                                             Filtrado por contrato
                                         </span>
                                     )}
                                     {(advanceFilters.dateRange?.from || advanceFilters.dateRange?.to) && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-[11px]">
                                             Período: {advanceFilters.dateRange.from ? advanceFilters.dateRange.from.toLocaleDateString('pt-BR') : 'Início'} até {advanceFilters.dateRange.to ? advanceFilters.dateRange.to.toLocaleDateString('pt-BR') : 'Hoje'}
                                         </span>
                                     )}
@@ -1767,7 +1767,7 @@ const Servicos: React.FC = () => {
                                     variant="ghost" 
                                     size="sm" 
                                     onClick={() => setAdvanceFilters({ searchTerm: '', collaboratorId: null, projectId: null, serviceId: null, dateRange: undefined })}
-                                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline h-7 px-2 font-semibold"
+                                    className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline h-6 px-1.5 font-semibold"
                                 >
                                     Limpar todos
                                 </Button>
@@ -1817,15 +1817,15 @@ const Servicos: React.FC = () => {
                                     {/* Desktop: Tabela de Adiantamentos */}
                                     <div className="hidden md:block overflow-x-auto">
                                         <table className="w-full text-sm text-left text-slate-600 dark:text-gray-400">
-                                            <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-brand-dark-800/60 border-b border-slate-200 dark:border-gray-800">
+                                            <thead className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-brand-dark-800/60 border-b border-slate-200 dark:border-gray-800">
                                                 <tr>
-                                                    <th className="px-6 py-3.5 font-semibold">Data da Liberação</th>
-                                                    <th className="px-6 py-3.5 font-semibold">Medição / Observação</th>
-                                                    <th className="px-6 py-3.5 font-semibold">Contrato Vinculado</th>
-                                                    <th className="px-6 py-3.5 font-semibold">Prestador / Obra</th>
-                                                    <th className="px-6 py-3.5 font-semibold text-right">Valor Liberado</th>
-                                                    <th className="px-6 py-3.5 font-semibold text-center">Comprovante</th>
-                                                    <th className="px-6 py-3.5 font-semibold text-center w-16">Ações</th>
+                                                    <th className="px-5 py-2.5 font-semibold">Data da Liberação</th>
+                                                    <th className="px-5 py-2.5 font-semibold">Medição / Observação</th>
+                                                    <th className="px-5 py-2.5 font-semibold">Contrato Vinculado</th>
+                                                    <th className="px-5 py-2.5 font-semibold">Prestador / Obra</th>
+                                                    <th className="px-5 py-2.5 font-semibold text-right">Valor Liberado</th>
+                                                    <th className="px-5 py-2.5 font-semibold text-center">Comprovante</th>
+                                                    <th className="px-5 py-2.5 font-semibold text-center w-14">Ações</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-gray-800">
@@ -1835,45 +1835,45 @@ const Servicos: React.FC = () => {
                                                         className="hover:bg-slate-50 dark:hover:bg-brand-dark-800/60 transition-colors cursor-pointer group"
                                                         onClick={() => { setSelectedAdvance(advance); setEditAdvanceModalOpen(true); }}
                                                     >
-                                                        <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-900 dark:text-white font-mono text-xs">
+                                                        <td className="px-5 py-2.5 whitespace-nowrap font-medium text-slate-900 dark:text-white font-mono text-xs">
                                                             {formatDate(advance.payment_date)}
                                                         </td>
-                                                        <td className="px-6 py-4 max-w-xs truncate text-slate-700 dark:text-gray-300 text-xs" title={advance.description || ''}>
+                                                        <td className="px-5 py-2.5 max-w-xs truncate text-slate-700 dark:text-gray-300 text-xs" title={advance.description || ''}>
                                                             {advance.description || <span className="text-slate-400 italic">Sem descrição</span>}
                                                         </td>
-                                                        <td className="px-6 py-4 max-w-xs truncate font-medium text-slate-900 dark:text-white text-xs" title={advance.service_description}>
+                                                        <td className="px-5 py-2.5 max-w-xs truncate font-medium text-slate-900 dark:text-white text-xs" title={advance.service_description}>
                                                             {advance.service_description}
                                                         </td>
-                                                        <td className="px-6 py-4">
+                                                        <td className="px-5 py-2.5">
                                                             <div className="flex flex-col">
                                                                 <span className="font-medium text-slate-900 dark:text-white text-xs">{advance.collaborator_name || 'Sem colaborador'}</span>
-                                                                <span className="text-[11px] text-slate-500 dark:text-gray-400">{advance.project_name || 'Sem obra'}</span>
+                                                                <span className="text-[10px] text-slate-500 dark:text-gray-400">{advance.project_name || 'Sem obra'}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                                                        <td className="px-5 py-2.5 whitespace-nowrap text-right font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                                                             {formatCurrency(advance.value)}
                                                         </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                                                        <td className="px-5 py-2.5 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                                             {advance.receipt_path ? (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleViewAttachment(advance.receipt_path!)}
-                                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors cursor-pointer"
+                                                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors cursor-pointer"
                                                                 >
-                                                                    <PaperclipIcon className="h-3.5 w-3.5" />
+                                                                    <PaperclipIcon className="h-3 w-3" />
                                                                     <span>Anexo</span>
                                                                 </button>
                                                             ) : (
                                                                 <span className="text-xs text-slate-400">—</span>
                                                             )}
                                                         </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                                                        <td className="px-5 py-2.5 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                                             <DropdownMenu>
                                                                 <DropdownMenuTrigger asChild>
                                                                     <Button 
                                                                         variant="ghost" 
                                                                         size="icon" 
-                                                                        className="h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg cursor-pointer"
+                                                                        className="h-7 w-7 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg cursor-pointer"
                                                                     >
                                                                         <MoreVerticalIcon className="h-4 w-4" />
                                                                     </Button>
@@ -1903,16 +1903,16 @@ const Servicos: React.FC = () => {
                                     </div>
 
                                     {/* Sentinel de Carregamento Infinito */}
-                                    <div ref={advancesSentinelRef} className="p-3 text-center border-t border-slate-100 dark:border-gray-800">
+                                    <div ref={advancesSentinelRef} className="p-2 text-center border-t border-slate-100 dark:border-gray-800 shrink-0">
                                         {isFetchingNextPageAdvances ? (
                                             <div className="flex items-center justify-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                                                <div className="w-4 h-4 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                                                <div className="w-3.5 h-3.5 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
                                                 <span>Carregando mais medições...</span>
                                             </div>
                                         ) : hasNextPageAdvances ? (
-                                            <span className="text-[11px] text-slate-400">Role para carregar mais</span>
+                                            <span className="text-[10px] text-slate-400">Role para carregar mais</span>
                                         ) : allAdvances.length > 0 ? (
-                                            <span className="text-[11px] text-slate-400">Todas as {allAdvances.length} medições carregadas</span>
+                                            <span className="text-[10px] text-slate-400">Todas as {allAdvances.length} medições carregadas</span>
                                         ) : null}
                                     </div>
                                 </>
