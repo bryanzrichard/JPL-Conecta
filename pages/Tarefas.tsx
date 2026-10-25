@@ -361,7 +361,14 @@ export const Tarefas: React.FC = () => {
       });
 
       if (error || !data?.result) {
-        throw new Error(error?.message || 'Falha ao processar com o Gemini Flash');
+        let errorDetail = error?.message || 'Falha ao processar com o Gemini Flash';
+        try {
+          if ((error as any)?.context) {
+            const body = await (error as any).context.json();
+            if (body?.error) errorDetail = body.error;
+          }
+        } catch (_) {}
+        throw new Error(errorDetail);
       }
 
       const res = data.result;
@@ -401,7 +408,7 @@ export const Tarefas: React.FC = () => {
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'ia',
-        text: 'Não consegui concluir a ação via Gemini Flash na Edge Function. Certifique-se de que a function "processar-comando-voz" está deployada no Supabase.',
+        text: `⚠️ Não consegui concluir a ação: ${err?.message || 'Erro na Edge Function'}. Verifique o deploy de "processar-comando-voz" ou a API_KEY no Supabase.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setChatMessages((prev) => [...prev, errorMsg]);
@@ -434,17 +441,26 @@ export const Tarefas: React.FC = () => {
       reader.readAsDataURL(blob);
       const audioBase64 = await base64Promise;
 
+      const cleanMimeType = (mimeType || 'audio/webm').split(';')[0].trim();
+
       const { data, error } = await supabase.functions.invoke('processar-comando-voz', {
         body: {
           audioBase64,
-          audioMimeType: mimeType,
+          audioMimeType: cleanMimeType,
           projectsList: projects.map((p) => ({ id: p.id, name: p.name })),
           collaboratorsList: collaborators.map((c) => ({ id: c.id, name: c.name })),
         },
       });
 
       if (error || !data?.result) {
-        throw new Error(error?.message || 'Falha ao processar com Gemini Flash');
+        let errorDetail = error?.message || 'Falha ao processar com Gemini Flash';
+        try {
+          if ((error as any)?.context) {
+            const body = await (error as any).context.json();
+            if (body?.error) errorDetail = body.error;
+          }
+        } catch (_) {}
+        throw new Error(errorDetail);
       }
 
       const res = data.result;
@@ -483,7 +499,7 @@ export const Tarefas: React.FC = () => {
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'ia',
-        text: 'Não consegui transcrever o áudio na Edge Function. Verifique o deploy de "processar-comando-voz" no Supabase.',
+        text: `⚠️ Não consegui transcrever o áudio: ${err?.message || 'Erro na Edge Function'}. Verifique o deploy de "processar-comando-voz" ou a API_KEY no Supabase.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setChatMessages((prev) => [...prev, errorMsg]);

@@ -39,22 +39,27 @@ serve(async (req) => {
 
     try {
         const payload = await req.json();
-        const geminiApiKey = Deno.env.get('API_KEY');
+        const geminiApiKey = 
+            Deno.env.get('API_KEY') || 
+            Deno.env.get('GEMINI_API_KEY') || 
+            Deno.env.get('GOOGLE_API_KEY') || 
+            Deno.env.get('GOOGLE_AI_API_KEY');
+
         if (!geminiApiKey) {
-            throw new Error('A variável de ambiente API_KEY não está configurada nos segredos do Supabase.');
+            throw new Error('A variável de ambiente API_KEY (ou GEMINI_API_KEY) não está configurada nos segredos do Supabase.');
         }
 
         const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
-        const model = 'gemini-2.5-flash';
-
         const parts: any[] = [];
 
-        // 2. Anexa o áudio gravado se houver
+        // 2. Anexa o áudio gravado se houver (limpando o mimeType de parâmetros como ;codecs=opus)
         if (payload.audioBase64) {
+            const rawMime = payload.audioMimeType || 'audio/webm';
+            const cleanMime = rawMime.split(';')[0].trim();
             parts.push({
                 inlineData: {
                     data: payload.audioBase64,
-                    mimeType: payload.audioMimeType || 'audio/webm',
+                    mimeType: cleanMime,
                 },
             });
         }
@@ -134,12 +139,28 @@ ${payload.textCommand ? `Mensagem do usuário: "${payload.textCommand}"` : 'Anal
 `;
         parts.push({ text: promptText });
 
-        // 4. Execução do Gemini Flash
-        const aiResponse = await generateContentWithRetry(genAI, {
-            model,
-            contents: { parts },
-            config: { responseMimeType: 'application/json' },
-        });
+        // 4. Execução do Gemini Flash com cascata de compatibilidade de modelos
+        const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-3.1-flash-lite'];
+        let aiResponse: any = null;
+        let lastModelError: any = null;
+
+        for (const candidate of candidateModels) {
+            try {
+                aiResponse = await generateContentWithRetry(genAI, {
+                    model: candidate,
+                    contents: { parts },
+                    config: { responseMimeType: 'application/json' },
+                });
+                if (aiResponse) break;
+            } catch (err: any) {
+                lastModelError = err;
+                console.warn(`Modelo ${candidate} falhou, tentando próximo modelo... ${err?.message}`);
+            }
+        }
+
+        if (!aiResponse) {
+            throw lastModelError || new Error('Não foi possível obter resposta de nenhum dos modelos Gemini Flash.');
+        }
 
         const parsedResult = JSON.parse(aiResponse.text.trim());
 
