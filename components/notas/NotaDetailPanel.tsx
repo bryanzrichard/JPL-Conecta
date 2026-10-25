@@ -56,26 +56,26 @@ const getCategoryBadgeClass = (category: string) => {
   switch (category) {
     case 'Estrutura':
     case 'Estrutura e Fundação':
-      return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+      return 'bg-[#EEF2FF] text-[#4338CA] border-indigo-200/80 dark:bg-indigo-500/[0.12] dark:text-[#818CF8] dark:border-indigo-500/20';
     case 'Alvenaria':
     case 'Alvenaria e Vedações':
-      return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+      return 'bg-[#FFFBEB] text-[#B45309] border-amber-200/80 dark:bg-amber-500/[0.12] dark:text-[#FBBF24] dark:border-amber-500/20';
     case 'Elétrica':
     case 'Instalações Elétricas':
-      return 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20';
+      return 'bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-500/[0.12] dark:text-yellow-400 dark:border-yellow-500/20';
     case 'Hidráulica':
     case 'Instalações Hidrossanitárias':
-      return 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20';
+      return 'bg-cyan-50 text-cyan-800 border-cyan-200 dark:bg-cyan-500/[0.12] dark:text-cyan-400 dark:border-cyan-500/20';
     case 'Pintura':
-      return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
+      return 'bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-500/[0.12] dark:text-purple-400 dark:border-purple-500/20';
     case 'Acabamento':
     case 'Acabamentos e Revestimentos':
-      return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+      return 'bg-[#ECFDF5] text-[#047857] border-emerald-200/80 dark:bg-emerald-500/[0.12] dark:text-[#34D399] dark:border-emerald-500/20';
     case 'Ferramentas':
     case 'Ferramentas e Equipamentos':
-      return 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20';
+      return 'bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-500/[0.12] dark:text-orange-400 dark:border-orange-500/20';
     default:
-      return 'bg-slate-500/10 text-slate-600 dark:text-gray-400 border-slate-500/20';
+      return 'bg-[#F1F5F9] text-[#475569] border-slate-200 dark:bg-[#1E293B] dark:text-[#94A3B8] dark:border-slate-700/60';
   }
 };
 
@@ -137,7 +137,7 @@ export const NotaDetailPanel: React.FC<NotaDetailPanelProps> = ({
       {/* ========================================================= */}
       {/* 1. TOPBAR DE CONTROLE E NAVEGAÇÃO SEQUENCIAL              */}
       {/* ========================================================= */}
-      <div className="p-3.5 sm:px-4 border-b border-slate-200 dark:border-gray-800 flex items-center justify-between gap-2 bg-slate-50/70 dark:bg-brand-dark-950/60 shrink-0">
+      <div className="p-3.5 sm:px-4 border-b border-[#E2E8F0] dark:border-[#1E293B] flex items-center justify-between gap-2 bg-slate-50/70 dark:bg-[#111827] shrink-0">
         
         {/* Esquerda: Identificador da Nota */}
         <div className="flex items-center gap-2 min-w-0">
@@ -146,18 +146,18 @@ export const NotaDetailPanel: React.FC<NotaDetailPanelProps> = ({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-slate-900 dark:text-white text-xs truncate max-w-[160px] sm:max-w-[200px]" title={nota.invoice_number || 'Sem Número'}>
+              <span className="font-bold text-slate-800 dark:text-[#F8FAFC] text-xs truncate max-w-[160px] sm:max-w-[200px]" title={nota.invoice_number || 'Sem Número'}>
                 {nota.invoice_number || 'Sem Número'}
               </span>
               <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider ${
                 isRec
-                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/60'
-                  : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700'
+                  ? 'bg-[#FFFBEB] text-[#B45309] border-amber-200/80 dark:bg-amber-500/[0.12] dark:text-[#FBBF24] dark:border-amber-500/20'
+                  : 'bg-[#F1F5F9] text-[#475569] border-slate-200 dark:bg-[#1E293B] dark:text-[#94A3B8] dark:border-slate-700/60'
               }`}>
                 {isRec ? 'RECIBO' : 'NF-e'}
               </span>
             </div>
-            <p className="text-[10px] text-slate-500 dark:text-gray-400 truncate">
+            <p className="text-[10px] text-slate-500 dark:text-[#94A3B8] truncate">
               {formatDate(nota.issue_date)} • {nota.projects?.name || 'Geral'}
             </p>
           </div>
@@ -211,7 +211,7 @@ export const NotaDetailPanel: React.FC<NotaDetailPanelProps> = ({
             variant="outline"
             size="sm"
             onClick={() => onDelete(nota)}
-            className="h-7 px-2 text-[11px] font-semibold text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/40 hover:bg-rose-50 dark:hover:bg-rose-950/30 gap-1 cursor-pointer"
+            className="h-7 px-2 text-[11px] font-semibold text-[#E11D48] hover:bg-[#FFF1F2] border-rose-200/80 dark:text-[#FB7185] dark:hover:bg-rose-500/[0.12] dark:border-rose-900/40 gap-1 cursor-pointer"
             title="Excluir Nota Fiscal"
           >
             <Trash2Icon className="h-3 w-3" />

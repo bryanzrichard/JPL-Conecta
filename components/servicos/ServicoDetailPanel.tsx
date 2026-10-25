@@ -125,7 +125,7 @@ export const ServicoDetailPanel: React.FC<ServicoDetailPanelProps> = ({
       {/* ========================================================================= */}
       {/* 1. TOPBAR DE CONTROLE: NAVEGAÇÃO SEQUENCIAL & TODOS OS BOTÕES DE AÇÃO     */}
       {/* ========================================================================= */}
-      <div className="p-3 sm:px-4 border-b border-slate-200 dark:border-gray-800 flex items-center justify-between gap-2 bg-slate-50/70 dark:bg-brand-dark-950/60 shrink-0">
+      <div className="p-3 sm:px-4 border-b border-[#E2E8F0] dark:border-[#1E293B] flex items-center justify-between gap-2 bg-slate-50/70 dark:bg-[#111827] shrink-0">
         
         {/* Esquerda: Identificador do Serviço */}
         <div className="flex items-center gap-2.5 min-w-0">
@@ -134,18 +134,18 @@ export const ServicoDetailPanel: React.FC<ServicoDetailPanelProps> = ({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate max-w-[140px] sm:max-w-[200px]" title={service.description}>
+              <span className="font-bold text-slate-800 dark:text-[#F8FAFC] text-xs sm:text-sm truncate max-w-[140px] sm:max-w-[200px]" title={service.description}>
                 {service.description}
               </span>
               <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider ${
                 isCompleted
-                  ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-800/60'
-                  : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60'
+                  ? 'bg-[#ECFDF5] text-[#047857] border-emerald-200/80 dark:bg-emerald-500/[0.12] dark:text-[#34D399] dark:border-emerald-500/20'
+                  : 'bg-[#EEF2FF] text-[#4338CA] border-indigo-200/80 dark:bg-indigo-500/[0.12] dark:text-[#818CF8] dark:border-indigo-500/20'
               }`}>
                 {service.status}
               </span>
               {scheduleDetails.isOverdue && (
-                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                <span className="text-[10px] font-bold text-[#B45309] dark:text-[#FBBF24] bg-[#FFFBEB] dark:bg-amber-500/[0.12] border border-amber-200/80 dark:border-amber-500/20 px-1.5 py-0.2 rounded flex items-center gap-0.5">
                   <AlertTriangleIcon className="h-3 w-3" /> Atrasado
                 </span>
               )}
@@ -155,7 +155,7 @@ export const ServicoDetailPanel: React.FC<ServicoDetailPanelProps> = ({
                 </span>
               )}
             </div>
-            <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-gray-400 truncate">
+            <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#94A3B8] truncate">
               {service.collaborator_name || 'Sem prestador'} • {service.project_name || 'Sem obra'}
             </p>
           </div>
@@ -239,7 +239,7 @@ export const ServicoDetailPanel: React.FC<ServicoDetailPanelProps> = ({
             variant="outline"
             size="sm"
             onClick={() => onDelete(service)}
-            className="h-7 sm:h-7.5 px-2 text-xs font-semibold text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/40 hover:bg-rose-50 dark:hover:bg-rose-950/30 gap-1 cursor-pointer"
+            className="h-7 sm:h-7.5 px-2 text-xs font-semibold text-[#E11D48] hover:bg-[#FFF1F2] border-rose-200/80 dark:text-[#FB7185] dark:hover:bg-rose-500/[0.12] dark:border-rose-900/40 gap-1 cursor-pointer"
             title="Excluir Contrato"
           >
             <Trash2Icon className="h-3 w-3" />

@@ -627,10 +627,10 @@ const Notas: React.FC = () => {
                         <FileTextIcon className="h-5 w-5" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                        <h1 className="text-xl font-bold text-slate-800 dark:text-[#F8FAFC] tracking-tight">
                             Notas Fiscais
                         </h1>
-                        <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
+                        <p className="text-xs text-slate-500 dark:text-[#94A3B8] mt-0.5">
                             Gerencie e audite suas notas fiscais de entrada.
                         </p>
                     </div>
@@ -661,7 +661,7 @@ const Notas: React.FC = () => {
                     <Button
                         size="sm"
                         onClick={() => setIsUploadModalOpen(true)}
-                        className="h-9 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white gap-1.5 shadow-sm shadow-indigo-600/30 cursor-pointer"
+                        className="h-9 text-xs font-bold bg-[#4F46E5] hover:bg-indigo-600 dark:bg-[#6366F1] dark:hover:bg-indigo-500 text-white gap-1.5 shadow-sm shadow-indigo-600/30 cursor-pointer"
                     >
                         <UploadCloudIcon className="h-4 w-4" />
                         <span>+ Registrar com IA</span>
@@ -674,71 +674,71 @@ const Notas: React.FC = () => {
             {/* ========================================================= */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 {/* Card 1: Total Faturado */}
-                <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] p-4 rounded-xl shadow-xs flex items-center justify-between">
                     <div className="flex items-center gap-3.5 min-w-0">
                         <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
                             <DollarSignIcon className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Total Faturado (Filtro)</p>
+                            <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">Total Faturado (Filtro)</p>
                             {isLoadingSummary ? (
                                 <Skeleton className="h-6 w-28 mt-1" />
                             ) : (
-                                <p className="text-lg font-bold text-slate-900 dark:text-white truncate font-mono">
+                                <p className="text-lg font-bold text-slate-800 dark:text-[#F8FAFC] truncate font-mono">
                                     {formatCurrency(summaryData?.totalValue || 0)}
                                 </p>
                             )}
                         </div>
                     </div>
-                    <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60 whitespace-nowrap shrink-0">
+                    <span className="text-[11px] font-semibold text-[#047857] dark:text-[#34D399] bg-[#ECFDF5] dark:bg-emerald-500/[0.12] px-2 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-500/20 whitespace-nowrap shrink-0">
                         {summaryData?.count || 0} notas
                     </span>
                 </div>
 
                 {/* Card 2: Ticket Médio & Volume */}
-                <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] p-4 rounded-xl shadow-xs flex items-center justify-between">
                     <div className="flex items-center gap-3.5 min-w-0">
                         <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                             <TrendingUpIcon className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Ticket Médio por Nota</p>
+                            <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">Ticket Médio por Nota</p>
                             {isLoadingSummary ? (
                                 <Skeleton className="h-6 w-24 mt-1" />
                             ) : (
-                                <p className="text-lg font-bold text-slate-900 dark:text-white truncate font-mono">
+                                <p className="text-lg font-bold text-slate-800 dark:text-[#F8FAFC] truncate font-mono">
                                     {formatCurrency(summaryData?.count ? (summaryData.totalValue / summaryData.count) : 0)}
                                 </p>
                             )}
                         </div>
                     </div>
-                    <span className="text-[11px] font-medium text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-brand-dark-800 px-2 py-0.5 rounded border border-slate-200 dark:border-gray-700 whitespace-nowrap shrink-0">
+                    <span className="text-[11px] font-medium text-slate-600 dark:text-[#94A3B8] bg-slate-100 dark:bg-[#1E293B] px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 whitespace-nowrap shrink-0">
                         {allNotas.length} carregadas
                     </span>
                 </div>
 
                 {/* Card 3: Obras & Centros de Custo */}
-                <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] p-4 rounded-xl shadow-xs flex items-center justify-between">
                     <div className="flex items-center gap-3.5 min-w-0">
                         <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                             <ConstructionIcon className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Centros de Custo</p>
-                            <p className="text-base font-bold text-slate-900 dark:text-white truncate">
+                            <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">Centros de Custo</p>
+                            <p className="text-base font-bold text-slate-800 dark:text-[#F8FAFC] truncate">
                                 {filters.project_id
                                     ? (projects.find(p => p.id === filters.project_id)?.name || 'Obra Filtrada')
                                     : `${projects.length} obras ativas`}
                             </p>
                         </div>
                     </div>
-                    <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800/60 whitespace-nowrap shrink-0">
+                    <span className="text-[11px] font-semibold text-indigo-700 dark:text-[#818CF8] bg-[#EEF2FF] dark:bg-indigo-500/[0.12] px-2 py-0.5 rounded border border-indigo-200/80 dark:border-indigo-500/20 whitespace-nowrap shrink-0">
                         {filters.project_id ? 'Filtro Ativo' : 'Consolidado'}
                     </span>
                 </div>
 
                 {/* Card 4: Status da Fila IA */}
-                <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] p-4 rounded-xl shadow-xs flex items-center justify-between">
                     <div className="flex items-center gap-3.5 min-w-0">
                         <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${
                             combinedJobs.length > 0
@@ -748,16 +748,16 @@ const Notas: React.FC = () => {
                             <SparklesIcon className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Inteligência Fiscal</p>
-                            <p className="text-base font-bold text-slate-900 dark:text-white truncate">
+                            <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">Inteligência Fiscal</p>
+                            <p className="text-base font-bold text-slate-800 dark:text-[#F8FAFC] truncate">
                                 {combinedJobs.length > 0 ? `${combinedJobs.length} em processamento` : 'Fila IA em dia'}
                             </p>
                         </div>
                     </div>
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${
                         combinedJobs.length > 0
-                            ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60 animate-pulse'
-                            : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60'
+                            ? 'text-[#B45309] dark:text-[#FBBF24] bg-[#FFFBEB] dark:bg-amber-500/[0.12] border-amber-200/80 dark:border-amber-500/20 animate-pulse'
+                            : 'text-[#047857] dark:text-[#34D399] bg-[#ECFDF5] dark:bg-emerald-500/[0.12] border-emerald-200/80 dark:border-emerald-500/20'
                     }`}>
                         {combinedJobs.length > 0 ? 'OCR Rodando' : 'OCR Ativo'}
                     </span>
@@ -789,7 +789,7 @@ const Notas: React.FC = () => {
             {/* 3. BARRA DE CONTROLE E FILTROS RÁPIDOS                    */}
             {/* ========================================================= */}
             <div className="space-y-0">
-                <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 rounded-t-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] rounded-t-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xs">
                     {/* Esquerda: Quick-filter pills para Obra + Atalhos de Período */}
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
                         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline mr-1">
@@ -798,10 +798,10 @@ const Notas: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => setFilters(prev => ({ ...prev, project_id: null }))}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
                                 !filters.project_id
-                                    ? 'bg-indigo-600 text-white shadow-sm'
-                                    : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-brand-dark-700'
+                                    ? 'bg-[#EEF2FF] text-[#4F46E5] font-semibold border border-indigo-200/80 dark:bg-[#1E293B] dark:text-[#818CF8] dark:border-indigo-800/40 shadow-xs'
+                                    : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium'
                             }`}
                         >
                             Todas
@@ -811,10 +811,10 @@ const Notas: React.FC = () => {
                                 key={p.id}
                                 type="button"
                                 onClick={() => setFilters(prev => ({ ...prev, project_id: prev.project_id === p.id ? null : p.id }))}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-medium max-w-[130px] truncate transition-all cursor-pointer ${
+                                className={`px-2.5 py-1 rounded-md text-xs max-w-[130px] truncate transition-all cursor-pointer ${
                                     filters.project_id === p.id
-                                        ? 'bg-indigo-600 text-white font-semibold shadow-sm'
-                                        : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-brand-dark-700'
+                                        ? 'bg-[#EEF2FF] text-[#4F46E5] font-semibold border border-indigo-200/80 dark:bg-[#1E293B] dark:text-[#818CF8] dark:border-indigo-800/40 shadow-xs'
+                                        : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium'
                                 }`}
                                 title={p.name}
                             >
@@ -948,7 +948,7 @@ const Notas: React.FC = () => {
                 {/* ========================================================= */}
                 {/* 4. TABELA DE ALTA DENSIDADE (COLUNAS SEPARADAS)           */}
                 {/* ========================================================= */}
-                <div className={`overflow-hidden rounded-b-xl border-x border-b border-slate-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 shadow-sm flex flex-col lg:flex-row ${
+                <div className={`overflow-hidden rounded-b-xl border-x border-b border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] shadow-xs flex flex-col lg:flex-row ${
                     selectedNota && isDesktop ? 'items-stretch' : ''
                 }`}>
                     {notasStatus === 'pending' ? (
@@ -1009,7 +1009,7 @@ const Notas: React.FC = () => {
                             }`}>
                                 <div className={`hidden md:block overflow-x-auto ${selectedNota && isDesktop ? 'max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar' : ''}`}>
                                     <table className="w-full text-sm text-left text-slate-600 dark:text-gray-400">
-                                        <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-brand-dark-800/60 border-b border-slate-200 dark:border-gray-800 sticky top-0 z-10">
+                                        <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-[#111827] border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 text-slate-500 dark:text-[#94A3B8]">
                                             <tr>
                                                 <th className="px-3 sm:px-4 py-3.5 font-semibold whitespace-nowrap">Emissão</th>
                                                 <th className="px-3 sm:px-4 py-3.5 font-semibold">Nota / Tipo</th>
@@ -1020,7 +1020,7 @@ const Notas: React.FC = () => {
                                                 <th className="px-2 sm:px-4 py-3.5 font-semibold text-center w-12 sm:w-16">Ações</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-brand-dark-900">
+                                        <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-[#111827]">
                                             {allNotas.map((nota) => {
                                                 const isRec = isReceipt(nota.invoice_number);
                                                 const isSelected = selectedNota?.id === nota.id && isDesktop;
@@ -1030,8 +1030,8 @@ const Notas: React.FC = () => {
                                                         key={nota.id} 
                                                         className={`transition-colors cursor-pointer group ${
                                                             isSelected
-                                                                ? 'bg-indigo-50/90 dark:bg-indigo-950/60 border-l-4 border-indigo-600 font-semibold text-indigo-950 dark:text-indigo-100'
-                                                                : 'hover:bg-slate-50 dark:hover:bg-brand-dark-800/60'
+                                                                ? 'bg-[#F5F3FF] dark:bg-indigo-500/[0.08] border-l-4 border-[#818CF8] font-semibold text-slate-800 dark:text-[#F8FAFC]'
+                                                                : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
                                                         }`}
                                                         onClick={() => handleSelectNota(nota)}
                                                     >
@@ -1049,8 +1049,8 @@ const Notas: React.FC = () => {
                                                                     </span>
                                                                     <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider ${
                                                                         isRec
-                                                                            ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/60'
-                                                                            : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700'
+                                                                            ? 'bg-[#FFFBEB] text-[#B45309] border-amber-200/80 dark:bg-amber-500/[0.12] dark:text-[#FBBF24] dark:border-amber-500/20'
+                                                                            : 'bg-[#F1F5F9] text-[#475569] border-slate-200 dark:bg-[#1E293B] dark:text-[#94A3B8] dark:border-slate-700/60'
                                                                     }`}>
                                                                         {isRec ? 'RECIBO' : 'NF-e'}
                                                                     </span>

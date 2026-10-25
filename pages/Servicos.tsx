@@ -956,10 +956,10 @@ const Servicos: React.FC = () => {
                         <BriefcaseIcon className="h-5 w-5" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                        <h1 className="text-xl font-bold text-slate-800 dark:text-[#F8FAFC] tracking-tight">
                             Serviços & Adiantamentos
                         </h1>
-                        <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
+                        <p className="text-xs text-slate-500 dark:text-[#94A3B8] mt-0.5">
                             Controle global de contratos de serviços, medições e extrato financeiro.
                         </p>
                     </div>
@@ -1009,7 +1009,7 @@ const Servicos: React.FC = () => {
                     <Button
                         size="sm"
                         onClick={() => { setSelectedService(null); setCreateServiceModalOpen(true); }}
-                        className="h-9 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white gap-1.5 shadow-sm shadow-indigo-600/30 cursor-pointer"
+                        className="h-9 text-xs font-bold bg-[#4F46E5] hover:bg-indigo-600 dark:bg-[#6366F1] dark:hover:bg-indigo-500 text-white gap-1.5 shadow-sm shadow-indigo-600/30 cursor-pointer"
                     >
                         <PlusIcon className="h-4 w-4" />
                         <span>+ Novo Contrato</span>
@@ -1062,75 +1062,75 @@ const Servicos: React.FC = () => {
                     {/* Faixa de 4 Cards Operacionais: Serviços (Grid 4 colunas padrão Notas) */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                         {/* Card 1: Total Contratado */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                        <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] p-4 rounded-xl shadow-xs flex items-center justify-between">
                             <div className="flex items-center gap-3.5 min-w-0">
                                 <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                                     <BriefcaseIcon className="h-5 w-5" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Total Contratado</p>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white truncate font-mono">
+                                    <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">Total Contratado</p>
+                                    <p className="text-lg font-bold text-slate-800 dark:text-[#F8FAFC] truncate font-mono">
                                         {formatCurrency(servicesSummary?.totalValue || 0)}
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800/60 whitespace-nowrap shrink-0">
+                            <span className="text-[11px] font-semibold text-indigo-700 dark:text-[#818CF8] bg-[#EEF2FF] dark:bg-indigo-500/[0.12] px-2 py-0.5 rounded-full border border-indigo-200/80 dark:border-indigo-500/20 whitespace-nowrap shrink-0">
                                 {servicesSummary?.count || 0} contratos
                             </span>
                         </div>
 
                         {/* Card 2: Total Pago */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                        <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] p-4 rounded-xl shadow-xs flex items-center justify-between">
                             <div className="flex items-center gap-3.5 min-w-0">
                                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
                                     <DollarSignIcon className="h-5 w-5" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Total Pago (Execução)</p>
+                                    <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">Total Pago (Execução)</p>
                                     <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 truncate font-mono">
                                         {formatCurrency(servicesSummary?.totalPaid || 0)}
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60 whitespace-nowrap shrink-0">
+                            <span className="text-[11px] font-semibold text-[#047857] dark:text-[#34D399] bg-[#ECFDF5] dark:bg-emerald-500/[0.12] px-2 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-500/20 whitespace-nowrap shrink-0">
                                 {servicesSummary?.totalValue ? Math.round(((servicesSummary.totalPaid || 0) / servicesSummary.totalValue) * 100) : 0}% quitado
                             </span>
                         </div>
 
                         {/* Card 3: Saldo Restante */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                        <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] p-4 rounded-xl shadow-xs flex items-center justify-between">
                             <div className="flex items-center gap-3.5 min-w-0">
                                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
                                     <TrendingUpIcon className="h-5 w-5" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Saldo a Pagar</p>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white truncate font-mono">
+                                    <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">Saldo a Pagar</p>
+                                    <p className="text-lg font-bold text-slate-800 dark:text-[#F8FAFC] truncate font-mono">
                                         {formatCurrency(servicesSummary?.remainingValue || 0)}
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/60 whitespace-nowrap shrink-0">
+                            <span className="text-[11px] font-semibold text-[#B45309] dark:text-[#FBBF24] bg-[#FFFBEB] dark:bg-amber-500/[0.12] px-2 py-0.5 rounded border border-amber-200/80 dark:border-amber-500/20 whitespace-nowrap shrink-0">
                                 Pendente
                             </span>
                         </div>
 
                         {/* Card 4: Centros de Custo & Ticket Médio */}
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                        <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] p-4 rounded-xl shadow-xs flex items-center justify-between">
                             <div className="flex items-center gap-3.5 min-w-0">
                                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                                     <ConstructionIcon className="h-5 w-5" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">Centros de Custo</p>
-                                    <p className="text-base font-bold text-slate-900 dark:text-white truncate">
+                                    <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">Centros de Custo</p>
+                                    <p className="text-base font-bold text-slate-800 dark:text-[#F8FAFC] truncate">
                                         {serviceFilters.projectId
                                             ? (projects.find(p => p.id === serviceFilters.projectId)?.name || 'Obra Filtrada')
                                             : `${projects.length} obras ativas`}
                                     </p>
                                 </div>
                             </div>
-                            <span className="text-[11px] font-medium text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-brand-dark-800 px-2 py-0.5 rounded border border-slate-200 dark:border-gray-700 whitespace-nowrap shrink-0">
+                            <span className="text-[11px] font-medium text-slate-600 dark:text-[#94A3B8] bg-slate-100 dark:bg-[#1E293B] px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 whitespace-nowrap shrink-0">
                                 {allServices.length} listados
                             </span>
                         </div>
@@ -1138,18 +1138,18 @@ const Servicos: React.FC = () => {
 
                     {/* Barra de Controle e Filtros Rápidos (Colada no topo da tabela) */}
                     <div className="space-y-0">
-                        <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 rounded-t-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                        <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] rounded-t-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xs">
                             {/* Esquerda: Quick-filter pills para Obra + Pílulas de Status + Atalhos de Período */}
                             <div className="flex items-center gap-2 flex-wrap min-w-0">
                                 {/* Pílulas de Status */}
-                                <div className="inline-flex rounded-lg bg-slate-100 dark:bg-brand-dark-800 p-0.5 border border-slate-200 dark:border-gray-700 text-xs">
+                                <div className="inline-flex rounded-lg bg-slate-100 dark:bg-[#162235] p-0.5 border border-slate-200 dark:border-[#273549] text-xs">
                                     <button
                                         type="button"
                                         onClick={() => setServiceStatusFilter('Em Andamento')}
                                         className={`px-2.5 py-1 rounded-md font-semibold text-xs transition-all cursor-pointer ${
                                             serviceStatusFilter === 'Em Andamento'
-                                                ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-xs'
-                                                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
+                                                ? 'bg-[#EEF2FF] text-[#4F46E5] dark:bg-[#1E293B] dark:text-[#818CF8] shadow-xs'
+                                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                         }`}
                                     >
                                         Em Andamento
@@ -1159,8 +1159,8 @@ const Servicos: React.FC = () => {
                                         onClick={() => setServiceStatusFilter('Concluído')}
                                         className={`px-2.5 py-1 rounded-md font-semibold text-xs transition-all cursor-pointer ${
                                             serviceStatusFilter === 'Concluído'
-                                                ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-xs'
-                                                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
+                                                ? 'bg-[#EEF2FF] text-[#4F46E5] dark:bg-[#1E293B] dark:text-[#818CF8] shadow-xs'
+                                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                         }`}
                                     >
                                         Concluídos
@@ -1170,8 +1170,8 @@ const Servicos: React.FC = () => {
                                         onClick={() => setServiceStatusFilter('Todos')}
                                         className={`px-2.5 py-1 rounded-md font-semibold text-xs transition-all cursor-pointer ${
                                             serviceStatusFilter === 'Todos'
-                                                ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-xs'
-                                                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
+                                                ? 'bg-[#EEF2FF] text-[#4F46E5] dark:bg-[#1E293B] dark:text-[#818CF8] shadow-xs'
+                                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                         }`}
                                     >
                                         Todos
@@ -1184,10 +1184,10 @@ const Servicos: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => setServiceFilters(prev => ({ ...prev, projectId: null }))}
-                                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                    className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
                                         !serviceFilters.projectId
-                                            ? 'bg-indigo-600 text-white shadow-xs'
-                                            : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-brand-dark-700'
+                                            ? 'bg-[#EEF2FF] text-[#4F46E5] font-semibold border border-indigo-200/80 dark:bg-[#1E293B] dark:text-[#818CF8] dark:border-indigo-800/40 shadow-xs'
+                                            : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium'
                                     }`}
                                 >
                                     Todas Obras
@@ -1197,10 +1197,10 @@ const Servicos: React.FC = () => {
                                         key={p.id}
                                         type="button"
                                         onClick={() => setServiceFilters(prev => ({ ...prev, projectId: prev.projectId === p.id ? null : p.id }))}
-                                        className={`px-2.5 py-1 rounded-lg text-xs font-medium max-w-[130px] truncate transition-all cursor-pointer ${
+                                        className={`px-2.5 py-1 rounded-md text-xs max-w-[130px] truncate transition-all cursor-pointer ${
                                             serviceFilters.projectId === p.id
-                                                ? 'bg-indigo-600 text-white font-semibold shadow-xs'
-                                                : 'bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-brand-dark-700'
+                                                ? 'bg-[#EEF2FF] text-[#4F46E5] font-semibold border border-indigo-200/80 dark:bg-[#1E293B] dark:text-[#818CF8] dark:border-indigo-800/40 shadow-xs'
+                                                : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium'
                                         }`}
                                         title={p.name}
                                     >
@@ -1304,7 +1304,7 @@ const Servicos: React.FC = () => {
                         )}
 
                         {/* Tabela de Alta Densidade com Split View Retrátil Inline */}
-                        <div className={`overflow-hidden rounded-b-xl border-x border-b border-slate-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900 shadow-sm flex flex-col lg:flex-row ${
+                        <div className={`overflow-hidden rounded-b-xl border-x border-b border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] shadow-xs flex flex-col lg:flex-row ${
                             selectedService && isDesktop ? 'items-stretch' : ''
                         }`}>
                             {isLoadingServices ? (
@@ -1369,7 +1369,7 @@ const Servicos: React.FC = () => {
                                     }`}>
                                         <div className={`hidden md:block overflow-x-auto ${selectedService && isDesktop ? 'max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar' : ''}`}>
                                             <table className="w-full text-sm text-left text-slate-600 dark:text-gray-400">
-                                                <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-brand-dark-800/60 border-b border-slate-200 dark:border-gray-800 sticky top-0 z-10">
+                                                <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-[#111827] border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 text-slate-500 dark:text-[#94A3B8]">
                                                     <tr>
                                                         <th className="px-3 sm:px-4 py-3.5 font-semibold">Serviço / Escopo</th>
                                                         <th className={selectedService && isDesktop ? 'hidden' : 'px-4 py-3.5 font-semibold'}>Prestador</th>
@@ -1380,7 +1380,7 @@ const Servicos: React.FC = () => {
                                                         <th className="px-2 sm:px-4 py-3.5 font-semibold text-center w-12 sm:w-16">Ações</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-brand-dark-900">
+                                                <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-[#111827]">
                                                     {allServices.map((service) => {
                                                         const isCompleted = service.status === 'Concluído';
                                                         const isSelected = selectedService?.id === service.id && isDesktop;
@@ -1390,8 +1390,8 @@ const Servicos: React.FC = () => {
                                                                 key={service.id}
                                                                 className={`transition-colors cursor-pointer group ${
                                                                     isSelected
-                                                                        ? 'bg-indigo-50/90 dark:bg-indigo-950/60 border-l-4 border-indigo-600 font-semibold text-indigo-950 dark:text-indigo-100'
-                                                                        : 'hover:bg-slate-50 dark:hover:bg-brand-dark-800/60'
+                                                                        ? 'bg-[#F5F3FF] dark:bg-indigo-500/[0.08] border-l-4 border-[#818CF8] font-semibold text-slate-800 dark:text-[#F8FAFC]'
+                                                                        : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
                                                                 }`}
                                                                 onClick={() => handleSelectService(service)}
                                                             >
@@ -1410,8 +1410,8 @@ const Servicos: React.FC = () => {
                                                                             {selectedService && isDesktop && (
                                                                                 <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider ${
                                                                                     isCompleted
-                                                                                        ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-800/60'
-                                                                                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60'
+                                                                                        ? 'bg-[#ECFDF5] text-[#047857] border-emerald-200/80 dark:bg-emerald-500/[0.12] dark:text-[#34D399] dark:border-emerald-500/20'
+                                                                                        : 'bg-[#EEF2FF] text-[#4338CA] border-indigo-200/80 dark:bg-indigo-500/[0.12] dark:text-[#818CF8] dark:border-indigo-500/20'
                                                                                 }`}>
                                                                                     {service.status}
                                                                                 </span>
@@ -1813,7 +1813,7 @@ const Servicos: React.FC = () => {
                                     {/* Desktop: Tabela de Adiantamentos */}
                                     <div className="hidden md:block overflow-x-auto">
                                         <table className="w-full text-sm text-left text-slate-600 dark:text-gray-400">
-                                            <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-brand-dark-800/60 border-b border-slate-200 dark:border-gray-800 sticky top-0 z-10">
+                                            <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-[#111827] border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 text-slate-500 dark:text-[#94A3B8]">
                                                 <tr>
                                                     <th className="px-3 sm:px-4 py-3.5 font-semibold">Data Liberação</th>
                                                     <th className="px-3 sm:px-4 py-3.5 font-semibold">Medição / Observação</th>
@@ -1824,7 +1824,7 @@ const Servicos: React.FC = () => {
                                                     <th className="px-2 sm:px-4 py-3.5 font-semibold text-center w-12 sm:w-16">Ações</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-brand-dark-900">
+                                            <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-[#111827]">
                                                 {allAdvances.map((advance) => (
                                                     <tr 
                                                         key={advance.id} 
