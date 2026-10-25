@@ -23,7 +23,7 @@ import {
   CalculatorIcon, PieChartIcon, PlusIcon, DownloadIcon, CopyIcon,
   Trash2Icon, EditIcon, CheckIcon, XIcon, ChevronUpIcon, ChevronDownIcon,
   ChevronRightIcon, ConstructionIcon, BuildingIcon, SparklesIcon, TrendingUpIcon,
-  FilterIcon, MoreVerticalIcon, PackageIcon, SearchIcon, UserIcon
+  FilterIcon, MoreVerticalIcon, PackageIcon, SearchIcon, UserIcon, GripVerticalIcon
 } from '../lib/icons';
 import { formatCurrency, formatDateBR } from '../lib/utils';
 import { formatApiError } from '../lib/handleError';
@@ -152,8 +152,15 @@ export const Orcamentos: React.FC = () => {
   const [newItemTipo, setNewItemTipo] = useState<OrcamentoItemTipo>('material');
   const [newItemCategoria, setNewItemCategoria] = useState<CategoriaNota>('Estrutura e Fundação');
   const [selectedCollaboratorId, setSelectedCollaboratorId] = useState<string>('');
+  const [collabSearchText, setCollabSearchText] = useState<string>('');
+  const [isCollabDropdownOpen, setIsCollabDropdownOpen] = useState<boolean>(false);
+  const collabDropdownRef = useRef<HTMLDivElement>(null);
   const [newItemQtd, setNewItemQtd] = useState<string>('1');
   const [newItemValorUnit, setNewItemValorUnit] = useState<string>('');
+
+  // Drag and Drop State para Reordenar Sub-passos
+  const [draggedSubId, setDraggedSubId] = useState<string | null>(null);
+  const [dragOverSubId, setDragOverSubId] = useState<string | null>(null);
 
   // Modal Edição de Item
   const [itemToEdit, setItemToEdit] = useState<OrcamentoItem | null>(null);
@@ -161,8 +168,25 @@ export const Orcamentos: React.FC = () => {
   const [editItemTipo, setEditItemTipo] = useState<OrcamentoItemTipo>('material');
   const [editItemCategoria, setEditItemCategoria] = useState<CategoriaNota>('Estrutura e Fundação');
   const [editItemCollaboratorId, setEditItemCollaboratorId] = useState<string>('');
+  const [editCollabSearchText, setEditCollabSearchText] = useState<string>('');
+  const [isEditCollabDropdownOpen, setIsEditCollabDropdownOpen] = useState<boolean>(false);
+  const editCollabDropdownRef = useRef<HTMLDivElement>(null);
   const [editItemQtd, setEditItemQtd] = useState<string>('1');
   const [editItemValorUnit, setEditItemValorUnit] = useState<string>('');
+
+  // Fechar dropdown de colaboradores ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (collabDropdownRef.current && !collabDropdownRef.current.contains(e.target as Node)) {
+        setIsCollabDropdownOpen(false);
+      }
+      if (editCollabDropdownRef.current && !editCollabDropdownRef.current.contains(e.target as Node)) {
+        setIsEditCollabDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // 1. Carregar Obras
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
@@ -328,12 +352,12 @@ export const Orcamentos: React.FC = () => {
     });
 
     // Ordenar sub-passos por ordem
-    subMap.forEach(list => list.sort((a, b) => a.ordem - b.ordem));
+    subMap.forEach(list => list.sort((a, b) => (a.ordem || 1) - (b.ordem || 1)));
 
     return { rawMainEtapas: mains, rawSubPassosByParent: subMap, allEtapasMap: allMap };
   }, [etapas]);
 
-  // Auto-expandir todas as etapas principais no primeiro carregamento
+  // Auto-expandir todas as etapas principais uma vez no primeiro carregamento
   const hasInitializedExpand = useRef(false);
   useEffect(() => {
     if (!hasInitializedExpand.current && rawMainEtapas.length > 0) {
@@ -356,9 +380,11 @@ export const Orcamentos: React.FC = () => {
   const itensByEtapa = useMemo(() => {
     const map = new Map<string, OrcamentoItem[]>();
     allItens.forEach(it => {
-      const arr = map.get(it.etapa_id) || [];
-      arr.push(it);
-      map.set(it.etapa_id, arr);
+      if (it && it.etapa_id) {
+        const arr = map.get(it.etapa_id) || [];
+        arr.push(it);
+        map.set(it.etapa_id, arr);
+      }
     });
     return map;
   }, [allItens]);
@@ -377,7 +403,7 @@ export const Orcamentos: React.FC = () => {
         const totalMaoDeObra = subItens.filter(it => it.tipo === 'mao_de_obra').reduce((s, it) => s + (Number(it.valor_total) || 0), 0);
         return {
           ...sub,
-          isSubPasso: true,
+          isSubPasso: true as const,
           parentNome: main.nome,
           subIndex: idx + 1,
           itens: subItens,
@@ -389,20 +415,20 @@ export const Orcamentos: React.FC = () => {
       });
 
       // Totalizadores da etapa principal (itens diretos + itens de todos os sub-passos)
-      const allSubItens = subPassosEnriched.flatMap(s => s.itens);
+      const allSubItens = subPassosEnriched.flatMap(s => s.itens || []);
       const allStageItens = [...directItens, ...allSubItens];
 
       const directTotal = directItens.reduce((s, it) => s + (Number(it.valor_total) || 0), 0);
       const directMat = directItens.filter(it => it.tipo === 'material').reduce((s, it) => s + (Number(it.valor_total) || 0), 0);
       const directMo = directItens.filter(it => it.tipo === 'mao_de_obra').reduce((s, it) => s + (Number(it.valor_total) || 0), 0);
 
-      const subTotal = subPassosEnriched.reduce((s, sp) => s + sp.totalPrevisto, 0);
-      const subMat = subPassosEnriched.reduce((s, sp) => s + sp.totalMaterial, 0);
-      const subMo = subPassosEnriched.reduce((s, sp) => s + sp.totalMaoDeObra, 0);
+      const subTotal = subPassosEnriched.reduce((s, sp) => s + (Number(sp.totalPrevisto) || 0), 0);
+      const subMat = subPassosEnriched.reduce((s, sp) => s + (Number(sp.totalMaterial) || 0), 0);
+      const subMo = subPassosEnriched.reduce((s, sp) => s + (Number(sp.totalMaoDeObra) || 0), 0);
 
       return {
         ...main,
-        isSubPasso: false,
+        isSubPasso: false as const,
         subPassos: subPassosEnriched,
         itens: directItens,
         allStageItens,
@@ -422,8 +448,8 @@ export const Orcamentos: React.FC = () => {
 
     return enrichedMainEtapas.filter(main => {
       const matchMainName = main.nome.toLowerCase().includes(term);
-      const matchSubName = main.subPassos.some(sp => sp.nome.toLowerCase().includes(term));
-      const matchItems = main.allStageItens.some(it => it.descricao.toLowerCase().includes(term));
+      const matchSubName = (main.subPassos || []).some(sp => sp.nome.toLowerCase().includes(term));
+      const matchItems = (main.allStageItens || []).some(it => it.descricao.toLowerCase().includes(term));
       return matchMainName || matchSubName || matchItems;
     });
   }, [enrichedMainEtapas, searchTerm]);
@@ -440,11 +466,9 @@ export const Orcamentos: React.FC = () => {
   // Etapa ou sub-passo atualmente selecionado para o Inspector
   const selectedEtapaOrSub = useMemo(() => {
     if (!selectedEtapaId) return null;
-    // Pode ser uma etapa principal...
     for (const main of enrichedMainEtapas) {
       if (main.id === selectedEtapaId) return main;
-      // ...ou um sub-passo
-      for (const sub of main.subPassos) {
+      for (const sub of (main.subPassos || [])) {
         if (sub.id === selectedEtapaId) return sub;
       }
     }
@@ -456,6 +480,13 @@ export const Orcamentos: React.FC = () => {
     if (!selectedEtapaOrSub) return null;
     return projectsMap.get(selectedEtapaOrSub.project_id);
   }, [selectedEtapaOrSub, projectsMap]);
+
+  // Etapa Principal pai se o selecionado for um sub-passo
+  const parentOfSelectedSub = useMemo(() => {
+    if (!selectedEtapaOrSub || !(selectedEtapaOrSub as any).isSubPasso) return null;
+    const parentId = (selectedEtapaOrSub as any).parent_id;
+    return enrichedMainEtapas.find(m => m.id === parentId) || null;
+  }, [selectedEtapaOrSub, enrichedMainEtapas]);
 
   // -------------------------------------------------------------
   // KPIS DINÂMICOS DA PÁGINA
@@ -484,7 +515,7 @@ export const Orcamentos: React.FC = () => {
 
   // Resumo Previsto vs Realizado por Categoria (11 Categorias consolidadas)
   const categoryComparison = useMemo(() => {
-    const orcadoMap = new Map<string, { material: number; maoDeObra: number }>();
+    const orcadoMap = new Map<string, { material: number;毛: number }>();
     CATEGORIA_NOTA_ENUM.forEach(cat => orcadoMap.set(cat, { material: 0, maoDeObra: 0 }));
 
     allItens.forEach(it => {
@@ -533,7 +564,7 @@ export const Orcamentos: React.FC = () => {
   }, [allItens, rpcCategorySummary, notasFiscaisItens]);
 
   // -------------------------------------------------------------
-  // MUTATIONS (CRIAR, EDITAR, EXCLUIR)
+  // MUTATIONS (CRIAR, EDITAR, EXCLUIR, REORDENAR)
   // -------------------------------------------------------------
 
   // Salvar Nova Etapa ou Sub-passo (Criação ou Edição)
@@ -583,7 +614,6 @@ export const Orcamentos: React.FC = () => {
             .single();
 
           if (error) {
-            // Se parent_id ainda não existe no banco de dados, faz fallback suave
             if (error.message?.includes('parent_id') || error.code === '42703') {
               delete insertPayload.parent_id;
               insertPayload.nome = etapaParentId ? `[Sub-passo] ${etapaNameInput.trim()}` : etapaNameInput.trim();
@@ -600,7 +630,6 @@ export const Orcamentos: React.FC = () => {
           } else {
             if (data) {
               setSelectedEtapaId(data.id);
-              // Se foi criado como sub-passo, expande a etapa pai
               if (etapaParentId) {
                 setExpandedEtapaIds(prev => new Set([...prev, etapaParentId]));
               }
@@ -629,6 +658,46 @@ export const Orcamentos: React.FC = () => {
     },
   });
 
+  // Reordenar Sub-passos via Drag and Drop
+  const reorderSubEtapasMutation = useMutation({
+    mutationFn: async ({ parentId, reorderedSubs }: { parentId: string; reorderedSubs: { id: string; ordem: number }[] }) => {
+      if (!profile?.company_id) return;
+      const updates = reorderedSubs.map(sub =>
+        (supabase as any)
+          .from('orcamento_etapas')
+          .update({ ordem: sub.ordem })
+          .eq('id', sub.id)
+          .eq('company_id', profile.company_id)
+      );
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orcamento_etapas'] });
+      toast({ title: 'Ordem atualizada!', description: 'Sub-passos reordenados com sucesso.' });
+    },
+    onError: (err) => {
+      toast({ variant: 'destructive', title: 'Erro ao reordenar', description: formatApiError(err) });
+    },
+  });
+
+  // Handler para reordenar sub-passos
+  const handleReorderSubs = (parentId: string, fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    const parent = enrichedMainEtapas.find(m => m.id === parentId);
+    if (!parent) return;
+
+    const list = [...parent.subPassos];
+    const [moved] = list.splice(fromIndex, 1);
+    list.splice(toIndex, 0, moved);
+
+    const reorderedSubs = list.map((sub, idx) => ({
+      id: sub.id,
+      ordem: idx + 1,
+    }));
+
+    reorderSubEtapasMutation.mutate({ parentId, reorderedSubs });
+  };
+
   // Atualizar Status Rápido da Etapa
   const updateEtapaStatusMutation = useMutation({
     mutationFn: async ({ etapaId, status }: { etapaId: string; status: OrcamentoEtapaStatus }) => {
@@ -650,26 +719,34 @@ export const Orcamentos: React.FC = () => {
     mutationFn: async (etapa: OrcamentoEtapa) => {
       if (!profile?.company_id) return;
 
-      // 1. Excluir itens
-      await (supabase as any)
-        .from('orcamento_itens')
-        .delete()
-        .eq('etapa_id', etapa.id)
-        .eq('company_id', profile.company_id);
-
-      // 2. Excluir sub-passos vinculados (se houver)
-      const subPassos = rawSubPassosByParent.get(etapa.id) || [];
-      for (const sub of subPassos) {
+      // 1. Excluir itens vinculados a esta etapa
+      try {
         await (supabase as any)
           .from('orcamento_itens')
           .delete()
-          .eq('etapa_id', sub.id)
+          .eq('etapa_id', etapa.id)
           .eq('company_id', profile.company_id);
-        await (supabase as any)
-          .from('orcamento_etapas')
-          .delete()
-          .eq('id', sub.id)
-          .eq('company_id', profile.company_id);
+      } catch (e) {
+        console.warn('Erro ao limpar itens da etapa:', e);
+      }
+
+      // 2. Se for etapa principal, excluir sub-passos vinculados
+      const subPassos = rawSubPassosByParent.get(etapa.id) || [];
+      for (const sub of subPassos) {
+        try {
+          await (supabase as any)
+            .from('orcamento_itens')
+            .delete()
+            .eq('etapa_id', sub.id)
+            .eq('company_id', profile.company_id);
+          await (supabase as any)
+            .from('orcamento_etapas')
+            .delete()
+            .eq('id', sub.id)
+            .eq('company_id', profile.company_id);
+        } catch (e) {
+          console.warn('Erro ao limpar sub-passo:', e);
+        }
       }
 
       // 3. Excluir a própria etapa
@@ -687,7 +764,9 @@ export const Orcamentos: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['orcamento_etapas'] });
       queryClient.invalidateQueries({ queryKey: ['orcamento_itens'] });
       queryClient.invalidateQueries({ queryKey: ['rpc_orcamento_category_summary'] });
-      if (selectedEtapaId === etapaToDelete?.id) setSelectedEtapaId(null);
+      if (selectedEtapaId === etapaToDelete?.id) {
+        setSelectedEtapaId(null);
+      }
       setEtapaToDelete(null);
     },
     onError: (err) => {
@@ -722,7 +801,6 @@ export const Orcamentos: React.FC = () => {
         itemPayload.collaborator_id = selectedCollaboratorId;
       }
 
-      // Tenta inserir; se collaborator_id não existir ainda no banco, faz fallback suave
       try {
         const { error } = await (supabase as any).from('orcamento_itens').insert(itemPayload);
         if (error) {
@@ -751,6 +829,8 @@ export const Orcamentos: React.FC = () => {
       setNewItemDescricao('');
       setNewItemValorUnit('');
       setNewItemQtd('1');
+      setSelectedCollaboratorId('');
+      setCollabSearchText('');
     },
     onError: (err) => {
       toast({ variant: 'destructive', title: 'Erro ao adicionar item', description: formatApiError(err) });
@@ -977,7 +1057,7 @@ export const Orcamentos: React.FC = () => {
         const projectName = projectsMap.get(main.project_id)?.name || 'Obra';
 
         // Itens diretos da etapa principal
-        main.itens.forEach((it) => {
+        (main.itens || []).forEach((it) => {
           const prestadorOuCat = it.tipo === 'mao_de_obra'
             ? (collaboratorsMap.get(it.collaborator_id || '')?.name || 'Mão de Obra')
             : it.categoria;
@@ -986,8 +1066,8 @@ export const Orcamentos: React.FC = () => {
         });
 
         // Sub-passos e seus itens
-        main.subPassos.forEach((sub) => {
-          sub.itens.forEach((it) => {
+        (main.subPassos || []).forEach((sub) => {
+          (sub.itens || []).forEach((it) => {
             const prestadorOuCat = it.tipo === 'mao_de_obra'
               ? (collaboratorsMap.get(it.collaborator_id || '')?.name || 'Mão de Obra')
               : it.categoria;
@@ -1011,24 +1091,31 @@ export const Orcamentos: React.FC = () => {
     }
   };
 
-  // Abrir Modal para Criar Nova Etapa Principal
+  // Abrir Modal para Criar Nova Etapa Principal (com auto-ordem sequencial)
   const handleOpenNewEtapa = () => {
+    const targetProj = effectiveProjectId || (projects[0]?.id || '');
+    const existingMains = rawMainEtapas.filter(m => m.project_id === targetProj);
+    const nextOrdem = existingMains.length > 0 ? Math.max(...existingMains.map(m => m.ordem || 0)) + 1 : 1;
+
     setEtapaToEdit(null);
-    setEtapaProjectIdInput(effectiveProjectId || (projects[0]?.id || ''));
+    setEtapaProjectIdInput(targetProj);
     setEtapaParentId(null);
     setEtapaNameInput('');
-    setEtapaOrdemInput(enrichedMainEtapas.length + 1);
+    setEtapaOrdemInput(nextOrdem);
     setEtapaStatusInput('Planejado');
     setIsEtapaModalOpen(true);
   };
 
-  // Abrir Modal para Criar Sub-passo vinculado a uma Etapa Principal
+  // Abrir Modal para Criar Sub-passo vinculado a uma Etapa Principal (com auto-ordem sequencial)
   const handleOpenNewSubPasso = (parentEtapa: EnrichedMainEtapa) => {
+    const existingSubs = rawSubPassosByParent.get(parentEtapa.id) || [];
+    const nextSubOrdem = existingSubs.length > 0 ? Math.max(...existingSubs.map(s => s.ordem || 0)) + 1 : 1;
+
     setEtapaToEdit(null);
     setEtapaProjectIdInput(parentEtapa.project_id);
     setEtapaParentId(parentEtapa.id);
     setEtapaNameInput('');
-    setEtapaOrdemInput((parentEtapa.subPassos?.length || 0) + 1);
+    setEtapaOrdemInput(nextSubOrdem);
     setEtapaStatusInput('Planejado');
     setIsEtapaModalOpen(true);
   };
@@ -1051,9 +1138,17 @@ export const Orcamentos: React.FC = () => {
     setEditItemTipo(item.tipo);
     setEditItemCategoria(item.categoria);
     setEditItemCollaboratorId(item.collaborator_id || '');
+    const collab = item.collaborator_id ? collaboratorsMap.get(item.collaborator_id) : null;
+    setEditCollabSearchText(collab ? `${collab.name}${collab.role ? ` (${collab.role})` : ''}` : '');
     setEditItemQtd(String(item.quantidade));
     setEditItemValorUnit(String(item.valor_unitario));
   };
+
+  // Sub-passos da etapa principal selecionada (se for etapa principal)
+  const currentSubPassos = useMemo(() => {
+    if (!selectedEtapaOrSub || (selectedEtapaOrSub as any).isSubPasso) return [];
+    return (selectedEtapaOrSub as EnrichedMainEtapa).subPassos || [];
+  }, [selectedEtapaOrSub]);
 
   return (
     <div className="w-full px-3 sm:px-5 lg:px-6 py-4 space-y-4 animate-in fade-in-50">
@@ -1348,7 +1443,7 @@ export const Orcamentos: React.FC = () => {
                       filteredMainEtapas.map((main) => {
                         const isMainSelected = selectedEtapaOrSub?.id === main.id;
                         const isExpanded = expandedEtapaIds.has(main.id);
-                        const hasSubPassos = main.subPassos.length > 0;
+                        const hasSubPassos = (main.subPassos || []).length > 0;
                         const projectName = projectsMap.get(main.project_id)?.name;
 
                         return (
@@ -1433,7 +1528,10 @@ export const Orcamentos: React.FC = () => {
                                   {/* Botão Rápido + Sub-passo */}
                                   <button
                                     type="button"
-                                    onClick={() => handleOpenNewSubPasso(main)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenNewSubPasso(main);
+                                    }}
                                     className="p-1 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 cursor-pointer"
                                     title="Adicionar sub-passo dentro desta etapa"
                                   >
@@ -1442,7 +1540,10 @@ export const Orcamentos: React.FC = () => {
                                   {/* Editar */}
                                   <button
                                     type="button"
-                                    onClick={() => handleOpenEditEtapa(main)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenEditEtapa(main);
+                                    }}
                                     className="p-1 rounded hover:bg-slate-100 dark:hover:bg-brand-dark-800 text-slate-400 hover:text-slate-700 cursor-pointer"
                                     title="Editar etapa"
                                   >
@@ -1451,7 +1552,10 @@ export const Orcamentos: React.FC = () => {
                                   {/* Excluir */}
                                   <button
                                     type="button"
-                                    onClick={() => setEtapaToDelete(main)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEtapaToDelete(main);
+                                    }}
                                     className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-500 cursor-pointer"
                                     title="Excluir etapa e seus sub-passos"
                                   >
@@ -1462,7 +1566,7 @@ export const Orcamentos: React.FC = () => {
                             </tr>
 
                             {/* LINHAS DOS SUB-PASSOS (QUANDO EXPANDIDO) */}
-                            {isExpanded && main.subPassos.map((sub) => {
+                            {isExpanded && (main.subPassos || []).map((sub) => {
                               const isSubSelected = selectedEtapaOrSub?.id === sub.id;
 
                               return (
@@ -1516,7 +1620,10 @@ export const Orcamentos: React.FC = () => {
                                     <div className="flex items-center justify-center gap-1">
                                       <button
                                         type="button"
-                                        onClick={() => handleOpenEditEtapa(sub)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenEditEtapa(sub);
+                                        }}
                                         className="p-1 rounded hover:bg-slate-200 dark:hover:bg-brand-dark-800 text-slate-400 hover:text-slate-700 cursor-pointer"
                                         title="Editar sub-passo"
                                       >
@@ -1524,7 +1631,10 @@ export const Orcamentos: React.FC = () => {
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => setEtapaToDelete(sub)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEtapaToDelete(sub);
+                                        }}
                                         className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-500 cursor-pointer"
                                         title="Excluir sub-passo"
                                       >
@@ -1553,6 +1663,17 @@ export const Orcamentos: React.FC = () => {
                   {/* Cabeçalho do Inspector */}
                   <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100 dark:border-gray-800">
                     <div className="min-w-0">
+                      {/* Breadcrumb de navegação de volta se for sub-passo */}
+                      {(selectedEtapaOrSub as any).isSubPasso && parentOfSelectedSub && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedEtapaId(parentOfSelectedSub.id)}
+                          className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1 mb-1.5 cursor-pointer"
+                        >
+                          ← Voltar para {parentOfSelectedSub.ordem}. {parentOfSelectedSub.nome}
+                        </button>
+                      )}
+
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                           (selectedEtapaOrSub as any).isSubPasso
@@ -1570,11 +1691,6 @@ export const Orcamentos: React.FC = () => {
                       <h2 className="text-base font-bold text-slate-800 dark:text-white mt-1">
                         {selectedEtapaOrSub.nome}
                       </h2>
-                      {(selectedEtapaOrSub as any).isSubPasso && (selectedEtapaOrSub as any).parentNome && (
-                        <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
-                          ↳ Vinculado à etapa: <span className="font-semibold text-slate-700 dark:text-gray-200">{(selectedEtapaOrSub as any).parentNome}</span>
-                        </p>
-                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -1593,13 +1709,148 @@ export const Orcamentos: React.FC = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => setSelectedEtapaId(null)}
-                        className="h-8 w-8 p-0 text-slate-400 hover:text-slate-700 cursor-pointer"
+                        className="h-8 w-8 p-0 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
                         title="Fechar painel"
                       >
                         <XIcon className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
+
+                  {/* SEÇÃO DE SUB-PASSOS ARRASTÁVEIS (QUANDO ETAPA PRINCIPAL) */}
+                  {!(selectedEtapaOrSub as any).isSubPasso && (
+                    <div className="bg-slate-50/70 dark:bg-[#162235]/60 border border-slate-200/80 dark:border-[#273549] rounded-xl p-3 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-bold text-slate-800 dark:text-white block">
+                            Sub-passos Executivos ({currentSubPassos.length})
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Arraste e solte para definir a ordem cronológica
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleOpenNewSubPasso(selectedEtapaOrSub as EnrichedMainEtapa)}
+                          className="h-7 text-xs bg-indigo-600 hover:bg-indigo-500 text-white gap-1 cursor-pointer font-bold shrink-0"
+                        >
+                          <PlusIcon className="h-3 w-3" />
+                          <span>+ Sub-passo</span>
+                        </Button>
+                      </div>
+
+                      {currentSubPassos.length === 0 ? (
+                        <div className="py-4 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-gray-800 rounded-lg">
+                          Esta etapa ainda não possui sub-passos. Clique em &quot;+ Sub-passo&quot; para detalhar a execução (ex: Gabarito, Gaiolas, Estacas).
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {currentSubPassos.map((sub, idx) => {
+                            const isDragging = draggedSubId === sub.id;
+                            const isOver = dragOverSubId === sub.id;
+
+                            return (
+                              <div
+                                key={sub.id}
+                                draggable={true}
+                                onDragStart={() => setDraggedSubId(sub.id)}
+                                onDragOver={(e) => {
+                                  e.preventDefault();
+                                  if (dragOverSubId !== sub.id) setDragOverSubId(sub.id);
+                                }}
+                                onDragLeave={() => {
+                                  if (dragOverSubId === sub.id) setDragOverSubId(null);
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  setDragOverSubId(null);
+                                  setDraggedSubId(null);
+                                  if (draggedSubId) {
+                                    const fromIdx = currentSubPassos.findIndex(s => s.id === draggedSubId);
+                                    if (fromIdx !== -1) handleReorderSubs(selectedEtapaOrSub.id, fromIdx, idx);
+                                  }
+                                }}
+                                onDragEnd={() => {
+                                  setDraggedSubId(null);
+                                  setDragOverSubId(null);
+                                }}
+                                onClick={() => setSelectedEtapaId(sub.id)}
+                                className={`p-2.5 rounded-lg border transition-all flex items-center justify-between gap-2 select-none cursor-pointer ${
+                                  isDragging
+                                    ? 'opacity-40 border-indigo-400 bg-indigo-50/50 scale-[0.98]'
+                                    : isOver
+                                    ? 'border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/40 ring-1 ring-indigo-500'
+                                    : 'bg-white dark:bg-[#111827] border-slate-200/80 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div
+                                    className="cursor-grab active:cursor-grabbing p-1 -m-1 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200"
+                                    title="Arraste para reposicionar a ordem cronológica"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <GripVerticalIcon className="h-4 w-4" />
+                                  </div>
+                                  <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/50">
+                                    {selectedEtapaOrSub.ordem}.{idx + 1}
+                                  </span>
+                                  <span className="font-semibold text-xs text-slate-800 dark:text-white truncate">
+                                    {sub.nome}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 shrink-0">
+                                    ({sub.itens_count} insumos)
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                                    {formatCurrency(sub.totalPrevisto)}
+                                  </span>
+                                  <div className="flex items-center gap-0.5">
+                                    <button
+                                      type="button"
+                                      disabled={idx === 0}
+                                      onClick={() => handleReorderSubs(selectedEtapaOrSub.id, idx, idx - 1)}
+                                      className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                                      title="Mover para cima"
+                                    >
+                                      <ChevronUpIcon className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={idx === currentSubPassos.length - 1}
+                                      onClick={() => handleReorderSubs(selectedEtapaOrSub.id, idx, idx + 1)}
+                                      className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                                      title="Mover para baixo"
+                                    >
+                                      <ChevronDownIcon className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditEtapa(sub)}
+                                      className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                                      title="Editar sub-passo"
+                                    >
+                                      <EditIcon className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEtapaToDelete(sub)}
+                                      className="p-1 rounded text-rose-400 hover:text-rose-600 cursor-pointer"
+                                      title="Excluir sub-passo"
+                                    >
+                                      <Trash2Icon className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* FORMULÁRIO RÁPIDO DE ADIÇÃO DE INSUMO OU MÃO DE OBRA */}
                   <div className="bg-slate-50/70 dark:bg-[#162235]/60 border border-slate-200/80 dark:border-[#273549] rounded-xl p-3 space-y-2.5">
@@ -1659,7 +1910,7 @@ export const Orcamentos: React.FC = () => {
                           />
                         </div>
 
-                        {/* 2. Categoria (para Material) OU Colaborador (para Mão de Obra) */}
+                        {/* 2. Categoria (para Material) OU Barra de Busca de Colaborador (para Mão de Obra) */}
                         <div className="sm:col-span-6">
                           {newItemTipo === 'material' ? (
                             <div>
@@ -1677,22 +1928,64 @@ export const Orcamentos: React.FC = () => {
                               </select>
                             </div>
                           ) : (
-                            <div>
+                            <div className="relative" ref={collabDropdownRef}>
                               <label className="text-[10px] font-semibold text-slate-500 dark:text-gray-400 block mb-1">
                                 Colaborador / Prestador de Serviço *
                               </label>
-                              <select
-                                value={selectedCollaboratorId}
-                                onChange={(e) => setSelectedCollaboratorId(e.target.value)}
-                                className="w-full h-8 px-2 text-xs bg-white dark:bg-[#162235] border border-slate-200 dark:border-[#273549] rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 truncate"
-                              >
-                                <option value="">Selecione o profissional...</option>
-                                {collaborators.map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.name} {c.role ? `• ${c.role}` : ''}
-                                  </option>
-                                ))}
-                              </select>
+                              <div className="relative">
+                                <SearchIcon className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                <input
+                                  type="text"
+                                  placeholder="Digite o nome do colaborador..."
+                                  value={collabSearchText}
+                                  onChange={(e) => {
+                                    setCollabSearchText(e.target.value);
+                                    setIsCollabDropdownOpen(true);
+                                  }}
+                                  onFocus={() => setIsCollabDropdownOpen(true)}
+                                  className="w-full h-8 pl-8 pr-7 text-xs bg-white dark:bg-[#162235] border border-slate-200 dark:border-[#273549] rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                />
+                                {selectedCollaboratorId && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCollaboratorId('');
+                                      setCollabSearchText('');
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs cursor-pointer"
+                                    title="Limpar seleção"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+
+                              {isCollabDropdownOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto custom-scrollbar bg-white dark:bg-[#162235] border border-slate-200 dark:border-[#273549] rounded-lg shadow-xl z-30 py-1">
+                                  {collaborators
+                                    .filter(c => c.name.toLowerCase().includes(collabSearchText.toLowerCase()) || (c.role && c.role.toLowerCase().includes(collabSearchText.toLowerCase())))
+                                    .map((c) => (
+                                      <button
+                                        key={c.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedCollaboratorId(c.id);
+                                          setCollabSearchText(c.name + (c.role ? ` (${c.role})` : ''));
+                                          setIsCollabDropdownOpen(false);
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center justify-between cursor-pointer transition-colors"
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <UserIcon className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                                          <span className="font-semibold text-slate-800 dark:text-white truncate">{c.name}</span>
+                                        </div>
+                                        {c.role && (
+                                          <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-2">{c.role}</span>
+                                        )}
+                                      </button>
+                                    ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1757,16 +2050,18 @@ export const Orcamentos: React.FC = () => {
                   <div className="border border-slate-200 dark:border-gray-800 rounded-xl overflow-hidden">
                     <div className="bg-slate-50 dark:bg-[#162235] px-3.5 py-2 border-b border-slate-200 dark:border-gray-800 flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-700 dark:text-gray-300">
-                        Insumos & Serviços Cadastrados ({((selectedEtapaOrSub as any).itens || []).length})
+                        Insumos Cadastrados nesta Etapa ({((selectedEtapaOrSub as any).itens || []).length})
                       </span>
                       <span className="text-[11px] font-mono font-bold text-slate-800 dark:text-white">
-                        Subtotal: {formatCurrency((selectedEtapaOrSub as any).totalPrevisto || 0)}
+                        Subtotal: {formatCurrency(
+                          ((selectedEtapaOrSub as any).itens || []).reduce((s: number, it: OrcamentoItem) => s + (Number(it.valor_total) || 0), 0)
+                        )}
                       </span>
                     </div>
 
                     {(!((selectedEtapaOrSub as any).itens) || (selectedEtapaOrSub as any).itens.length === 0) ? (
                       <div className="py-8 text-center text-slate-400 text-xs">
-                        Nenhum item cadastrado nesta etapa ainda. Use o formulário acima para registrar materiais ou mão de obra.
+                        Nenhum insumo cadastrado diretamente nesta etapa. Use o formulário acima para registrar materiais ou mão de obra.
                       </div>
                     ) : (
                       <div className="overflow-x-auto max-h-[300px] overflow-y-auto custom-scrollbar">
@@ -1974,8 +2269,14 @@ export const Orcamentos: React.FC = () => {
               <select
                 value={etapaProjectIdInput}
                 onChange={(e) => {
-                  setEtapaProjectIdInput(e.target.value);
+                  const newProj = e.target.value;
+                  setEtapaProjectIdInput(newProj);
                   setEtapaParentId(null);
+                  if (!etapaToEdit) {
+                    const existingMains = rawMainEtapas.filter(m => m.project_id === newProj);
+                    const nextOrdem = existingMains.length > 0 ? Math.max(...existingMains.map(m => m.ordem || 0)) + 1 : 1;
+                    setEtapaOrdemInput(nextOrdem);
+                  }
                 }}
                 disabled={!!etapaToEdit}
                 className="w-full h-9 px-3 text-xs bg-slate-50 dark:bg-[#162235] border border-slate-200 dark:border-[#273549] rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
@@ -1997,7 +2298,12 @@ export const Orcamentos: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setEtapaParentId(null)}
+                    onClick={() => {
+                      setEtapaParentId(null);
+                      const existingMains = rawMainEtapas.filter(m => m.project_id === etapaProjectIdInput);
+                      const nextOrdem = existingMains.length > 0 ? Math.max(...existingMains.map(m => m.ordem || 0)) + 1 : 1;
+                      setEtapaOrdemInput(nextOrdem);
+                    }}
                     className={`p-2.5 rounded-lg border text-left flex items-center gap-2 cursor-pointer transition-all ${
                       !etapaParentId
                         ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-400 text-indigo-700 dark:text-indigo-300 font-bold'
@@ -2017,6 +2323,13 @@ export const Orcamentos: React.FC = () => {
                       const availableMains = enrichedMainEtapas.filter(m => !etapaProjectIdInput || m.project_id === etapaProjectIdInput);
                       const defaultParent = availableMains[0]?.id || '';
                       setEtapaParentId(defaultParent || 'new');
+                      if (defaultParent) {
+                        const existingSubs = rawSubPassosByParent.get(defaultParent) || [];
+                        const nextSubOrdem = existingSubs.length > 0 ? Math.max(...existingSubs.map(s => s.ordem || 0)) + 1 : 1;
+                        setEtapaOrdemInput(nextSubOrdem);
+                      } else {
+                        setEtapaOrdemInput(1);
+                      }
                     }}
                     className={`p-2.5 rounded-lg border text-left flex items-center gap-2 cursor-pointer transition-all ${
                       etapaParentId
@@ -2042,7 +2355,15 @@ export const Orcamentos: React.FC = () => {
                 </label>
                 <select
                   value={etapaParentId}
-                  onChange={(e) => setEtapaParentId(e.target.value)}
+                  onChange={(e) => {
+                    const newParent = e.target.value;
+                    setEtapaParentId(newParent);
+                    if (!etapaToEdit) {
+                      const existingSubs = rawSubPassosByParent.get(newParent) || [];
+                      const nextSubOrdem = existingSubs.length > 0 ? Math.max(...existingSubs.map(s => s.ordem || 0)) + 1 : 1;
+                      setEtapaOrdemInput(nextSubOrdem);
+                    }
+                  }}
                   className="w-full h-9 px-3 text-xs bg-slate-50 dark:bg-[#162235] border border-slate-200 dark:border-[#273549] rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                   required
                 >
@@ -2074,7 +2395,7 @@ export const Orcamentos: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {/* 5. Ordem */}
+              {/* 5. Ordem Cronológica (Calculada automaticamente, mas editável) */}
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-gray-300 block mb-1">
                   Ordem Cronológica
@@ -2198,18 +2519,56 @@ export const Orcamentos: React.FC = () => {
                 </select>
               </div>
             ) : (
-              <div>
+              <div className="relative" ref={editCollabDropdownRef}>
                 <label className="text-xs font-semibold text-slate-700 dark:text-gray-300 block mb-1">Colaborador / Prestador de Serviço</label>
-                <select
-                  value={editItemCollaboratorId}
-                  onChange={(e) => setEditItemCollaboratorId(e.target.value)}
-                  className="w-full h-8 px-2 text-xs bg-slate-50 dark:bg-[#162235] border border-slate-200 dark:border-[#273549] rounded-lg text-slate-900 dark:text-white"
-                >
-                  <option value="">Selecione o profissional...</option>
-                  {collaborators.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name} {c.role ? `• ${c.role}` : ''}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <SearchIcon className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Digite o nome do colaborador..."
+                    value={editCollabSearchText}
+                    onChange={(e) => {
+                      setEditCollabSearchText(e.target.value);
+                      setIsEditCollabDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsEditCollabDropdownOpen(true)}
+                    className="w-full h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-[#162235] border border-slate-200 dark:border-[#273549] rounded-lg text-slate-900 dark:text-white"
+                  />
+                  {editItemCollaboratorId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditItemCollaboratorId('');
+                        setEditCollabSearchText('');
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {isEditCollabDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto custom-scrollbar bg-white dark:bg-[#162235] border border-slate-200 dark:border-[#273549] rounded-lg shadow-xl z-30 py-1">
+                    {collaborators
+                      .filter(c => c.name.toLowerCase().includes(editCollabSearchText.toLowerCase()) || (c.role && c.role.toLowerCase().includes(editCollabSearchText.toLowerCase())))
+                      .map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setEditItemCollaboratorId(c.id);
+                            setEditCollabSearchText(c.name + (c.role ? ` (${c.role})` : ''));
+                            setIsEditCollabDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-1.5 text-xs hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center justify-between cursor-pointer"
+                        >
+                          <span className="font-semibold text-slate-800 dark:text-white">{c.name}</span>
+                          {c.role && <span className="text-[10px] text-slate-400 font-mono">{c.role}</span>}
+                        </button>
+                      ))}
+                  </div>
+                )}
               </div>
             )}
 
