@@ -1174,107 +1174,22 @@ const Registros: React.FC = () => {
       </header>
 
       {/* ========================================================= */}
-      {/* 2. FAIXA DE CARDS OPERACIONAIS DE RESUMO (3 COLUNAS)      */}
+      {/* 2. SISTEMA DE ABAS (PADRÃO SERVIÇOS & EXTRATO)            */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Card 1: Fornecedores */}
-        <div 
-          onClick={() => handleTabChange('suppliers')}
-          className={`p-4 rounded-xl border transition-all cursor-pointer shadow-xs flex items-center justify-between ${
-            activeTab === 'suppliers'
-              ? 'bg-indigo-50/40 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-800'
-              : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#1E293B] hover:border-slate-300 dark:hover:border-gray-700'
-          }`}
-        >
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-              <BuildingIcon className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">Fornecedores Homologados</p>
-              <p className="text-lg font-bold text-slate-800 dark:text-[#F8FAFC] truncate font-mono">
-                {counts?.suppliers ?? 0}
-              </p>
-            </div>
-          </div>
-          <span className="text-[11px] font-semibold text-[#4338CA] dark:text-[#818CF8] bg-[#EEF2FF] dark:bg-indigo-500/[0.12] px-2.5 py-0.5 rounded-full border border-indigo-200/80 dark:border-indigo-500/20 whitespace-nowrap shrink-0">
-            Parceiros
-          </span>
-        </div>
-
-        {/* Card 2: Obras */}
-        <div 
-          onClick={() => handleTabChange('projects')}
-          className={`p-4 rounded-xl border transition-all cursor-pointer shadow-xs flex items-center justify-between ${
-            activeTab === 'projects'
-              ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800'
-              : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#1E293B] hover:border-slate-300 dark:hover:border-gray-700'
-          }`}
-        >
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-              <ConstructionIcon className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">Canteiros de Obras</p>
-              <p className="text-lg font-bold text-slate-800 dark:text-[#F8FAFC] truncate font-mono">
-                {counts?.projects ?? 0}
-              </p>
-            </div>
-          </div>
-          <span className="text-[11px] font-semibold text-[#047857] dark:text-[#34D399] bg-[#ECFDF5] dark:bg-emerald-500/[0.12] px-2.5 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-500/20 whitespace-nowrap shrink-0">
-            Canteiros
-          </span>
-        </div>
-
-        {/* Card 3: Colaboradores */}
-        <div 
-          onClick={() => handleTabChange('collaborators')}
-          className={`p-4 rounded-xl border transition-all cursor-pointer shadow-xs flex items-center justify-between ${
-            activeTab === 'collaborators'
-              ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800'
-              : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#1E293B] hover:border-slate-300 dark:hover:border-gray-700'
-          }`}
-        >
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-              <UsersIcon className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">Colaboradores & Equipe</p>
-              <p className="text-lg font-bold text-slate-800 dark:text-[#F8FAFC] truncate font-mono">
-                {counts?.collaborators ?? 0}
-              </p>
-            </div>
-          </div>
-          <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded-full border border-amber-200/80 dark:border-amber-800/40 whitespace-nowrap shrink-0">
-            Profissionais
-          </span>
-        </div>
-      </div>
-
-      {/* ========================================================= */}
-      {/* 3. SISTEMA DE ABAS SEGMENTADAS E FILTROS INTEGRADOS       */}
-      {/* ========================================================= */}
-      <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] rounded-xl p-2 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Esquerda: Botões Maiores de Abas */}
-        <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar">
+      <div className="border-b border-slate-200 dark:border-gray-800">
+        <nav className="flex space-x-6 sm:space-x-8" aria-label="Abas">
           <button
             type="button"
             onClick={() => handleTabChange('suppliers')}
-            className={`h-11 sm:h-12 px-4 sm:px-5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2.5 transition-all cursor-pointer whitespace-nowrap ${
+            className={`pb-2.5 text-xs sm:text-sm font-bold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer ${
               activeTab === 'suppliers'
-                ? 'bg-[#EEF2FF] text-[#4F46E5] dark:bg-[#1E293B] dark:text-[#818CF8] shadow-xs border border-indigo-200/80 dark:border-indigo-800/40'
-                : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-semibold'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white'
             }`}
           >
-            <BuildingIcon className="h-4.5 w-4.5 shrink-0" />
+            <BuildingIcon className="h-4 w-4" />
             <span>Fornecedores</span>
-            <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${
-              activeTab === 'suppliers'
-                ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                : 'bg-slate-200 dark:bg-gray-800 text-slate-700 dark:text-gray-300'
-            }`}>
+            <span className="ml-1 text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-400 font-semibold font-mono">
               {counts?.suppliers ?? 0}
             </span>
           </button>
@@ -1282,19 +1197,15 @@ const Registros: React.FC = () => {
           <button
             type="button"
             onClick={() => handleTabChange('projects')}
-            className={`h-11 sm:h-12 px-4 sm:px-5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2.5 transition-all cursor-pointer whitespace-nowrap ${
+            className={`pb-2.5 text-xs sm:text-sm font-bold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer ${
               activeTab === 'projects'
-                ? 'bg-[#EEF2FF] text-[#4F46E5] dark:bg-[#1E293B] dark:text-[#818CF8] shadow-xs border border-indigo-200/80 dark:border-indigo-800/40'
-                : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-semibold'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white'
             }`}
           >
-            <ConstructionIcon className="h-4.5 w-4.5 shrink-0" />
+            <ConstructionIcon className="h-4 w-4" />
             <span>Obras & Canteiros</span>
-            <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${
-              activeTab === 'projects'
-                ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                : 'bg-slate-200 dark:bg-gray-800 text-slate-700 dark:text-gray-300'
-            }`}>
+            <span className="ml-1 text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-400 font-semibold font-mono">
               {counts?.projects ?? 0}
             </span>
           </button>
@@ -1302,46 +1213,55 @@ const Registros: React.FC = () => {
           <button
             type="button"
             onClick={() => handleTabChange('collaborators')}
-            className={`h-11 sm:h-12 px-4 sm:px-5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2.5 transition-all cursor-pointer whitespace-nowrap ${
+            className={`pb-2.5 text-xs sm:text-sm font-bold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer ${
               activeTab === 'collaborators'
-                ? 'bg-[#EEF2FF] text-[#4F46E5] dark:bg-[#1E293B] dark:text-[#818CF8] shadow-xs border border-indigo-200/80 dark:border-indigo-800/40'
-                : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-semibold'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white'
             }`}
           >
-            <UsersIcon className="h-4.5 w-4.5 shrink-0" />
+            <UsersIcon className="h-4 w-4" />
             <span>Colaboradores & Equipe</span>
-            <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${
-              activeTab === 'collaborators'
-                ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                : 'bg-slate-200 dark:bg-gray-800 text-slate-700 dark:text-gray-300'
-            }`}>
+            <span className="ml-1 text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-400 font-semibold font-mono">
               {counts?.collaborators ?? 0}
             </span>
           </button>
-        </div>
+        </nav>
+      </div>
 
-        {/* Direita: Filtros Contextuais + Campo de Busca Expandido */}
-        <div className="flex items-center gap-2">
-          {activeTab === 'projects' && (
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-brand-dark-800 p-1 rounded-lg">
-              {['todos', 'Em Andamento', 'Planejamento', 'Concluído'].map(st => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => { setStatusFilter(st); setPage(0); }}
-                  className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
-                    statusFilter === st
-                      ? 'bg-white dark:bg-brand-dark-900 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs'
-                      : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-white font-medium'
-                  }`}
-                >
-                  {st === 'todos' ? 'Todos' : st}
-                </button>
-              ))}
-            </div>
-          )}
+      {/* ========================================================= */}
+      {/* 3. BARRA DE FILTROS E ÁREA OPERACIONAL EM SPLIT VIEW      */}
+      {/* ========================================================= */}
+      <div className="space-y-0">
+        {/* Barra de Controle e Filtros Rápidos (Colada no topo da tabela) */}
+        <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] rounded-t-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+          {/* Esquerda: Quick-filter pills para Status de Obras ou Título Contextual */}
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            {activeTab === 'projects' ? (
+              <div className="inline-flex rounded-lg bg-slate-100 dark:bg-[#162235] p-0.5 border border-slate-200 dark:border-[#273549] text-xs">
+                {['todos', 'Em Andamento', 'Planejamento', 'Concluído'].map(st => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => { setStatusFilter(st); setPage(0); }}
+                    className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer font-semibold ${
+                      statusFilter === st
+                        ? 'bg-white dark:bg-[#1E293B] text-indigo-600 dark:text-indigo-400 shadow-xs'
+                        : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-white'
+                    }`}
+                  >
+                    {st === 'todos' ? 'Todos os Status' : st}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="text-xs font-semibold text-slate-500 dark:text-[#94A3B8]">
+                {activeTab === 'suppliers' ? 'Listagem de Fornecedores Homologados' : 'Quadro de Profissionais & Mão de Obra'}
+              </span>
+            )}
+          </div>
 
-          <div className="relative w-full sm:w-64">
+          {/* Direita: Campo de Busca Rápida */}
+          <div className="relative w-full sm:w-72">
             <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <input
               type="text"
@@ -1361,14 +1281,11 @@ const Registros: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
 
-      {/* ========================================================= */}
-      {/* 4. ÁREA OPERACIONAL EM SPLIT VIEW (MESTRE - DETALHE)      */}
-      {/* ========================================================= */}
-      <div className={`overflow-hidden rounded-xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] shadow-xs flex flex-col lg:flex-row ${
-        hasSelectedItem && isDesktop ? 'items-stretch' : ''
-      }`}>
+        {/* 4. ÁREA OPERACIONAL EM SPLIT VIEW (MESTRE - DETALHE) */}
+        <div className={`overflow-hidden rounded-b-xl border-x border-b border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] shadow-xs flex flex-col lg:flex-row ${
+          hasSelectedItem && isDesktop ? 'items-stretch' : ''
+        }`}>
         
         {/* --------------------------------------------------------- */}
         {/* LADO ESQUERDO: TABELA RETRÁTIL                            */}
@@ -1970,6 +1887,7 @@ const Registros: React.FC = () => {
           </div>
         )}
       </div>
+    </div>
 
       {/* ========================================================= */}
       {/* 5. SLIDE-OVER DRAWER PARA DISPOSITIVOS MÓVEIS (< 1024px)  */}
