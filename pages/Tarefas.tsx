@@ -24,7 +24,8 @@ import {
   openOfficialGroupLink,
   TaskForWhatsApp
 } from '../lib/whatsappGenerator';
-import { executeCopilotActions, ChatMessage, ActionCardResult } from '../lib/copilotExecutor';
+import { executeCopilotActions, buildActionReviewItems, CopilotAction, ChatMessage, ActionCardResult } from '../lib/copilotExecutor';
+import CopilotReviewCard from '../components/tarefas/CopilotReviewCard';
 import { formatApiError } from '../lib/handleError';
 
 // Abas da Central de Tarefas: Hoje & Amanhã, Programadas Futuras, Compras, Alertas, Concluídas
@@ -374,39 +375,33 @@ export const Tarefas: React.FC = () => {
       }
 
       const res = data.result;
-      let cardResults: ActionCardResult[] = [];
+      const actionableActions = (res.acoes || []).filter(
+        (a: CopilotAction) => a.tipo !== 'CONVERSA_GERAL'
+      );
 
-      if (res.acoes && Array.isArray(res.acoes) && res.acoes.length > 0) {
-        cardResults = await executeCopilotActions({
-          acoes: res.acoes,
-          companyId: profile?.company_id || '',
-          userId: user?.id || '',
-          projects,
-          collaborators,
-        });
-
-        // Invalida as queries relevantes para atualizar a tela inteira em tempo real
-        queryClient.invalidateQueries({ queryKey: ['tasks'] });
-        queryClient.invalidateQueries({ queryKey: ['collaborators'] });
-        queryClient.invalidateQueries({ queryKey: ['servicos'] });
-        queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
-        queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
-        queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
+      if (actionableActions.length > 0) {
+        const reviewItems = buildActionReviewItems(actionableActions, projects, collaborators);
+        const iaMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ia',
+          text: res.resumo_ia || 'Revise as ações identificadas antes de confirmar:',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          review: {
+            acoes: actionableActions,
+            items: reviewItems,
+            status: 'pending',
+          },
+        };
+        setChatMessages((prev) => [...prev, iaMsg]);
+      } else {
+        const iaMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ia',
+          text: res.resumo_ia || 'Comando processado.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setChatMessages((prev) => [...prev, iaMsg]);
       }
-
-      const iaMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: 'ia',
-        text: res.resumo_ia || 'Ações executadas com sucesso!',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        cards: cardResults,
-      };
-
-      setChatMessages((prev) => [...prev, iaMsg]);
-      toast({
-        title: '✨ Copiloto IA executou o comando!',
-        description: res.resumo_ia || 'Dados atualizados no sistema.',
-      });
     } catch (err: any) {
       console.warn('Erro ao processar mensagem no Copiloto:', err);
       const errorMsg: ChatMessage = {
@@ -419,6 +414,78 @@ export const Tarefas: React.FC = () => {
     } finally {
       setIsProcessingAudioIA(false);
     }
+  };
+
+  const handleConfirmCopilotActions = async (messageId: string, acoes: CopilotAction[]) => {
+    if (!profile?.company_id || !user?.id) return;
+    setIsProcessingAudioIA(true);
+    try {
+      const cardResults = await executeCopilotActions({
+        acoes,
+        companyId: profile.company_id,
+        userId: user.id,
+        projects,
+        collaborators,
+      });
+
+      setChatMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId && msg.review
+            ? {
+                ...msg,
+                review: { ...msg.review, status: 'confirmed' },
+                cards: cardResults,
+              }
+            : msg
+        )
+      );
+
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['collaborators'] });
+      queryClient.invalidateQueries({ queryKey: ['servicos'] });
+      queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
+      queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
+
+      toast({
+        title: '✨ Ações confirmadas e executadas!',
+        description: 'Os dados foram atualizados no sistema.',
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao executar ações';
+      toast({
+        variant: 'destructive',
+        title: 'Erro na execução',
+        description: msg,
+      });
+    } finally {
+      setIsProcessingAudioIA(false);
+    }
+  };
+
+  const handleCancelCopilotActions = (messageId: string) => {
+    setChatMessages((prev) => {
+      const updated = prev.map((msg) =>
+        msg.id === messageId && msg.review
+          ? {
+              ...msg,
+              review: { ...msg.review, status: 'cancelled' as const },
+            }
+          : msg
+      );
+      const cancelNotice: ChatMessage = {
+        id: Date.now().toString(),
+        sender: 'ia',
+        text: 'Ações canceladas.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      return [...updated, cancelNotice];
+    });
+
+    toast({
+      title: 'Ações canceladas',
+      description: 'Nenhum dado foi gravado no banco de dados.',
+    });
   };
 
   const processAudioWithGemini = async (blob: Blob, mimeType: string) => {
@@ -478,38 +545,37 @@ export const Tarefas: React.FC = () => {
       }
 
       const res = data.result;
-      let cardResults: ActionCardResult[] = [];
+      const actionableActions = (res.acoes || []).filter(
+        (a: CopilotAction) => a.tipo !== 'CONVERSA_GERAL'
+      );
 
-      if (res.acoes && Array.isArray(res.acoes) && res.acoes.length > 0) {
-        cardResults = await executeCopilotActions({
-          acoes: res.acoes,
-          companyId: profile?.company_id || '',
-          userId: user?.id || '',
-          projects,
-          collaborators,
-        });
+      const baseText = res.transcricao
+        ? `Transcrição: "${res.transcricao}"\n\n${res.resumo_ia || 'Revise as ações identificadas antes de confirmar:'}`
+        : res.resumo_ia || 'Revise as ações identificadas antes de confirmar:';
 
-        queryClient.invalidateQueries({ queryKey: ['tasks'] });
-        queryClient.invalidateQueries({ queryKey: ['collaborators'] });
-        queryClient.invalidateQueries({ queryKey: ['servicos'] });
-        queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
-        queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
-        queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
+      if (actionableActions.length > 0) {
+        const reviewItems = buildActionReviewItems(actionableActions, projects, collaborators);
+        const iaMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ia',
+          text: baseText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          review: {
+            acoes: actionableActions,
+            items: reviewItems,
+            status: 'pending',
+          },
+        };
+        setChatMessages((prev) => [...prev, iaMsg]);
+      } else {
+        const iaMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ia',
+          text: baseText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setChatMessages((prev) => [...prev, iaMsg]);
       }
-
-      const iaMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: 'ia',
-        text: `Transcrição: "${res.transcricao}"\n\n${res.resumo_ia || 'Ações processadas com sucesso!'}`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        cards: cardResults,
-      };
-
-      setChatMessages((prev) => [...prev, iaMsg]);
-      toast({
-        title: '✨ Áudio processado pelo Gemini Flash!',
-        description: res.resumo_ia,
-      });
     } catch (err: any) {
       console.warn('Erro ao processar áudio no Copiloto:', err);
       const errorMsg: ChatMessage = {
@@ -1355,6 +1421,16 @@ export const Tarefas: React.FC = () => {
                       }`}
                     >
                       <p className="whitespace-pre-wrap font-sans">{msg.text}</p>
+
+                      {/* Card de Revisão antes de Gravar na Ação do Usuário */}
+                      {msg.review && (
+                        <CopilotReviewCard
+                          review={msg.review}
+                          onConfirm={() => handleConfirmCopilotActions(msg.id, msg.review!.acoes)}
+                          onCancel={() => handleCancelCopilotActions(msg.id)}
+                          isExecuting={isProcessingAudioIA}
+                        />
+                      )}
 
                       {/* Cards Interativos de Ações Executadas pela IA */}
                       {msg.cards && msg.cards.length > 0 && (
