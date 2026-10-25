@@ -247,8 +247,8 @@ const Servicos: React.FC = () => {
                         .from('adiantamentos')
                         .select('*, servicos(description, collaborator_id, project_id, collaborators(name), projects(name))')
                         .eq('id', editAdvanceId)
-                        .returns<AdvanceQueryResult>()
-                        .maybeSingle();
+                        .maybeSingle()
+                        .returns<AdvanceQueryResult>();
 
                     if (advData && isMounted) {
                         const formattedAdv: AdvanceWithDetails = {
