@@ -327,9 +327,8 @@ export const Tarefas: React.FC = () => {
       reader.readAsDataURL(blob);
       const audioBase64 = await base64Promise;
 
-      const { data, error } = await supabase.functions.invoke('executar-processamento-ia', {
+      const { data, error } = await supabase.functions.invoke('processar-comando-voz', {
         body: {
-          action: 'voice_command',
           audioBase64,
           audioMimeType: mimeType,
           projectsList: projects.map((p) => ({ id: p.id, name: p.name })),

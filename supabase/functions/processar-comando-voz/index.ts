@@ -1,0 +1,130 @@
+// @ts-nocheck
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { GoogleGenAI } from 'npm:@google/genai@^1.29.0';
+
+declare const Deno: any;
+
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// Retry helper com exponential backoff para resiliência na API do Gemini
+const generateContentWithRetry = async (genAI: GoogleGenAI, request: any, maxRetries = 3) => {
+    let attempt = 0;
+    while (attempt < maxRetries) {
+        try {
+            const response = await genAI.models.generateContent(request);
+            return response;
+        } catch (error: any) {
+            attempt++;
+            const isLastAttempt = attempt >= maxRetries;
+            console.error(`Tentativa ${attempt} falhou na chamada do Gemini: ${error.message}`);
+            
+            if (isLastAttempt) {
+                throw error;
+            }
+            const delay = Math.pow(2, attempt) * 800 + Math.random() * 500;
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    throw new Error('Falha no Gemini após todas as tentativas.');
+};
+
+serve(async (req) => {
+    // 1. Resposta aos pre-flights de CORS
+    if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders });
+    }
+
+    try {
+        const payload = await req.json();
+        const geminiApiKey = Deno.env.get('API_KEY');
+        if (!geminiApiKey) {
+            throw new Error('A variável de ambiente API_KEY não está configurada nos segredos do Supabase.');
+        }
+
+        const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
+        const model = 'gemini-2.5-flash';
+
+        const parts: any[] = [];
+
+        // 2. Anexa o áudio gravado se houver
+        if (payload.audioBase64) {
+            parts.push({
+                inlineData: {
+                    data: payload.audioBase64,
+                    mimeType: payload.audioMimeType || 'audio/webm',
+                },
+            });
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        // 3. Prompt especialista de Canteiro de Obras para o Gemini Flash
+        const promptText = `Você é o Copiloto de Inteligência Artificial do JPL Conecta, sistema de gestão de obras e construção civil.
+Sua missão é analisar o áudio falado (ou o texto do usuário) e extrair a intenção e os dados operacionais com precisão cirúrgica.
+
+Contexto da Empresa:
+- Obras cadastradas: ${JSON.stringify(payload.projectsList || [])}
+- Colaboradores cadastrados: ${JSON.stringify(payload.collaboratorsList || [])}
+- Data de hoje: ${todayStr}
+
+Intenções possíveis:
+1. "CRIAR_TAREFA": para pendências e serviços normais de canteiro de obras (ex: "Lázaro conferir nível da viga no Estrela Dalva amanhã").
+2. "COMPRA_MATERIAL": quando o usuário pedir para comprar, cotar ou encomendar materiais (ex: "Comprar 30 sacos de cimento e 20 tábuas pro Parque Mingone").
+3. "QUITAR_SERVICO": quando o usuário solicitar quitação, baixa ou pagamento de medição de empreiteiro/serviço (ex: "Quitar a medição de 2000 do eletricista no Estrela Dalva").
+4. "REGISTRAR_COLABORADOR": quando o usuário registrar presença, diária ou cadastro de funcionário (ex: "Registrar presença do pedreiro Marcos hoje no Mingone").
+5. "GERAL": dúvidas gerais ou recados operacionais.
+
+Instruções para datas:
+- Se falar "amanhã", calcule a data correta (+1 dia a partir de ${todayStr}).
+- Se falar "depois de amanhã", calcule +2 dias.
+- Se falar o dia da semana (ex: "segunda-feira", "sexta"), calcule a data da próxima ocorrência desse dia.
+- O formato DEVE ser YYYY-MM-DD.
+
+Retorne ESTRITAMENTE um JSON estruturado com o seguinte schema (sem markdown ou formatações extras):
+{
+  "transcricao": "o texto exato ou muito aproximado falado pelo usuário",
+  "intencao": "CRIAR_TAREFA" | "COMPRA_MATERIAL" | "QUITAR_SERVICO" | "REGISTRAR_COLABORADOR" | "GERAL",
+  "titulo": "título curto, claro e objetivo da ação (ex: Conferir nível da viga baldrame)",
+  "obra_id": "UUID da obra detectada ou null",
+  "obra_nome": "Nome exato da obra detectada ou null",
+  "responsavel_id": "UUID do colaborador detectado ou null",
+  "responsavel_nome": "Nome do colaborador detectado ou null",
+  "data_prevista": "YYYY-MM-DD",
+  "is_compra": boolean,
+  "detalhes_acao": {
+    "servico_terceirizado": "nome do serviço caso seja quitação ou medição (ex: Eletricista)",
+    "valor_estimado": number ou null,
+    "itens_compra": ["item 1", "item 2"]
+  },
+  "resumo_ia": "mensagem amigável resumindo o que você entendeu para o mestre de obras"
+}
+
+${payload.textCommand ? `Comando de texto enviado: "${payload.textCommand}"` : 'Analise o áudio anexado e extraia os dados conforme o schema.'}
+`;
+        parts.push({ text: promptText });
+
+        // 4. Execução do Gemini Flash
+        const aiResponse = await generateContentWithRetry(genAI, {
+            model,
+            contents: { parts },
+            config: { responseMimeType: 'application/json' },
+        });
+
+        const parsedResult = JSON.parse(aiResponse.text.trim());
+
+        return new Response(JSON.stringify({ success: true, result: parsedResult }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+    } catch (e: any) {
+        console.error('Erro na Edge Function processar-comando-voz:', e);
+        const errorMessage = e instanceof Error ? e.message : 'Ocorreu um erro desconhecido.';
+        return new Response(JSON.stringify({ error: errorMessage }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+    }
+});
