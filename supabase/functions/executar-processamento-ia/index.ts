@@ -31,12 +31,10 @@ const logToDb = async (supabase: SupabaseClient, jobId: string, message: string,
 };
 
 // Helper function to handle API calls with retries and exponential backoff.
-// This makes the function resilient to temporary errors like "503 Model Overloaded".
 const generateContentWithRetry = async (
     genAI: GoogleGenAI,
     request: any,
     maxRetries = 3,
-    // Optional params for logging in the full processing flow
     jobId?: string,
     supabase?: SupabaseClient
 ) => {
@@ -73,7 +71,6 @@ const generateContentWithRetry = async (
     }
     throw new Error("Function failed after all retries.");
 };
-
 
 const CATEGORIAS_NOTA_ENUM_STRING = `'Estrutura e Fundação', 'Instalação Hidráulica', 'Instalação Elétrica', 'Alvenaria e Vedação', 'Acabamento e Revestimento', 'Carpintaria e Marcenaria', 'Cobertura e Impermeabilização', 'Gastos Gerais'`;
 
@@ -129,7 +126,7 @@ serve(async (req) => {
         return new Response('ok', { headers: corsHeaders });
     }
 
-    let job; // For DB trigger flow
+    let job;
     const supabaseAdmin = createAdminClient();
 
     try {
@@ -178,9 +175,17 @@ serve(async (req) => {
                 .maybeSingle();
 
             if (supplier) {
-                const { data: existingInvoice } = await supabaseAdmin.from('notas_fiscais').select('id').eq('supplier_id', supplier.id).eq('invoice_number', quickResult.invoice_number).eq('company_id', profile.company_id).maybeSingle();
+                const { data: existingInvoice } = await supabaseAdmin
+                    .from('notas_fiscais')
+                    .select('id')
+                    .eq('company_id', profile.company_id)
+                    .eq('supplier_id', supplier.id)
+                    .eq('invoice_number', quickResult.invoice_number)
+                    .limit(1)
+                    .maybeSingle();
+
                 if (existingInvoice) {
-                    return new Response(JSON.stringify({ status: 'duplicate' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+                    throw new Error(`Esta nota fiscal (Nº ${quickResult.invoice_number}) já foi cadastrada para este fornecedor.`);
                 }
             }
             
@@ -204,7 +209,6 @@ serve(async (req) => {
             if (dbJobError || !dbJob) throw new Error('Job not found.');
             job = dbJob;
             
-            // Check if job was already archived before starting
             const { data: initialJob } = await supabaseAdmin.from('ai_process_jobs').select('status').eq('id', job.id).single();
             if (initialJob && initialJob.status === 'archived') {
                 await logToDb(supabaseAdmin, job.id, 'Job was archived before processing started. Aborting.');
@@ -220,8 +224,6 @@ serve(async (req) => {
             const fileBase64 = encode(await fileData.arrayBuffer());
             const filePart = { inlineData: { data: fileBase64, mimeType: fileData.type } };
 
-            // The verification logic is now handled by the frontend before creating the job,
-            // but we keep the cache check logic here.
             await logToDb(supabaseAdmin, job.id, 'Cache miss assumed (verification is frontend-driven). Performing full extraction.');
 
             const response = await generateContentWithRetry(genAI, {
@@ -251,47 +253,40 @@ serve(async (req) => {
             try {
                 resultJson = JSON.parse(response.text.trim());
             } catch (e) {
-                throw new Error(`Failed to parse full extraction response from AI. Raw text: ${response.text}`);
-            }
-            
-            if (resultJson.is_valid_invoice === false || !resultJson.fornecedor_cnpj || !resultJson.invoice_number) {
-                throw new Error("A IA não conseguiu identificar o CNPJ do fornecedor ou o número da nota. Verifique se a imagem está legível e se o documento é uma nota fiscal válida.");
+                console.error("Failed to parse JSON response from Gemini:", response.text);
+                throw new Error("A resposta da IA não pôde ser interpretada como um JSON válido.");
             }
 
-            await logToDb(supabaseAdmin, job.id, 'Full extraction complete.');
-            
-            // Check if job was archived by user during processing
-            const { data: currentJob } = await supabaseAdmin.from('ai_process_jobs').select('status').eq('id', job.id).single();
-            if (currentJob && currentJob.status !== 'archived') {
-                await supabaseAdmin.from('ai_process_jobs').update({ status: 'completed', result_json: resultJson, processing_completed_at: new Date().toISOString() }).eq('id', job.id).throwOnError();
-            } else {
-                await logToDb(supabaseAdmin, job.id, 'Job was archived by user, skipping completion update.');
+            if (!resultJson.is_valid_invoice) {
+                throw new Error("O documento analisado não é uma nota fiscal válida ou não contém dados legíveis.");
             }
             
-            return new Response(JSON.stringify({ success: true, jobId: job.id }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-        }
-        
-        // --- Invalid Payload ---
-        else {
-            throw new Error("Invalid payload structure.");
+            await supabaseAdmin.from('ai_process_jobs').update({
+                status: 'completed',
+                result_json: resultJson,
+                completed_at: new Date().toISOString()
+            }).eq('id', job.id).throwOnError();
+
+            await logToDb(supabaseAdmin, job.id, 'Processing finished successfully.');
+            return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
         }
 
-    } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
-        console.error('Error in Edge Function:', e.stack || e);
+        return new Response(JSON.stringify({ error: 'Invalid payload structure.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-        // If 'job' is defined, we are in the full processing flow, so update its status.
+    } catch (error: any) {
+        console.error('Error processing AI job:', error);
         if (job && job.id) {
-            await logToDb(supabaseAdmin, job.id, 'Processing failed.', { error: errorMessage });
-            
-            // Check if job was archived by user during processing
-            const { data: currentJob } = await supabaseAdmin.from('ai_process_jobs').select('status').eq('id', job.id).single();
-            if (currentJob && currentJob.status !== 'archived') {
-                await supabaseAdmin.from('ai_process_jobs').update({ status: 'failed', error_message: errorMessage, processing_completed_at: new Date().toISOString() }).eq('id', job.id);
-            }
+            await logToDb(supabaseAdmin, job.id, `Processing failed: ${error.message}`, { error: error.stack });
+            await supabaseAdmin.from('ai_process_jobs').update({
+                status: 'failed',
+                error_message: error.message,
+                completed_at: new Date().toISOString()
+            }).eq('id', job.id);
         }
-        
-        // For both flows, return a 500 error. The client will handle it.
-        return new Response(JSON.stringify({ error: errorMessage }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
     }
 });
