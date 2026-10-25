@@ -531,7 +531,6 @@ export const Orcamentos: React.FC = () => {
           categoria: newItemCategoria,
           quantidade: qtd,
           valor_unitario: unit,
-          valor_total: total,
         });
       if (error) throw error;
       logAuditAction(profile.company_id, user?.email, 'CRIAR', `Item Orçamento: ${newItemDescricao} (R$ ${total})`);
@@ -565,7 +564,6 @@ export const Orcamentos: React.FC = () => {
           categoria: editItemCategoria,
           quantidade: qtd,
           valor_unitario: unit,
-          valor_total: total,
         })
         .eq('id', itemToEdit.id)
         .eq('company_id', profile.company_id);
@@ -662,7 +660,6 @@ export const Orcamentos: React.FC = () => {
             categoria: it.categoria,
             quantidade: it.quantidade,
             valor_unitario: it.valor_unitario,
-            valor_total: it.valor_total,
           }));
           const { error: errInsertItens } = await (supabase as any)
             .from('orcamento_itens')
