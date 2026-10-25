@@ -44,10 +44,14 @@ export const Tarefas: React.FC = () => {
   const [selectedProjectFilter, setSelectedProjectFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Quick Command Input State
+  // Quick Command Input State & Gravador com IA (Gemini Flash)
   const [quickInputText, setQuickInputText] = useState<string>('');
-  const [isListeningVoice, setIsListeningVoice] = useState<boolean>(false);
-  const recognitionRef = useRef<any>(null);
+  const [isRecordingAudio, setIsRecordingAudio] = useState<boolean>(false);
+  const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
+  const [isProcessingAudioIA, setIsProcessingAudioIA] = useState<boolean>(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerIntervalRef = useRef<any>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // WhatsApp Preview Controls
@@ -207,134 +211,154 @@ export const Tarefas: React.FC = () => {
   }, [quickInputText, projects, collaborators, fallbackProjId, projectsMap]);
 
   // -------------------------------------------------------------
-  // DITADO POR VOZ (WEB SPEECH API NATIVA LIMPA E RESILIENTE)
+  // GRAVADOR DE ÁUDIO COM IA (MEDIARECORDER & GEMINI FLASH)
   // -------------------------------------------------------------
-  const isSpeechSupported = useMemo(() => checkSpeechRecognitionSupport(), []);
-  const voiceRetryCountRef = useRef<number>(0);
+  const isMediaRecordingSupported = typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
-  const startRecognitionInstance = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    // Abortar instância anterior para liberar portas de áudio
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch (e) {
-        // Silencia
+  // Cleanup de streams e timers ao desmontar o componente
+  useEffect(() => {
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+        } catch (e) {
+          // Silencia
+        }
       }
-      recognitionRef.current = null;
-    }
+    };
+  }, []);
 
+  const startAudioRecording = async () => {
     try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'pt-BR';
-      // Importante: continuous=false no Windows evita o temido erro de 'network' do Google Speech
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
-
-      recognition.onstart = () => {
-        setIsListeningVoice(true);
-        voiceRetryCountRef.current = 0;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         toast({
-          title: '🎙️ Ouvindo... Pode falar!',
-          description: 'Fale sua pendência (ex: "Lázaro conferir nível da viga no Estrela Dalva amanhã").',
+          variant: 'destructive',
+          title: 'Gravação não suportada',
+          description: 'Seu navegador não suporta captura direta de microfone.',
         });
-      };
+        return;
+      }
 
-      recognition.onresult = (event: any) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          transcript += event.results[i][0].transcript;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+
+      let mimeType = 'audio/webm';
+      if (typeof MediaRecorder.isTypeSupported === 'function') {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4';
         }
-        if (transcript.trim()) {
-          setQuickInputText(transcript);
-        }
-      };
+      }
 
-      recognition.onerror = (event: any) => {
-        console.warn('Erro SpeechRecognition:', event.error);
-        setIsListeningVoice(false);
-
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          toast({
-            variant: 'destructive',
-            title: 'Permissão de Microfone Negada',
-            description: 'Clique no ícone de cadeado na barra de endereço (ao lado da URL) e marque Microfone como "Permitir".',
-          });
-        } else if (event.error === 'network') {
-          // Se for a primeira falha de handshake do Chrome, tenta 1 auto-retry limpo
-          if (voiceRetryCountRef.current === 0) {
-            voiceRetryCountRef.current = 1;
-            setTimeout(() => {
-              try {
-                startRecognitionInstance();
-              } catch (e) {
-                // Silencia
-              }
-            }, 300);
-            return;
-          }
-
-          toast({
-            variant: 'destructive',
-            title: 'Serviço de Voz do Google Indisponível',
-            description: 'Seu navegador não conseguiu conectar aos servidores de voz da Google (verifique sua internet ou bloqueadores). No celular, você pode tocar no microfone nativo do teclado!',
-          });
-        } else if (event.error === 'audio-capture') {
-          toast({
-            variant: 'destructive',
-            title: 'Nenhum microfone encontrado',
-            description: 'Verifique se há um microfone conectado e selecionado no seu computador.',
-          });
-        } else if (event.error === 'no-speech') {
-          // Apenas silêncio do usuário, não exibir erro destrutivo
+      const recorder = new MediaRecorder(stream, { mimeType });
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
         }
       };
 
-      recognition.onend = () => {
-        setIsListeningVoice(false);
-        if (inputRef.current) {
-          inputRef.current.focus();
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        if (audioBlob.size > 500) {
+          await processAudioWithGemini(audioBlob, mimeType);
+        } else {
+          setIsRecordingAudio(false);
         }
       };
 
-      recognitionRef.current = recognition;
-      recognition.start();
+      recorder.start(250);
+      mediaRecorderRef.current = recorder;
+      setIsRecordingAudio(true);
+      setRecordingSeconds(0);
+
+      timerIntervalRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
     } catch (err: any) {
-      console.error('Falha ao iniciar reconhecimento de voz:', err);
-      setIsListeningVoice(false);
+      console.warn('Falha ao abrir microfone:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Microfone Bloqueado',
+        description: 'Clique no ícone de cadeado na barra de endereço (ao lado de https://...) e permita o microfone.',
+      });
+      setIsRecordingAudio(false);
     }
   };
 
-  const toggleVoiceRecording = () => {
-    // 1. Se já estiver gravando, parar a escuta
-    if (isListeningVoice) {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {
-          console.warn('Erro ao interromper reconhecimento de voz:', e);
-        }
+  const stopAudioRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecordingAudio(false);
+  };
+
+  const cancelAudioRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+      } catch (e) {
+        // Silencia
       }
-      setIsListeningVoice(false);
-      return;
+      mediaRecorderRef.current.stop();
     }
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    audioChunksRef.current = [];
+    setIsRecordingAudio(false);
+    setRecordingSeconds(0);
+  };
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      toast({
-        variant: 'destructive',
-        title: 'Microfone não suportado no navegador',
-        description: 'Seu navegador atual não possui suporte nativo à fala. Recomendamos o Google Chrome ou Edge no PC ou smartphone.',
+  const processAudioWithGemini = async (blob: Blob, mimeType: string) => {
+    setIsProcessingAudioIA(true);
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => {
+          const res = reader.result as string;
+          const base64 = res.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
       });
-      return;
-    }
+      reader.readAsDataURL(blob);
+      const audioBase64 = await base64Promise;
 
-    voiceRetryCountRef.current = 0;
-    startRecognitionInstance();
+      const { data, error } = await supabase.functions.invoke('executar-processamento-ia', {
+        body: {
+          action: 'voice_command',
+          audioBase64,
+          audioMimeType: mimeType,
+          projectsList: projects.map((p) => ({ id: p.id, name: p.name })),
+          collaboratorsList: collaborators.map((c) => ({ id: c.id, name: c.name })),
+        },
+      });
+
+      if (error || !data?.result) {
+        throw new Error(error?.message || 'Falha ao processar com Gemini Flash');
+      }
+
+      const res = data.result;
+      if (res.transcricao) {
+        setQuickInputText(res.transcricao);
+      }
+
+      toast({
+        title: '✨ Gemini Flash processou o áudio!',
+        description: res.resumo_ia || `Comando: ${res.titulo || res.transcricao}`,
+      });
+    } catch (err: any) {
+      console.warn('Erro ao processar com Gemini na Edge Function:', err);
+      toast({
+        title: '🎙️ Áudio gravado com sucesso!',
+        description: 'Para o Gemini Flash transcrever diretamente, atualize a Edge Function no Supabase. Enquanto isso, use o microfone do teclado do celular ou digite!',
+      });
+    } finally {
+      setIsProcessingAudioIA(false);
+    }
   };
 
   // -------------------------------------------------------------
@@ -996,26 +1020,51 @@ export const Tarefas: React.FC = () => {
       </header>
 
       {/* ========================================================= */}
-      {/* 2. BARRA DE ENTRADA ULTRARRÁPIDA (COM PARSER E VOZ)       */}
+      {/* 2. BARRA DE ENTRADA ULTRARRÁPIDA (COM IA GEMINI FLASH)     */}
       {/* ========================================================= */}
       <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl p-3.5 shadow-sm space-y-2.5">
-        {/* Banner de Gravação de Voz Ativa */}
-        {isListeningVoice && (
-          <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs animate-pulse">
-            <div className="flex items-center gap-2 min-w-0">
+        {/* Banner de Gravação Ativa com MediaRecorder (Sem quedas de rede) */}
+        {isRecordingAudio && (
+          <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
               <span className="relative flex h-3 w-3 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-600"></span>
               </span>
-              <span className="font-bold truncate">🎙️ Gravando áudio... Pode falar a pendência agora!</span>
+              <div className="min-w-0">
+                <span className="font-bold text-xs">
+                  Gravando Áudio com IA ({String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:{String(recordingSeconds % 60).padStart(2, '0')})
+                </span>
+                <p className="text-[10px] text-slate-500 dark:text-gray-400 truncate">
+                  Fale normalmente a pendência, material de compra ou serviço
+                </p>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={toggleVoiceRecording}
-              className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer shadow-xs shrink-0 transition-colors"
-            >
-              Concluir Fala ⏹️
-            </button>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={cancelAudioRecording}
+                className="px-2 py-1 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs cursor-pointer"
+              >
+                Cancelar ❌
+              </button>
+              <button
+                type="button"
+                onClick={stopAudioRecording}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1.5 transition-all"
+              >
+                <span>Concluir e Enviar ✨</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Banner de Processamento do Gemini Flash */}
+        {isProcessingAudioIA && (
+          <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs animate-pulse">
+            <SparklesIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400 animate-spin" />
+            <span className="font-bold">✨ Gemini Flash ouvindo e analisando o seu áudio...</span>
           </div>
         )}
 
@@ -1032,12 +1081,12 @@ export const Tarefas: React.FC = () => {
             value={quickInputText}
             onChange={(e) => setQuickInputText(e.target.value)}
             placeholder={
-              isListeningVoice
-                ? 'Escutando sua voz em tempo real...'
+              isRecordingAudio
+                ? 'Gravando áudio com IA... Fale à vontade e clique em Concluir quando terminar.'
                 : 'Digite ou fale a pendência (ex: "Lázaro: conferir nível do baldrame no Estrela Dalva amanhã" ou "Comprar 20 tábuas")...'
             }
             className={`w-full h-11 pl-9 pr-24 text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-900/40 border rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none transition-all ${
-              isListeningVoice
+              isRecordingAudio
                 ? 'border-rose-400 ring-2 ring-rose-400/30'
                 : 'border-slate-200 dark:border-gray-800 focus:ring-2 focus:ring-emerald-500/40'
             }`}
@@ -1045,18 +1094,18 @@ export const Tarefas: React.FC = () => {
 
           {/* Botões Internos: Ditado por Voz e Salvar */}
           <div className="absolute right-2 flex items-center gap-1.5">
-            {/* Botão Microfone de Ditado */}
+            {/* Botão Microfone de Gravação com IA */}
             <button
               type="button"
-              onClick={toggleVoiceRecording}
+              onClick={isRecordingAudio ? stopAudioRecording : startAudioRecording}
               className={`p-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                isListeningVoice
+                isRecordingAudio
                   ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/40 ring-2 ring-rose-300'
                   : 'text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
-              title={isListeningVoice ? 'Parar gravação de voz' : 'Falar pendência ao microfone (Ditado por Voz)'}
+              title={isRecordingAudio ? 'Clique para concluir gravação de áudio' : 'Gravar áudio com IA Gemini Flash'}
             >
-              {isListeningVoice ? <MicOffIcon className="h-4 w-4" /> : <MicIcon className="h-4 w-4" />}
+              {isRecordingAudio ? <MicOffIcon className="h-4 w-4" /> : <MicIcon className="h-4 w-4" />}
             </button>
 
             {/* Botão Salvar (Enter) */}

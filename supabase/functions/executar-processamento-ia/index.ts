@@ -259,6 +259,61 @@ serve(async (req) => {
             return new Response(JSON.stringify({ success: true, jobId: job.id }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
         }
         
+        // --- Flow 3: Voice & Natural Language Commands with Gemini Flash ---
+        else if (payload.action === 'voice_command' || payload.audioBase64 || payload.textCommand) {
+            const parts: any[] = [];
+            
+            if (payload.audioBase64) {
+                parts.push({
+                    inlineData: {
+                        data: payload.audioBase64,
+                        mimeType: payload.audioMimeType || 'audio/webm'
+                    }
+                });
+            }
+
+            const promptText = `Você é o Copiloto de Inteligência Artificial do JPL Conecta, sistema de gestão de obras da construção civil.
+Sua missão é analisar o áudio ou o comando falado/digitado pelo mestre de obras ou gestor e extrair a intenção e os dados com alta precisão.
+
+Contexto da Empresa:
+Obras cadastradas: ${JSON.stringify(payload.projectsList || [])}
+Colaboradores cadastrados: ${JSON.stringify(payload.collaboratorsList || [])}
+Data de hoje: ${new Date().toISOString().split('T')[0]}
+
+Retorne ESTRITAMENTE um JSON estruturado com o seguinte schema:
+{
+  "transcricao": "o texto completo falado pelo usuário",
+  "intencao": "CRIAR_TAREFA" | "COMPRA_MATERIAL" | "QUITAR_SERVICO" | "REGISTRAR_COLABORADOR" | "GERAL",
+  "titulo": "título curto e objetivo da ação",
+  "obra_id": "UUID da obra detectada ou null",
+  "obra_nome": "Nome da obra detectada ou null",
+  "responsavel_id": "UUID do colaborador detectado ou null",
+  "responsavel_nome": "Nome do colaborador detectado ou null",
+  "data_prevista": "YYYY-MM-DD",
+  "is_compra": boolean,
+  "detalhes_acao": {
+    "servico_terceirizado": "nome do serviço caso seja quitação/medição",
+    "valor_estimado": number | null,
+    "itens_compra": ["item 1", "item 2"]
+  },
+  "resumo_ia": "mensagem amigável resumindo o que você entendeu para o usuário"
+}
+${payload.textCommand ? `Comando de texto: "${payload.textCommand}"` : 'Analise o áudio enviado e preencha o JSON.'}
+`;
+            parts.push({ text: promptText });
+
+            const aiResponse = await generateContentWithRetry(genAI, {
+                model,
+                contents: { parts },
+                config: { responseMimeType: "application/json" }
+            });
+
+            const parsedResult = JSON.parse(aiResponse.text.trim());
+            return new Response(JSON.stringify({ success: true, result: parsedResult }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+        }
+        
         // --- Invalid Payload ---
         else {
             throw new Error("Invalid payload structure.");
