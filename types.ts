@@ -39,12 +39,14 @@ export type OrcamentoEtapa = {
   id: string;
   company_id: string;
   project_id: string;
+  parent_id?: string | null;
   nome: string;
   ordem: number;
   status: OrcamentoEtapaStatus;
   observacoes?: string | null;
   created_by?: string | null;
   created_at: string;
+  sub_etapas?: OrcamentoEtapa[];
 };
 
 export type OrcamentoItem = {
@@ -55,6 +57,7 @@ export type OrcamentoItem = {
   descricao: string;
   tipo: OrcamentoItemTipo;
   categoria: CategoriaNota;
+  collaborator_id?: string | null;
   quantidade: number;
   valor_unitario: number;
   valor_total: number;
@@ -350,7 +353,7 @@ export type Database = {
       adiantamentos: { Row: Advance; Insert: Partial<Omit<Advance, 'id' | 'created_at'>>; Update: Partial<Omit<Advance, 'id' | 'created_at'>>; Relationships: []; };
       notas_fiscais: { Row: NotaFiscal; Insert: Partial<Omit<NotaFiscal, 'id' | 'created_at' | 'suppliers' | 'projects'>>; Update: Partial<Omit<NotaFiscal, 'id' | 'created_at' | 'suppliers' | 'projects'>>; Relationships: []; };
       itens_nota_fiscal: { Row: ItemNotaFiscal; Insert: Partial<Omit<ItemNotaFiscal, 'id'>>; Update: Partial<Omit<ItemNotaFiscal, 'id'>>; Relationships: []; };
-      orcamento_etapas: { Row: OrcamentoEtapa; Insert: Partial<Omit<OrcamentoEtapa, 'id' | 'created_at'>> & { company_id: string; project_id: string; nome: string }; Update: Partial<Omit<OrcamentoEtapa, 'id' | 'created_at'>>; Relationships: []; };
+      orcamento_etapas: { Row: OrcamentoEtapa; Insert: Partial<Omit<OrcamentoEtapa, 'id' | 'created_at' | 'sub_etapas'>> & { company_id: string; project_id: string; nome: string }; Update: Partial<Omit<OrcamentoEtapa, 'id' | 'created_at' | 'sub_etapas'>>; Relationships: []; };
       orcamento_itens: { Row: OrcamentoItem; Insert: Partial<Omit<OrcamentoItem, 'id' | 'created_at' | 'valor_total'>> & { company_id: string; project_id: string; etapa_id: string; descricao: string; tipo: OrcamentoItemTipo; categoria: CategoriaNota }; Update: Partial<Omit<OrcamentoItem, 'id' | 'created_at' | 'valor_total'>>; Relationships: []; };
       ai_process_jobs: { Row: AIProcessJob; Insert: Partial<Omit<AIProcessJob, 'id' | 'created_at'>>; Update: Partial<Omit<AIProcessJob, 'id' | 'created_at'>>; Relationships: []; };
       profiles: { Row: Profile; Insert: Partial<Omit<Profile, 'id' | 'company_keys' | 'companies'>>; Update: Partial<Omit<Profile, 'id' | 'company_keys' | 'companies'>>; Relationships: []; };
