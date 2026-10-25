@@ -207,11 +207,108 @@ export const Tarefas: React.FC = () => {
   }, [quickInputText, projects, collaborators, fallbackProjId, projectsMap]);
 
   // -------------------------------------------------------------
-  // DITADO POR VOZ (WEB SPEECH API NATIVA COM PERMISSÃO E RESILIÊNCIA)
+  // DITADO POR VOZ (WEB SPEECH API NATIVA LIMPA E RESILIENTE)
   // -------------------------------------------------------------
   const isSpeechSupported = useMemo(() => checkSpeechRecognitionSupport(), []);
+  const voiceRetryCountRef = useRef<number>(0);
 
-  const toggleVoiceRecording = async () => {
+  const startRecognitionInstance = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    // Abortar instância anterior para liberar portas de áudio
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (e) {
+        // Silencia
+      }
+      recognitionRef.current = null;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'pt-BR';
+      // Importante: continuous=false no Windows evita o temido erro de 'network' do Google Speech
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListeningVoice(true);
+        voiceRetryCountRef.current = 0;
+        toast({
+          title: '🎙️ Ouvindo... Pode falar!',
+          description: 'Fale sua pendência (ex: "Lázaro conferir nível da viga no Estrela Dalva amanhã").',
+        });
+      };
+
+      recognition.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript.trim()) {
+          setQuickInputText(transcript);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Erro SpeechRecognition:', event.error);
+        setIsListeningVoice(false);
+
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          toast({
+            variant: 'destructive',
+            title: 'Permissão de Microfone Negada',
+            description: 'Clique no ícone de cadeado na barra de endereço (ao lado da URL) e marque Microfone como "Permitir".',
+          });
+        } else if (event.error === 'network') {
+          // Se for a primeira falha de handshake do Chrome, tenta 1 auto-retry limpo
+          if (voiceRetryCountRef.current === 0) {
+            voiceRetryCountRef.current = 1;
+            setTimeout(() => {
+              try {
+                startRecognitionInstance();
+              } catch (e) {
+                // Silencia
+              }
+            }, 300);
+            return;
+          }
+
+          toast({
+            variant: 'destructive',
+            title: 'Serviço de Voz do Google Indisponível',
+            description: 'Seu navegador não conseguiu conectar aos servidores de voz da Google (verifique sua internet ou bloqueadores). No celular, você pode tocar no microfone nativo do teclado!',
+          });
+        } else if (event.error === 'audio-capture') {
+          toast({
+            variant: 'destructive',
+            title: 'Nenhum microfone encontrado',
+            description: 'Verifique se há um microfone conectado e selecionado no seu computador.',
+          });
+        } else if (event.error === 'no-speech') {
+          // Apenas silêncio do usuário, não exibir erro destrutivo
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListeningVoice(false);
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err: any) {
+      console.error('Falha ao iniciar reconhecimento de voz:', err);
+      setIsListeningVoice(false);
+    }
+  };
+
+  const toggleVoiceRecording = () => {
     // 1. Se já estiver gravando, parar a escuta
     if (isListeningVoice) {
       if (recognitionRef.current) {
@@ -231,103 +328,13 @@ export const Tarefas: React.FC = () => {
       toast({
         variant: 'destructive',
         title: 'Microfone não suportado no navegador',
-        description: 'Seu navegador atual não possui suporte nativo à digitação por voz. Recomendamos usar o Google Chrome ou Microsoft Edge no PC ou smartphone.',
+        description: 'Seu navegador atual não possui suporte nativo à fala. Recomendamos o Google Chrome ou Edge no PC ou smartphone.',
       });
       return;
     }
 
-    // 2. Solicitar permissão de microfone antecipadamente caso não tenha sido concedida
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Liberar as faixas do stream imediatamente para deixar o microfone disponível para o SpeechRecognition
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    } catch (permError: any) {
-      console.warn('Permissão de microfone negada ou erro ao solicitar:', permError);
-      toast({
-        variant: 'destructive',
-        title: 'Acesso ao Microfone Bloqueado',
-        description: 'Clique no ícone de cadeado ao lado do endereço do site (URL) no navegador e altere "Microfone" para Permitir.',
-      });
-      return;
-    }
-
-    // 3. Inicializar e configurar a instância de SpeechRecognition
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'pt-BR';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
-
-      recognition.onstart = () => {
-        setIsListeningVoice(true);
-        toast({
-          title: '🎙️ Ouvindo... Pode falar!',
-          description: 'Fale sua pendência com calma (ex: "Lázaro conferir nível da viga no Estrela Dalva amanhã").',
-        });
-      };
-
-      recognition.onresult = (event: any) => {
-        let fullTranscript = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          fullTranscript += event.results[i][0].transcript;
-        }
-        if (fullTranscript) {
-          setQuickInputText(fullTranscript);
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        console.warn('Erro SpeechRecognition:', event.error);
-        setIsListeningVoice(false);
-
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          toast({
-            variant: 'destructive',
-            title: 'Permissão de Microfone Negada',
-            description: 'Autorize o microfone no ícone de cadeado do seu navegador para poder ditar.',
-          });
-        } else if (event.error === 'no-speech') {
-          toast({
-            variant: 'destructive',
-            title: 'Nenhuma voz detectada',
-            description: 'Não detectamos som. Fale mais perto do microfone e tente novamente.',
-          });
-        } else if (event.error === 'audio-capture') {
-          toast({
-            variant: 'destructive',
-            title: 'Nenhum microfone encontrado',
-            description: 'Verifique se há um microfone conectado e selecionado no seu sistema.',
-          });
-        } else if (event.error === 'network') {
-          toast({
-            variant: 'destructive',
-            title: 'Falha temporária de rede',
-            description: 'O serviço de voz do navegador teve uma oscilação na conexão. Tente novamente.',
-          });
-        }
-      };
-
-      recognition.onend = () => {
-        setIsListeningVoice(false);
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (err: any) {
-      console.error('Falha ao iniciar reconhecimento de voz:', err);
-      setIsListeningVoice(false);
-      toast({
-        variant: 'destructive',
-        title: 'Falha ao ligar microfone',
-        description: 'Não foi possível inicializar a escuta de voz. Tente novamente.',
-      });
-    }
+    voiceRetryCountRef.current = 0;
+    startRecognitionInstance();
   };
 
   // -------------------------------------------------------------
