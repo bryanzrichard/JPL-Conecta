@@ -23,7 +23,7 @@ import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from '@tansta
 import NotasPendentesIA, { LocalJob } from '../components/notas/NotasPendentesIA';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { formatApiError } from '../lib/handleError';
-import { formatCurrency, formatDateBR as formatDate } from '../lib/utils';
+import { formatCurrency, formatDateBR as formatDate, formatDateYMD } from '../lib/utils';
 import { useToast } from '../contexts/ToastContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/DropdownMenu';
@@ -104,38 +104,29 @@ const fetchNotas = async ({ pageParam = 0, queryKey }: { pageParam?: number, que
     };
 };
 
+type NotaExportRow = NotaFiscal & {
+    projects: { name: string } | null;
+    suppliers: { name: string } | null;
+    itens_nota_fiscal: { count: number }[] | null;
+};
+
 const fetchNotasSummary = async (companyId: string, filters: NotaFilters) => {
-    let query = supabase
-        .from('notas_fiscais')
-        .select('total_value', { count: 'exact' })
-        .eq('company_id', companyId);
-
-    if (filters.invoice_number) {
-        query = query.ilike('invoice_number', `%${filters.invoice_number}%`);
-    }
-    if (filters.supplier_id) {
-        query = query.eq('supplier_id', filters.supplier_id);
-    }
-    if (filters.project_id) {
-        query = query.eq('project_id', filters.project_id);
-    }
-    if (filters.payment_method) {
-        query = query.eq('payment_method', filters.payment_method);
-    }
-    if (filters.start_date) {
-        const d = filters.start_date instanceof Date ? filters.start_date.toISOString().split('T')[0] : filters.start_date;
-        query = query.gte('issue_date', d);
-    }
-    if (filters.end_date) {
-        const d = filters.end_date instanceof Date ? filters.end_date.toISOString().split('T')[0] : filters.end_date;
-        query = query.lte('issue_date', d);
-    }
-
-    const { data, error, count } = await query.range(0, 9999);
+    const { data, error } = await supabase.rpc('get_notas_summary', {
+        p_company_id: companyId,
+        p_invoice_number: filters.invoice_number || null,
+        p_supplier_id: filters.supplier_id || null,
+        p_project_id: filters.project_id || null,
+        p_payment_method: filters.payment_method || null,
+        p_start_date: filters.start_date ? formatDateYMD(filters.start_date) : null,
+        p_end_date: filters.end_date ? formatDateYMD(filters.end_date) : null,
+    });
     if (error) throw error;
-    
-    const totalValue = (data || []).reduce((sum, row) => sum + (Number(row.total_value) || 0), 0);
-    return { totalValue, count: count ?? 0 };
+
+    const row = Array.isArray(data) ? data[0] : data;
+    return {
+        totalValue: Number(row?.total_value) || 0,
+        count: Number(row?.total_count) || 0,
+    };
 };
 
 const Notas: React.FC = () => {
@@ -558,31 +549,44 @@ const Notas: React.FC = () => {
     const handleExportCsv = useCallback(async () => {
         if (!profile?.company_id) return;
         try {
-            let query = supabase
-                .from('notas_fiscais')
-                .select('*, projects(name), suppliers(name), itens_nota_fiscal(count)')
-                .eq('company_id', profile.company_id);
+            const BATCH_SIZE = 1000;
+            let from = 0;
+            const exportData: NotaExportRow[] = [];
 
-            if (filters.invoice_number) query = query.ilike('invoice_number', `%${filters.invoice_number}%`);
-            if (filters.supplier_id) query = query.eq('supplier_id', filters.supplier_id);
-            if (filters.project_id) query = query.eq('project_id', filters.project_id);
-            if (filters.payment_method) query = query.eq('payment_method', filters.payment_method);
-            if (filters.start_date) {
-                const d = filters.start_date instanceof Date ? filters.start_date.toISOString().split('T')[0] : filters.start_date;
-                query = query.gte('issue_date', d);
-            }
-            if (filters.end_date) {
-                const d = filters.end_date instanceof Date ? filters.end_date.toISOString().split('T')[0] : filters.end_date;
-                query = query.lte('issue_date', d);
-            }
+            while (true) {
+                let query = supabase
+                    .from('notas_fiscais')
+                    .select('*, projects(name), suppliers(name), itens_nota_fiscal(count)')
+                    .eq('company_id', profile.company_id);
 
-            const { data: exportData, error } = await query.order('issue_date', { ascending: false }).range(0, 9999);
-            if (error) throw error;
+                if (filters.invoice_number) query = query.ilike('invoice_number', `%${filters.invoice_number}%`);
+                if (filters.supplier_id) query = query.eq('supplier_id', filters.supplier_id);
+                if (filters.project_id) query = query.eq('project_id', filters.project_id);
+                if (filters.payment_method) query = query.eq('payment_method', filters.payment_method);
+                if (filters.start_date) {
+                    const d = filters.start_date instanceof Date ? formatDateYMD(filters.start_date) : filters.start_date;
+                    query = query.gte('issue_date', d);
+                }
+                if (filters.end_date) {
+                    const d = filters.end_date instanceof Date ? formatDateYMD(filters.end_date) : filters.end_date;
+                    query = query.lte('issue_date', d);
+                }
+
+                const { data: batch, error } = await query
+                    .order('issue_date', { ascending: false })
+                    .range(from, from + BATCH_SIZE - 1)
+                    .returns<NotaExportRow[]>();
+                if (error) throw error;
+                if (!batch || batch.length === 0) break;
+                exportData.push(...batch);
+                if (batch.length < BATCH_SIZE) break;
+                from += BATCH_SIZE;
+            }
 
             let csv = '\uFEFF'; // UTF-8 Byte Order Mark
             csv += 'Número da Nota;Data de Emissão;Fornecedor;Obra / Projeto;Forma de Pagamento;Qtd Itens;Frete (R$);Valor Total (R$)\r\n';
 
-            (exportData || []).forEach((n: any) => {
+            exportData.forEach((n) => {
                 const num = n.invoice_number || '';
                 const emissao = n.issue_date ? formatDate(n.issue_date) : '';
                 const fornecedor = n.suppliers?.name || 'N/A';
@@ -599,15 +603,16 @@ const Notas: React.FC = () => {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `notas_fiscais_jpl_${new Date().toISOString().split('T')[0]}.csv`);
+            link.setAttribute('download', `notas_fiscais_jpl_${formatDateYMD(new Date())}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
 
             toast({ title: 'Exportado com sucesso!', description: 'Arquivo CSV baixado para o seu computador.' });
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: 'Erro ao exportar', description: err.message || 'Falha ao gerar arquivo CSV.' });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Falha ao gerar arquivo CSV.';
+            toast({ variant: 'destructive', title: 'Erro ao exportar', description: message });
         }
     }, [profile?.company_id, filters, toast]);
 

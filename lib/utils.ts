@@ -19,6 +19,26 @@ export const formatDateBR = (dateString: string | Date | null | undefined): stri
     return date.toLocaleDateString('pt-BR');
 };
 
+// Helper to format dates as YYYY-MM-DD in local timezone (never using toISOString)
+export const formatDateYMD = (dateInput: Date | string): string => {
+    if (typeof dateInput === 'string') {
+        const clean = dateInput.includes('T') ? dateInput.split('T')[0] : dateInput;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+        const parsed = new Date(`${clean}T00:00:00`);
+        if (!isNaN(parsed.getTime())) {
+            const y = parsed.getFullYear();
+            const m = String(parsed.getMonth() + 1).padStart(2, '0');
+            const d = String(parsed.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        return clean;
+    }
+    const y = dateInput.getFullYear();
+    const m = String(dateInput.getMonth() + 1).padStart(2, '0');
+    const d = String(dateInput.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+
 // Helper to normalize 14-digit CNPJ strings into XX.XXX.XXX/XXXX-XX
 export const formatCnpj = (value?: string | null): string => {
     if (!value) return '';

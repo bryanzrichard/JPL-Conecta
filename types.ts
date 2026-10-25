@@ -315,6 +315,17 @@ export type AdvancedDashboardStats = {
     project_health: ProjectHealth[];
 }
 
+export type SummaryRpcRow = {
+    total_value: number;
+    total_count: number;
+};
+
+export type DashboardSpendingRow = {
+    categoria: string;
+    obra: string;
+    total: number;
+};
+
 // --- Supabase Database Definition (Inferred) ---
 
 export type Json =
@@ -380,13 +391,35 @@ export type Database = {
         Args: Record<string, unknown>;
         Returns: NotaWithItemCount[];
       };
-      fn_get_services_with_details: {
-        Args: Record<string, unknown>;
-        Returns: ServiceWithDetails[];
-      };
       fn_get_advances_with_details: {
         Args: Record<string, unknown>;
         Returns: AdvanceWithDetails[];
+      };
+      get_notas_summary: {
+        Args: {
+          p_company_id: string;
+          p_invoice_number?: string | null;
+          p_supplier_id?: string | null;
+          p_project_id?: string | null;
+          p_payment_method?: string | null;
+          p_start_date?: string | null;
+          p_end_date?: string | null;
+        };
+        Returns: SummaryRpcRow | SummaryRpcRow[];
+      };
+      get_cartorio_summary: {
+        Args: {
+          p_company_id: string;
+          p_search?: string | null;
+          p_project_id?: string | null;
+          p_start_date?: string | null;
+          p_end_date?: string | null;
+        };
+        Returns: SummaryRpcRow | SummaryRpcRow[];
+      };
+      get_dashboard_spending: {
+        Args: { p_company_id: string };
+        Returns: DashboardSpendingRow[];
       };
       register_company_key: {
         Args: { p_key: string; p_company_name: string; p_user_id: string };

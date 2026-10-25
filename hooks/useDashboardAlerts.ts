@@ -33,14 +33,18 @@ export const useDashboardAlerts = (companyId?: string, userId?: string): Dashboa
                 const startOfMonthStr = `${year}-${month}-01`;
 
                 // 1. Gasto Mês Atual
-                const { data: notas } = await supabase
-                    .from('notas_fiscais')
-                    .select('total_value')
-                    .eq('company_id', companyId)
-                    .gte('issue_date', startOfMonthStr)
-                    .range(0, 9999);
+                const { data: notasSummary } = await supabase.rpc('get_notas_summary', {
+                    p_company_id: companyId,
+                    p_invoice_number: null,
+                    p_supplier_id: null,
+                    p_project_id: null,
+                    p_payment_method: null,
+                    p_start_date: startOfMonthStr,
+                    p_end_date: null,
+                });
                 
-                const spending = notas?.reduce((sum, nota) => sum + Number(nota.total_value || 0), 0) || 0;
+                const summaryRow = Array.isArray(notasSummary) ? notasSummary[0] : notasSummary;
+                const spending = Number(summaryRow?.total_value || 0);
 
                 // 2. Tarefas Atrasadas
                 const { count: delayed } = await supabase

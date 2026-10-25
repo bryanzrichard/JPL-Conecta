@@ -4,7 +4,7 @@ import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tansta
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabaseClient';
-import { ServiceWithDetails, AdvanceWithDetails, Advance, Collaborator, Project, SERVICE_STATUSES, ServiceStatus } from '../types';
+import { Service, ServiceWithDetails, AdvanceWithDetails, Advance, Collaborator, Project, SERVICE_STATUSES, ServiceStatus } from '../types';
 import { formatCurrency, formatDateBR as formatDate, openStorageFile } from '../lib/utils';
 import { formatApiError } from '../lib/handleError';
 import { deleteServiceWithAttachments, deleteAdvanceWithAttachment } from '../components/servicos/serviceActions';
@@ -830,38 +830,56 @@ const Servicos: React.FC = () => {
     const handleExportCsv = useCallback(async () => {
         if (!profile?.company_id) return;
         try {
+            const BATCH_SIZE = 1000;
             if (activeTab === 'servicos') {
-                let query = supabase
-                    .from('servicos')
-                    .select('*, collaborators(name), projects(name), adiantamentos(value)')
-                    .eq('company_id', profile.company_id);
+                type ServiceExportRow = Service & {
+                    collaborators: { name: string } | null;
+                    projects: { name: string } | null;
+                    adiantamentos: { value: number }[] | null;
+                };
+                let from = 0;
+                const exportData: ServiceExportRow[] = [];
 
-                if (serviceStatusFilter && serviceStatusFilter !== 'Todos') {
-                    query = query.eq('status', serviceStatusFilter);
-                }
-                if (serviceFilters.searchTerm) {
-                    query = query.ilike('description', `%${serviceFilters.searchTerm}%`);
-                }
-                if (serviceFilters.collaboratorId) {
-                    query = query.eq('collaborator_id', serviceFilters.collaboratorId);
-                }
-                if (serviceFilters.projectId) {
-                    query = query.eq('project_id', serviceFilters.projectId);
-                }
-                if (serviceFilters.startDate) {
-                    query = query.gte('start_date', toDateStr(serviceFilters.startDate));
-                }
-                if (serviceFilters.endDate) {
-                    query = query.lte('end_date', toDateStr(serviceFilters.endDate));
-                }
+                while (true) {
+                    let query = supabase
+                        .from('servicos')
+                        .select('*, collaborators(name), projects(name), adiantamentos(value)')
+                        .eq('company_id', profile.company_id);
 
-                const { data: exportData, error } = await query.order('created_at', { ascending: false }).range(0, 9999);
-                if (error) throw error;
+                    if (serviceStatusFilter && serviceStatusFilter !== 'Todos') {
+                        query = query.eq('status', serviceStatusFilter);
+                    }
+                    if (serviceFilters.searchTerm) {
+                        query = query.ilike('description', `%${serviceFilters.searchTerm}%`);
+                    }
+                    if (serviceFilters.collaboratorId) {
+                        query = query.eq('collaborator_id', serviceFilters.collaboratorId);
+                    }
+                    if (serviceFilters.projectId) {
+                        query = query.eq('project_id', serviceFilters.projectId);
+                    }
+                    if (serviceFilters.startDate) {
+                        query = query.gte('start_date', toDateStr(serviceFilters.startDate));
+                    }
+                    if (serviceFilters.endDate) {
+                        query = query.lte('end_date', toDateStr(serviceFilters.endDate));
+                    }
+
+                    const { data: batch, error } = await query
+                        .order('created_at', { ascending: false })
+                        .range(from, from + BATCH_SIZE - 1)
+                        .returns<ServiceExportRow[]>();
+                    if (error) throw error;
+                    if (!batch || batch.length === 0) break;
+                    exportData.push(...batch);
+                    if (batch.length < BATCH_SIZE) break;
+                    from += BATCH_SIZE;
+                }
 
                 let csv = '\uFEFF';
                 csv += 'Descrição do Serviço;Prestador;Obra / Canteiro;Status;Início;Conclusão Prevista;Valor Contratado (R$);Total Pago (R$);Saldo Restante (R$)\r\n';
 
-                (exportData || []).forEach((s: any) => {
+                exportData.forEach((s) => {
                     const desc = s.description || '';
                     const prestador = s.collaborators?.name || 'Não informado';
                     const obra = s.projects?.name || 'Geral';
@@ -870,7 +888,7 @@ const Servicos: React.FC = () => {
                     const fim = s.end_date ? formatDate(s.end_date) : '';
                     const totalContrato = Number(s.total_value) || 0;
                     const isCompleted = s.status === 'Concluído';
-                    const totalAdiantamentos = (s.adiantamentos || []).reduce((acc: number, curr: any) => acc + (Number(curr.value) || 0), 0);
+                    const totalAdiantamentos = (s.adiantamentos || []).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
                     const totalPago = isCompleted ? totalContrato : totalAdiantamentos;
                     const saldo = isCompleted ? 0 : Math.max(0, totalContrato - totalAdiantamentos);
 
@@ -881,7 +899,7 @@ const Servicos: React.FC = () => {
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
-                link.setAttribute('download', `contratos_servicos_jpl_${new Date().toISOString().split('T')[0]}.csv`);
+                link.setAttribute('download', `contratos_servicos_jpl_${toDateStr(new Date())}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -889,46 +907,70 @@ const Servicos: React.FC = () => {
 
                 toast({ title: 'Exportado com sucesso!', description: 'Arquivo CSV de contratos baixado para o seu computador.' });
             } else {
-                let query = supabase
-                    .from('adiantamentos')
-                    .select(`
-                        *,
-                        servicos!inner(
-                            description,
-                            collaborator_id,
-                            project_id,
-                            collaborators(name),
-                            projects(name)
-                        )
-                    `)
-                    .eq('company_id', profile.company_id);
+                type AdvanceExportRow = Advance & {
+                    servicos: {
+                        description: string;
+                        collaborator_id: string | null;
+                        project_id: string | null;
+                        collaborators: { name: string } | null;
+                        projects: { name: string } | null;
+                    } | null;
+                };
+                const advanceSearchFilter = advanceFilters.searchTerm
+                    ? await buildAdvanceSearchFilter(profile.company_id, advanceFilters.searchTerm)
+                    : null;
+                let from = 0;
+                const exportData: AdvanceExportRow[] = [];
 
-                if (advanceFilters.searchTerm) {
-                    query = query.or(await buildAdvanceSearchFilter(profile.company_id, advanceFilters.searchTerm));
-                }
-                if (advanceFilters.collaboratorId) {
-                    query = query.eq('servicos.collaborator_id', advanceFilters.collaboratorId);
-                }
-                if (advanceFilters.projectId) {
-                    query = query.eq('servicos.project_id', advanceFilters.projectId);
-                }
-                if (advanceFilters.serviceId) {
-                    query = query.eq('service_id', advanceFilters.serviceId);
-                }
-                if (advanceFilters.dateRange?.from) {
-                    query = query.gte('payment_date', toDateStr(advanceFilters.dateRange.from));
-                }
-                if (advanceFilters.dateRange?.to) {
-                    query = query.lte('payment_date', toDateStr(advanceFilters.dateRange.to));
-                }
+                while (true) {
+                    let query = supabase
+                        .from('adiantamentos')
+                        .select(`
+                            *,
+                            servicos!inner(
+                                description,
+                                collaborator_id,
+                                project_id,
+                                collaborators(name),
+                                projects(name)
+                            )
+                        `)
+                        .eq('company_id', profile.company_id);
 
-                const { data: exportData, error } = await query.order('payment_date', { ascending: false }).range(0, 9999);
-                if (error) throw error;
+                    if (advanceSearchFilter) {
+                        query = query.or(advanceSearchFilter);
+                    }
+                    if (advanceFilters.collaboratorId) {
+                        query = query.eq('servicos.collaborator_id', advanceFilters.collaboratorId);
+                    }
+                    if (advanceFilters.projectId) {
+                        query = query.eq('servicos.project_id', advanceFilters.projectId);
+                    }
+                    if (advanceFilters.serviceId) {
+                        query = query.eq('service_id', advanceFilters.serviceId);
+                    }
+                    if (advanceFilters.dateRange?.from) {
+                        query = query.gte('payment_date', toDateStr(advanceFilters.dateRange.from));
+                    }
+                    if (advanceFilters.dateRange?.to) {
+                        query = query.lte('payment_date', toDateStr(advanceFilters.dateRange.to));
+                    }
+
+                    const { data: batch, error } = await query
+                        .order('payment_date', { ascending: false })
+                        .range(from, from + BATCH_SIZE - 1)
+                        .returns<AdvanceExportRow[]>();
+                    if (error) throw error;
+                    if (!batch || batch.length === 0) break;
+                    exportData.push(...batch);
+                    if (batch.length < BATCH_SIZE) break;
+                    from += BATCH_SIZE;
+                }
 
                 let csv = '\uFEFF';
                 csv += 'Data da Liberação;Medição / Observação;Contrato de Serviço;Prestador;Obra / Centro de Custo;Valor Liberado (R$)\r\n';
 
-                (exportData || []).forEach((a: any) => {
+                exportData.forEach((a) => {
                     const dataLib = a.payment_date ? formatDate(a.payment_date) : '';
                     const desc = a.description || 'Medição';
                     const servico = a.servicos?.description || 'N/A';
@@ -943,7 +985,7 @@ const Servicos: React.FC = () => {
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
-                link.setAttribute('download', `extrato_adiantamentos_jpl_${new Date().toISOString().split('T')[0]}.csv`);
+                link.setAttribute('download', `extrato_adiantamentos_jpl_${toDateStr(new Date())}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -951,8 +993,9 @@ const Servicos: React.FC = () => {
 
                 toast({ title: 'Exportado com sucesso!', description: 'Arquivo CSV de adiantamentos baixado para o seu computador.' });
             }
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: 'Erro ao exportar', description: err.message || 'Falha ao gerar arquivo CSV.' });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Falha ao gerar arquivo CSV.';
+            toast({ variant: 'destructive', title: 'Erro ao exportar', description: message });
         }
     }, [profile?.company_id, activeTab, serviceStatusFilter, serviceFilters, advanceFilters, toast]);
 

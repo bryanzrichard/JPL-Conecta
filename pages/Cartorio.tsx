@@ -21,6 +21,7 @@ import {
 } from '../lib/icons';
 import { useToast } from '../contexts/ToastContext';
 import { CartorioRecord } from '../types';
+import { formatDateYMD } from '../lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/DropdownMenu';
 import { Skeleton } from '../components/ui/Skeleton';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -166,23 +167,19 @@ const Cartorio: React.FC = () => {
     const { data: summaryData, isLoading: isLoadingSummary } = useQuery({
         queryKey: ['cartorioSummary', profile?.company_id, debouncedSearch, filters],
         queryFn: async () => {
-            let query = supabase.from('cartorio_records').select('amount', { count: 'exact' }).eq('company_id', profile!.company_id!);
-            if (debouncedSearch) {
-                query = query.ilike('description', `%${debouncedSearch}%`);
-            }
-            if (filters.projectId !== 'all') {
-                query = query.eq('project_id', filters.projectId);
-            }
-            if (filters.startDate) {
-                query = query.gte('issue_date', filters.startDate.toISOString().split('T')[0]);
-            }
-            if (filters.endDate) {
-                query = query.lte('issue_date', filters.endDate.toISOString().split('T')[0]);
-            }
-            const { data, count, error } = await query.range(0, 9999);
+            const { data, error } = await supabase.rpc('get_cartorio_summary', {
+                p_company_id: profile!.company_id!,
+                p_search: debouncedSearch || null,
+                p_project_id: filters.projectId !== 'all' ? filters.projectId : null,
+                p_start_date: filters.startDate ? formatDateYMD(filters.startDate) : null,
+                p_end_date: filters.endDate ? formatDateYMD(filters.endDate) : null,
+            });
             if (error) throw error;
-            const totalValue = (data || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-            return { count: count || 0, totalValue };
+            const row = Array.isArray(data) ? data[0] : data;
+            return {
+                count: Number(row?.total_count) || 0,
+                totalValue: Number(row?.total_value) || 0,
+            };
         },
         enabled: !!profile?.company_id,
         placeholderData: (prev) => prev

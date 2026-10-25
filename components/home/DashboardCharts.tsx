@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../hooks/useAuth';
 import { BarChartIcon, ConstructionIcon } from '../../lib/icons';
 import { Skeleton } from '../ui/Skeleton';
-import { CATEGORIA_NOTA_ENUM } from '../../types';
+import { CATEGORIA_NOTA_ENUM, DashboardSpendingRow } from '../../types';
 
 const formatCurrency = (value: number | undefined | null) => {
     if (value === undefined || value === null) return 'R$ 0,00';
@@ -15,110 +15,29 @@ export const DashboardCharts: React.FC = () => {
     const { profile } = useAuth();
     const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
 
-    const { data: itemsData, isLoading: isLoadingItems } = useQuery({
+    const { data: spendingRows, isLoading } = useQuery<DashboardSpendingRow[]>({
         queryKey: ['dashboardItems', profile?.company_id],
         queryFn: async () => {
             const { data, error } = await supabase
-                .from('itens_nota_fiscal')
-                .select(`
-                    total_price,
-                    category,
-                    notas_fiscais!inner (
-                        company_id,
-                        projects (
-                            id,
-                            name
-                        )
-                    )
-                `)
-                .eq('notas_fiscais.company_id', profile!.company_id!)
-                .range(0, 9999);
+                .rpc('get_dashboard_spending', { p_company_id: profile!.company_id! })
+                .returns<DashboardSpendingRow[]>();
             if (error) throw error;
-            return data as any[];
+            return data || [];
         },
         enabled: !!profile?.company_id,
         refetchInterval: 30000,
     });
-
-    const { data: cartorioData, isLoading: isLoadingCartorio } = useQuery({
-        queryKey: ['cartorio_records_dashboard', profile?.company_id],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('cartorio_records')
-                .select('amount, description, projects(name)')
-                .eq('company_id', profile!.company_id!)
-                .range(0, 9999);
-            if (error) throw error;
-            return data as any[];
-        },
-        enabled: !!profile?.company_id,
-        refetchInterval: 30000,
-    });
-
-    const { data: servicesData, isLoading: isLoadingServices } = useQuery({
-        queryKey: ['services_dashboard', profile?.company_id],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('servicos')
-                .select('total_value, status, projects(name)')
-                .eq('company_id', profile!.company_id!)
-                .eq('status', 'Concluído')
-                .range(0, 9999);
-            if (error) throw error;
-            return data as any[];
-        },
-        enabled: !!profile?.company_id,
-        refetchInterval: 30000,
-    });
-
-    const isLoading = isLoadingItems || isLoadingCartorio || isLoadingServices;
 
     const { spendingByCategory, spendingByProject, totalFilteredSpending } = useMemo(() => {
         const categoryMap = new Map<string, number>();
         const projectMap = new Map<string, number>();
         let total = 0;
 
-        if (itemsData) {
-            itemsData.forEach(item => {
-                const category = item.category || 'Sem Categoria';
-                const projectName = item.notas_fiscais?.projects?.name || 'Sem Projeto';
-                const price = Number(item.total_price) || 0;
-
-                // Always calculate category totals for the "Todas" view
-                if (selectedCategory === 'Todas') {
-                    categoryMap.set(category, (categoryMap.get(category) || 0) + price);
-                    projectMap.set(projectName, (projectMap.get(projectName) || 0) + price);
-                    total += price;
-                } else if (category === selectedCategory) {
-                    // If a specific category is selected, only calculate project totals for that category
-                    projectMap.set(projectName, (projectMap.get(projectName) || 0) + price);
-                    total += price;
-                }
-            });
-        }
-
-        if (cartorioData) {
-            cartorioData.forEach(record => {
-                const category = 'Despesas Adicionais (Cartório)';
-                const projectName = record.projects?.name || 'Sem Projeto';
-                const price = Number(record.amount) || 0;
-
-                if (selectedCategory === 'Todas') {
-                    categoryMap.set(category, (categoryMap.get(category) || 0) + price);
-                    projectMap.set(projectName, (projectMap.get(projectName) || 0) + price);
-                    total += price;
-                } else if (category === selectedCategory) {
-                    projectMap.set(projectName, (projectMap.get(projectName) || 0) + price);
-                    total += price;
-                }
-            });
-        }
-
-        if (servicesData) {
-            servicesData.forEach(service => {
-                const category = 'Serviços Concluídos';
-                const projectName = service.projects?.name || 'Sem Projeto';
-                const price = Number(service.total_value) || 0;
+        if (spendingRows) {
+            spendingRows.forEach(row => {
+                const category = row.categoria || 'Sem Categoria';
+                const projectName = row.obra || 'Sem Projeto';
+                const price = Number(row.total) || 0;
 
                 if (selectedCategory === 'Todas') {
                     categoryMap.set(category, (categoryMap.get(category) || 0) + price);
@@ -144,7 +63,7 @@ export const DashboardCharts: React.FC = () => {
             spendingByProject: sortedProjects,
             totalFilteredSpending: total,
         };
-    }, [itemsData, cartorioData, servicesData, selectedCategory]);
+    }, [spendingRows, selectedCategory]);
 
     return (
         <div className="space-y-4">

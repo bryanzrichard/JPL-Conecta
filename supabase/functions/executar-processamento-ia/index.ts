@@ -72,7 +72,7 @@ const generateContentWithRetry = async (
     throw new Error("Function failed after all retries.");
 };
 
-const CATEGORIAS_NOTA_ENUM_STRING = `'Serviços Preliminares e Terraplenagem', 'Estrutura e Fundação', 'Carpintaria e Marcenaria', 'Alvenaria e Vedação', 'Cobertura e Impermeabilização', 'Instalação Hidráulica', 'Instalação Elétrica', 'Acabamento e Revestimento', 'Esquadrias e Vidros', 'Pintura', 'Gastos Gerais'`;
+const CATEGORIAS_NOTA_ENUM_STRING = `'Estrutura e Fundação', 'Instalação Hidráulica', 'Instalação Elétrica', 'Alvenaria e Vedação', 'Acabamento e Revestimento', 'Carpintaria e Marcenaria', 'Cobertura e Impermeabilização', 'Gastos Gerais'`;
 
 const quickExtractSchema = {
     type: Type.OBJECT,
@@ -185,7 +185,7 @@ serve(async (req) => {
                     .maybeSingle();
 
                 if (existingInvoice) {
-                    return new Response(JSON.stringify({ status: 'duplicate', message: `Esta nota fiscal (Nº ${quickResult.invoice_number}) já foi cadastrada para este fornecedor.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+                    throw new Error(`Esta nota fiscal (Nº ${quickResult.invoice_number}) já foi cadastrada para este fornecedor.`);
                 }
             }
             
@@ -242,11 +242,8 @@ serve(async (req) => {
     - **'Instalação Hidráulica'**: Para sistemas de água e esgoto. Exemplos: tubos de PVC, canos, registros, conexões, torneiras, caixas d'água, vasos sanitários.
     - **'Instalação Elétrica'**: Para a rede elétrica. Exemplos: fios, cabos, disjuntores, tomadas, interruptores, conduítes, lâmpadas.
     - **'Alvenaria e Vedação'**: Para levantar paredes e muros. Exemplos: tijolos, blocos cerâmicos, blocos de concreto, argamassa de assentamento.
-    - **'Acabamento e Revestimento'**: Para revestimentos e acabamentos de piso e parede, exceto pintura. Exemplos: pisos, porcelanatos, azulejos, rejunte, argamassa colante, gesso, forro, soleiras.
-    - **'Carpintaria e Marcenaria'**: Para itens de madeira. Exemplos: portas de madeira, janelas de madeira, batentes, rodapés, fechaduras, dobradiças, tábuas, caibros, compensado.
-    - **'Serviços Preliminares e Terraplenagem'**: Para preparo do terreno e início da obra. Exemplos: limpeza de terreno, terraplenagem, escavação, aterro, locação de obra, tapumes, caçambas de entulho, sondagem.
-    - **'Esquadrias e Vidros'**: Para esquadrias não feitas de madeira e vidros. Exemplos: janelas e portas de alumínio, PVC ou ferro, portões metálicos, vidros, box de banheiro, espelhos, guarda-corpos.
-    - **'Pintura'**: Para pintura e seu preparo. Exemplos: tintas, selador, massa corrida, massa acrílica, textura, verniz, lixas, rolos, pincéis, fita crepe, solventes.
+    - **'Acabamento e Revestimento'**: Para o acabamento final. Exemplos: pisos, porcelanatos, azulejos, tintas, massa corrida, rejunte, gesso, pincéis.
+    - **'Carpintaria e Marcenaria'**: Para itens de madeira. Exemplos: portas de madeira, janelas, batentes, rodapés, fechaduras, dobradiças.
     - **'Cobertura e Impermeabilização'**: Para telhados e proteção contra umidade. Exemplos: telhas, mantas asfálticas, impermeabilizantes, calhas, rufos.
     - **'Gastos Gerais'**: Para itens de consumo, escritório, descartáveis, alimentação ou outros itens gerais de pequenos comércios. Exemplos: papel ofício, copos descartáveis, produtos de limpeza, marmitas, EPIs.` }] },
                 config: { responseMimeType: "application/json", responseSchema: fullExtractSchema },
@@ -267,7 +264,7 @@ serve(async (req) => {
             await supabaseAdmin.from('ai_process_jobs').update({
                 status: 'completed',
                 result_json: resultJson,
-                processing_completed_at: new Date().toISOString()
+                completed_at: new Date().toISOString()
             }).eq('id', job.id).throwOnError();
 
             await logToDb(supabaseAdmin, job.id, 'Processing finished successfully.');
@@ -283,7 +280,7 @@ serve(async (req) => {
             await supabaseAdmin.from('ai_process_jobs').update({
                 status: 'failed',
                 error_message: error.message,
-                processing_completed_at: new Date().toISOString()
+                completed_at: new Date().toISOString()
             }).eq('id', job.id);
         }
 
