@@ -81,15 +81,15 @@ const MainLayout: React.FC = () => {
             icon: FileTextIcon, 
             badge: pendingAi > 0 ? { count: pendingAi, color: 'bg-amber-500/20 text-amber-500 border-amber-500/30' } : null 
         },
-        { name: 'Orçamentos', path: '/orcamentos', icon: CalculatorIcon, badge: null },
         { name: 'Serviços', path: '/servicos', icon: ConstructionIcon, badge: null },
-        { name: 'Cartório', path: '/cartorio', icon: BuildingIcon, badge: null },
+        { name: 'Orçamentos', path: '/orcamentos', icon: CalculatorIcon, badge: null },
         { 
             name: 'Tarefas', 
             path: '/tarefas', 
             icon: ClipboardListIcon, 
             badge: delayedTasks > 0 ? { count: delayedTasks, color: 'bg-red-500/20 text-red-500 border-red-500/30' } : null 
         },
+        { name: 'Cartório', path: '/cartorio', icon: BuildingIcon, badge: null },
         { name: 'Cadastros', path: '/registro', icon: ActivityIcon, badge: null },
     ];
 
