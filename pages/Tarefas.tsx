@@ -14,7 +14,8 @@ import {
   CalendarIcon, ConstructionIcon, UserIcon, BuildingIcon,
   Trash2Icon, EditIcon, FilterIcon, SparklesIcon,
   ShoppingBagIcon, CopyIcon, SendIcon, MicIcon, MicOffIcon,
-  AlertTriangleIcon, CheckCircle2Icon, BotIcon, MessageSquareIcon
+  AlertTriangleIcon, CheckCircle2Icon, BotIcon, MessageSquareIcon,
+  BellIcon, ClockIcon
 } from '../lib/icons';
 import { parseQuickTask, toISODate, checkSpeechRecognitionSupport, ParsedTaskResult } from '../lib/taskParser';
 import {
@@ -27,8 +28,8 @@ import {
 import { executeCopilotActions, ChatMessage, ActionCardResult } from '../lib/copilotExecutor';
 import { formatApiError } from '../lib/handleError';
 
-// Abas da Central de Tarefas
-type TarefasTab = 'today' | 'purchases' | 'alerts' | 'completed';
+// Abas da Central de Tarefas: Hoje & Amanhã, Programadas Futuras, Compras, Alertas, Concluídas
+type TarefasTab = 'today' | 'upcoming' | 'purchases' | 'alerts' | 'completed';
 
 export const Tarefas: React.FC = () => {
   const { user, profile } = useAuth();
@@ -503,7 +504,58 @@ export const Tarefas: React.FC = () => {
   }, []);
 
   // -------------------------------------------------------------
-  // CLASSIFICAÇÃO DAS TAREFAS
+  // NOTIFICAÇÕES NATIVAS DO SMARTPHONE / COMPUTADOR
+  // -------------------------------------------------------------
+  const [hasNotificationPermission, setHasNotificationPermission] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
+  });
+
+  const requestNotificationPermission = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      toast({
+        variant: 'destructive',
+        title: 'Notificações não suportadas',
+        description: 'Seu navegador não possui suporte a notificações nativas.',
+      });
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        setHasNotificationPermission(true);
+
+        const pendentesHoje = todayAndTomorrowTasks.filter(t => t.isTodayTask || t.isDelayed);
+        const pendentesAmanha = todayAndTomorrowTasks.filter(t => t.isTomorrowTask);
+
+        let textoCorpo = 'Lembretes automáticos ativados no seu aparelho!';
+        if (pendentesHoje.length > 0 || pendentesAmanha.length > 0) {
+          textoCorpo = `Você tem ${pendentesHoje.length} tarefa(s) para hoje e ${pendentesAmanha.length} para amanhã.`;
+        }
+
+        toast({
+          title: '🔔 Lembretes Ativos!',
+          description: textoCorpo,
+        });
+
+        new Notification('JPL Conecta 🏗️ — Lembrete de Tarefas', {
+          body: textoCorpo,
+          icon: '/favicon.ico',
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Notificações Bloqueadas',
+          description: 'Clique no ícone de cadeado na barra do navegador e permita as Notificações.',
+        });
+      }
+    } catch (e) {
+      console.warn('Erro ao solicitar permissão de notificações:', e);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // CLASSIFICAÇÃO DAS TAREFAS POR DATA E PRAZO
   // -------------------------------------------------------------
   const enrichedTasks = useMemo(() => {
     return allTasks.map(t => {
@@ -514,6 +566,15 @@ export const Tarefas: React.FC = () => {
       const isDelayed = !isCompleted && t.data_fim_prevista && t.data_fim_prevista < todayStr;
       const isTodayTask = t.data_fim_prevista === todayStr;
       const isTomorrowTask = t.data_fim_prevista === tomorrowStr;
+      const isUpcomingTask = !isCompleted && !!t.data_fim_prevista && t.data_fim_prevista > tomorrowStr;
+
+      // Cálculo de quantos dias faltam (ou passaram)
+      let daysDiff: number | null = null;
+      if (t.data_fim_prevista) {
+        const targetD = new Date(t.data_fim_prevista + 'T00:00:00');
+        const nowD = new Date(todayStr + 'T00:00:00');
+        daysDiff = Math.round((targetD.getTime() - nowD.getTime()) / (1000 * 60 * 60 * 24));
+      }
 
       return {
         ...t,
@@ -524,6 +585,8 @@ export const Tarefas: React.FC = () => {
         isDelayed,
         isTodayTask,
         isTomorrowTask,
+        isUpcomingTask,
+        daysDiff,
       };
     });
   }, [allTasks, projectsMap, collaboratorsMap, todayStr, tomorrowStr]);
@@ -543,22 +606,29 @@ export const Tarefas: React.FC = () => {
     });
   }, [enrichedTasks, selectedProjectFilter, searchTerm]);
 
-  // Tarefas da Aba 1 (Hoje & Amanhã)
+  // Aba 1: Hoje & Amanhã (inclui Atrasadas e tarefas sem data)
   const todayAndTomorrowTasks = useMemo(() => {
-    return filteredTasks.filter(t => !t.isCompleted && !t.isPurchase);
-  }, [filteredTasks]);
+    return filteredTasks.filter(t => !t.isCompleted && !t.isPurchase && (!t.data_fim_prevista || t.data_fim_prevista <= tomorrowStr));
+  }, [filteredTasks, tomorrowStr]);
 
-  // Tarefas da Aba 2 (Lista de Compras da Semana)
+  // Aba 2: Programadas Futuras (vencimento após amanhã)
+  const upcomingTasks = useMemo(() => {
+    return filteredTasks
+      .filter(t => !t.isCompleted && !t.isPurchase && !!t.data_fim_prevista && t.data_fim_prevista > tomorrowStr)
+      .sort((a, b) => (a.data_fim_prevista || '').localeCompare(b.data_fim_prevista || ''));
+  }, [filteredTasks, tomorrowStr]);
+
+  // Aba 3: Lista de Compras
   const purchaseTasks = useMemo(() => {
     return filteredTasks.filter(t => t.isPurchase);
   }, [filteredTasks]);
 
-  // Tarefas da Aba 4 (Concluídas)
+  // Aba 5: Concluídas
   const completedTasks = useMemo(() => {
     return filteredTasks.filter(t => t.isCompleted);
   }, [filteredTasks]);
 
-  // Alertas Automáticos derivados de outros módulos (Aba 3)
+  // Alertas Automáticos derivados de outros módulos (Aba 4)
   const autoAlerts = useMemo(() => {
     const alerts: Array<{
       id: string;
@@ -630,10 +700,11 @@ export const Tarefas: React.FC = () => {
   // Contadores para as Abas
   const counts = useMemo(() => ({
     today: todayAndTomorrowTasks.length,
+    upcoming: upcomingTasks.length,
     purchases: purchaseTasks.filter(t => !t.isCompleted).length,
     alerts: autoAlerts.length,
     completed: completedTasks.length,
-  }), [todayAndTomorrowTasks, purchaseTasks, autoAlerts, completedTasks]);
+  }), [todayAndTomorrowTasks, upcomingTasks, purchaseTasks, autoAlerts, completedTasks]);
 
   // -------------------------------------------------------------
   // GERAÇÃO DA PAUTA DO WHATSAPP (LIVE PREVIEW)
@@ -986,18 +1057,22 @@ export const Tarefas: React.FC = () => {
                               </span>
                             )}
 
-                            {/* Badge de Prazo */}
+                            {/* Badge de Prazo Inteligente */}
                             {task.isDelayed ? (
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300">
-                                Atrasada
-                              </span>
-                            ) : task.isTomorrowTask ? (
-                              <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300">
-                                Amanhã
+                                ⚠️ Atrasada ({task.data_fim_prevista ? new Date(task.data_fim_prevista + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : ''})
                               </span>
                             ) : task.isTodayTask ? (
-                              <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                Hoje
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                🚨 HOJE
+                              </span>
+                            ) : task.isTomorrowTask ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300">
+                                ⏰ AMANHÃ
+                              </span>
+                            ) : task.isUpcomingTask ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300">
+                                🗓️ {task.daysDiff !== null ? `Em ${task.daysDiff} dias` : ''} ({task.data_fim_prevista ? new Date(task.data_fim_prevista + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : ''})
                               </span>
                             ) : null}
                           </div>
@@ -1012,6 +1087,30 @@ export const Tarefas: React.FC = () => {
 
                       {/* Ações Rápidas no Hover */}
                       <div className="flex items-center gap-1 shrink-0">
+                        {/* Seletor Rápido de Calendário */}
+                        {!isDone && (
+                          <div className="relative inline-flex items-center">
+                            <input
+                              type="date"
+                              value={task.data_fim_prevista || ''}
+                              onChange={(e) => {
+                                const newDate = e.target.value;
+                                if (newDate) {
+                                  rescheduleTaskMutation.mutate({ taskId: task.id, newDate });
+                                }
+                              }}
+                              className="w-7 h-7 opacity-0 absolute inset-0 cursor-pointer z-10"
+                              title="Alterar data no calendário"
+                            />
+                            <div
+                              className="p-1 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer flex items-center"
+                              title="Escolher data no calendário"
+                            >
+                              <CalendarIcon className="h-3.5 w-3.5" />
+                            </div>
+                          </div>
+                        )}
+
                         {/* Botão Reagendar para Hoje */}
                         {!task.isTodayTask && !isDone && (
                           <button
@@ -1111,6 +1210,26 @@ export const Tarefas: React.FC = () => {
               ))}
             </select>
           </div>
+
+          {/* Botão de Notificações / Lembretes */}
+          <button
+            type="button"
+            onClick={requestNotificationPermission}
+            className={`h-8 px-2.5 sm:px-3 rounded-lg font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer border ${
+              hasNotificationPermission
+                ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 dark:bg-[#111827] dark:hover:bg-slate-800 dark:text-gray-200 dark:border-gray-800'
+            }`}
+            title={hasNotificationPermission ? 'Lembretes ativos no seu aparelho (clique para testar)' : 'Ativar lembretes no smartphone ou computador'}
+          >
+            <BellIcon className={`h-3.5 w-3.5 ${hasNotificationPermission ? 'text-amber-600 dark:text-amber-400 fill-amber-500/20' : 'text-slate-400'}`} />
+            <span className="hidden sm:inline">
+              {hasNotificationPermission ? 'Lembretes Ativos' : 'Ativar Lembretes'}
+            </span>
+            {hasNotificationPermission && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            )}
+          </button>
 
           {/* Botão Oficial do Grupo WhatsApp da Construtora */}
           <button
@@ -1365,6 +1484,23 @@ export const Tarefas: React.FC = () => {
 
           <button
             type="button"
+            onClick={() => setActiveTab('upcoming')}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeTab === 'upcoming'
+                ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
+                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
+            }`}
+          >
+            <span>🗓️ Programadas</span>
+            {counts.upcoming > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 text-[10px]">
+                {counts.upcoming}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('purchases')}
             className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'purchases'
@@ -1451,6 +1587,22 @@ export const Tarefas: React.FC = () => {
             </div>
           ) : activeTab === 'today' ? (
             renderTasksGroupedByProject(todayAndTomorrowTasks, false)
+          ) : activeTab === 'upcoming' ? (
+            upcomingTasks.length === 0 ? (
+              <div className="py-16 text-center bg-white dark:bg-[#111827] border border-dashed border-slate-200 dark:border-gray-800 rounded-2xl p-6">
+                <div className="w-12 h-12 mx-auto rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-3">
+                  <ClockIcon className="h-6 w-6" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white">
+                  Nenhuma pendência futura programada
+                </h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+                  Agende pendências para datas futuras (ex: dia 30/10). Quando chegar a véspera, ela entrará automaticamente na pauta do canteiro!
+                </p>
+              </div>
+            ) : (
+              renderTasksGroupedByProject(upcomingTasks, false)
+            )
           ) : activeTab === 'purchases' ? (
             renderTasksGroupedByProject(purchaseTasks, true)
           ) : activeTab === 'alerts' ? (

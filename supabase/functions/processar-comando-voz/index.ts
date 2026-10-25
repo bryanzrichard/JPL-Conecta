@@ -113,8 +113,10 @@ Ações Suportadas:
 Instruções para datas:
 - Se falar "amanhã", calcule a data correta (+1 dia a partir de ${todayStr}).
 - Se falar "depois de amanhã", calcule +2 dias.
+- Se falar um dia específico do mês (ex: "dia 30", "dia 30/10", "no dia 5"), calcule a data exata YYYY-MM-DD correspondente no calendário considerando o ano e mês atual a partir de ${todayStr}. Se o dia já tiver passado no mês atual, jogue para o mês seguinte.
 - Se falar dia da semana (ex: "segunda-feira", "sexta"), calcule a data da próxima ocorrência.
-- O formato DEVE ser YYYY-MM-DD.
+- Se nenhuma data for mencionada para uma tarefa, o padrão é a data de hoje (${todayStr}).
+- O formato DEVE ser SEMPRE YYYY-MM-DD.
 
 Retorne ESTRITAMENTE um JSON estruturado com o seguinte formato:
 {

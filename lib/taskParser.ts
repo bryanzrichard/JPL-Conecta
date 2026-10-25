@@ -82,7 +82,43 @@ export function parseQuickTask(
   let isTomorrow = false;
   let detectedDateLabel: string | undefined = undefined;
 
-  if (/\b(amanha|amanhã)\b/i.test(normalizedText)) {
+  // 2.1 Verifica padrões explícitos como "dia 30", "dia 30/10" ou "30/10"
+  const explicitDayMonthMatch = normalizedText.match(/\b(?:no\s+dia|dia|para\s+o\s+dia)\s+(\d{1,2})(?:\/(\d{1,2}))?\b/i) ||
+                                normalizedText.match(/\b(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?\b/);
+
+  if (explicitDayMonthMatch) {
+    const day = parseInt(explicitDayMonthMatch[1], 10);
+    const month = explicitDayMonthMatch[2] ? parseInt(explicitDayMonthMatch[2], 10) - 1 : targetDate.getMonth();
+    
+    if (day >= 1 && day <= 31) {
+      const year = targetDate.getFullYear();
+      const candidateDate = new Date(year, month, day);
+      
+      // Se não passou mês e o dia já passou no mês corrente, joga para o próximo mês
+      if (!explicitDayMonthMatch[2] && candidateDate < new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate())) {
+        candidateDate.setMonth(candidateDate.getMonth() + 1);
+      }
+
+      targetDate = candidateDate;
+      const todayOnly = new Date();
+      todayOnly.setHours(0, 0, 0, 0);
+      const targetOnly = new Date(targetDate);
+      targetOnly.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((targetOnly.getTime() - todayOnly.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 0) {
+        isToday = true;
+        detectedDateLabel = 'Hoje';
+      } else if (diffDays === 1) {
+        isTomorrow = true;
+        detectedDateLabel = 'Amanhã';
+      } else {
+        const dayStr = String(targetDate.getDate()).padStart(2, '0');
+        const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
+        detectedDateLabel = `${dayStr}/${monthStr}`;
+      }
+    }
+  } else if (/\b(amanha|amanhã)\b/i.test(normalizedText)) {
     targetDate.setDate(targetDate.getDate() + 1);
     isTomorrow = true;
     detectedDateLabel = 'Amanhã';
