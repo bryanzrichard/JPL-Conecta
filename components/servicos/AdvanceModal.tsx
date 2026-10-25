@@ -184,7 +184,7 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
   };
 
   return (
-    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="dialog">
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="drawer">
       <ResponsiveModalContent size="md" className="max-w-2xl flex flex-col p-0">
         
         {/* Header Consistente */}

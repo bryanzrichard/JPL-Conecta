@@ -236,7 +236,7 @@ const EditarServicoModal: React.FC<EditarServicoModalProps> = ({
   };
 
   return (
-    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="dialog">
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="drawer">
       <ResponsiveModalContent size="xl" fullHeight className="max-w-5xl flex flex-col">
         {/* Header Consistente */}
         <ResponsiveModalHeader className="px-6 py-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-brand-dark-900">

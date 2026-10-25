@@ -196,7 +196,7 @@ const EditarAdiantamentoModal: React.FC<EditarAdiantamentoModalProps> = ({
   };
 
   return (
-    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="dialog">
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} displayMode="drawer">
       <ResponsiveModalContent size="md" className="max-w-2xl flex flex-col p-0">
         
         {/* Header Consistente */}
