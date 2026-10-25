@@ -20,7 +20,7 @@ const generateContentWithRetry = async (genAI: GoogleGenAI, request: any, maxRet
         } catch (error: any) {
             attempt++;
             const isLastAttempt = attempt >= maxRetries;
-            console.error(`Tentativa ${attempt} falhou na chamada do Gemini: ${error.message}`);
+            console.error(`Tentativa ${attempt} falhou no Gemini: ${error.message}`);
             
             if (isLastAttempt) {
                 throw error;
@@ -29,11 +29,10 @@ const generateContentWithRetry = async (genAI: GoogleGenAI, request: any, maxRet
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
-    throw new Error('Falha no Gemini após todas as tentativas.');
+    throw new Error('Falha no Gemini após tentativas.');
 };
 
 serve(async (req) => {
-    // 1. Resposta aos pre-flights de CORS
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
@@ -47,6 +46,7 @@ serve(async (req) => {
         }
 
         const payload = await req.json();
+        
         const geminiApiKey = 
             Deno.env.get('API_KEY') || 
             Deno.env.get('GEMINI_API_KEY') || 
@@ -60,7 +60,6 @@ serve(async (req) => {
         const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
         const parts: any[] = [];
 
-        // 2. Anexa o áudio gravado se houver (limpando o mimeType de parâmetros como ;codecs=opus)
         if (payload.audioBase64) {
             const rawMime = payload.audioMimeType || 'audio/webm';
             const cleanMime = rawMime.split(';')[0].trim();
@@ -74,7 +73,6 @@ serve(async (req) => {
 
         const todayStr = new Date().toISOString().split('T')[0];
 
-        // 3. Prompt especialista de Canteiro de Obras para o Gemini Flash
         const promptText = `Você é o Copiloto de Inteligência Artificial do JPL Conecta, sistema de gestão de obras e construção civil.
 Sua missão é atuar como um assistente executivo no canteiro de obras através de mensagens de chat ou áudios gravados.
 Você deve extrair com total precisão todas as ações solicitadas pelo usuário em uma lista chamada "acoes".
@@ -123,7 +121,7 @@ Ações Suportadas:
    - "Eu já fiz a compra da tinta da Maza" -> Procura na lista de pendências a tarefa correspondente à tinta da Maza e gera CONCLUIR_TAREFA.
    - "Já entrei em contato pra fazer o orçamento que era pro dia 29, pode dar como concluído" -> Gera CONCLUIR_TAREFA para o orçamento.
    - "O Lázaro já comprou o Vedapren" -> Gera CONCLUIR_TAREFA para a compra do Vedapren.
-   IMPORTANTE: Se a fala do usuário contiver múltiplos pedidos de conclusão (como no exemplo acima), gere UMA AÇÃO "CONCLUIR_TAREFA" PARA CADA UMA DELAS!
+   IMPORTANTE: Se a fala do usuário contiver múltiplos pedidos de conclusão, gere UMA AÇÃO "CONCLUIR_TAREFA" PARA CADA UMA DELAS!
    Campos: {
      "tarefa_id": string (UUID correspondente encontrado na lista "Tarefas e Compras Pendentes no Sistema") ou null,
      "tarefa_titulo": string (título correspondente da tarefa),
@@ -161,7 +159,6 @@ ${payload.textCommand ? `Mensagem do usuário: "${payload.textCommand}"` : 'Anal
 `;
         parts.push({ text: promptText });
 
-        // 4. Execução do Gemini Flash com cascata de compatibilidade de modelos
         const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-3.1-flash-lite'];
         let aiResponse: any = null;
         let lastModelError: any = null;
