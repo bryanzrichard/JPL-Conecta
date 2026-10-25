@@ -133,7 +133,7 @@ const ServiceModal: React.FC<ServiceModalProps> = ({ isOpen, onClose, collaborat
     onSuccess: () => {
       toast({ title: "Sucesso!", description: "Contrato de serviço criado com sucesso." });
       queryClient.invalidateQueries({ queryKey: ['servicos'] });
-      queryClient.invalidateQueries({ queryKey: ['services_dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardItems'] });
       onClose();
     },
     onError: (err) => {

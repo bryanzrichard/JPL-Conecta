@@ -244,7 +244,7 @@ const Cartorio: React.FC = () => {
             toast({ title: 'Sucesso', description: 'Registro excluído.' });
             queryClient.invalidateQueries({ queryKey: ['cartorio_records'] });
             queryClient.invalidateQueries({ queryKey: ['cartorioSummary'] });
-            queryClient.invalidateQueries({ queryKey: ['cartorio_records_dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboardItems'] });
         },
         onError: (err) => {
             toast({ title: 'Erro', description: formatApiError(err), variant: 'destructive' });

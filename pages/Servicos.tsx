@@ -532,7 +532,7 @@ const Servicos: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
             queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
             queryClient.invalidateQueries({ queryKey: ['servico_adiantamentos'] });
-            queryClient.invalidateQueries({ queryKey: ['services_dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboardItems'] });
         },
         onError: (err) => {
             toast({ variant: 'destructive', title: 'Erro!', description: formatApiError(err) });
@@ -729,7 +729,7 @@ const Servicos: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['servico_adiantamentos'] });
             queryClient.invalidateQueries({ queryKey: ['servicos'] });
             queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
-            queryClient.invalidateQueries({ queryKey: ['services_dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboardItems'] });
         },
         onError: (err) => {
             toast({ variant: 'destructive', title: 'Erro!', description: formatApiError(err) });

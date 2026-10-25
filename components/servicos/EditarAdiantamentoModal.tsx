@@ -168,7 +168,7 @@ const EditarAdiantamentoModal: React.FC<EditarAdiantamentoModalProps> = ({
       toast({ title: "Sucesso!", description });
       queryClient.invalidateQueries({ queryKey: ['servicos'] });
       queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
-      queryClient.invalidateQueries({ queryKey: ['services_dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardItems'] });
       onSuccess();
       onClose();
     },

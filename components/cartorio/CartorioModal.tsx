@@ -246,7 +246,7 @@ const CartorioModal: React.FC<CartorioModalProps> = ({ isOpen, onClose, record }
       toast({ title: 'Sucesso!', description: `Registro salvo com sucesso.` });
       queryClient.invalidateQueries({ queryKey: ['cartorio_records'] });
       queryClient.invalidateQueries({ queryKey: ['cartorioSummary'] });
-      queryClient.invalidateQueries({ queryKey: ['cartorio_records_dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardItems'] });
       setInvoiceFile(null);
       setDocumentFile(null);
       onClose();

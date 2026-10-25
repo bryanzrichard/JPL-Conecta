@@ -148,7 +148,7 @@ const AdvanceModal: React.FC<AdvanceModalProps> = ({ isOpen, onClose, service })
     onSuccess: () => {
       toast({ title: "Sucesso!", description: "Adiantamento registrado com sucesso." });
       queryClient.invalidateQueries({ queryKey: ['servicos'] });
-      queryClient.invalidateQueries({ queryKey: ['services_dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardItems'] });
       onClose();
     },
     onError: (err) => {
