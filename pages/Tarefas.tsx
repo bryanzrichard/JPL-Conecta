@@ -357,6 +357,16 @@ export const Tarefas: React.FC = () => {
           textCommand: text,
           projectsList: projects.map((p) => ({ id: p.id, name: p.name })),
           collaboratorsList: collaborators.map((c) => ({ id: c.id, name: c.name })),
+          pendingTasksList: allTasks
+            .filter((t) => t.status !== 'Concluída')
+            .map((t) => ({
+              id: t.id,
+              title: t.title,
+              obra: projectsMap.get(t.project_id)?.name || 'Geral',
+              responsavel: t.responsavel_execucao_id ? collaboratorsMap.get(t.responsavel_execucao_id)?.name : null,
+              data_prevista: t.data_fim_prevista,
+              isPurchase: (t.observacoes || '').includes('[COMPRA]') || (t.description || '').toLowerCase().includes('[compra]'),
+            })),
         },
       });
 
@@ -449,6 +459,16 @@ export const Tarefas: React.FC = () => {
           audioMimeType: cleanMimeType,
           projectsList: projects.map((p) => ({ id: p.id, name: p.name })),
           collaboratorsList: collaborators.map((c) => ({ id: c.id, name: c.name })),
+          pendingTasksList: allTasks
+            .filter((t) => t.status !== 'Concluída')
+            .map((t) => ({
+              id: t.id,
+              title: t.title,
+              obra: projectsMap.get(t.project_id)?.name || 'Geral',
+              responsavel: t.responsavel_execucao_id ? collaboratorsMap.get(t.responsavel_execucao_id)?.name : null,
+              data_prevista: t.data_fim_prevista,
+              isPurchase: (t.observacoes || '').includes('[COMPRA]') || (t.description || '').toLowerCase().includes('[compra]'),
+            })),
         },
       });
 

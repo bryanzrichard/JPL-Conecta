@@ -21,6 +21,8 @@ export interface CopilotActionDados {
 
   // Tarefa / Compras
   titulo?: string;
+  tarefa_id?: string | null;
+  tarefa_titulo?: string;
   responsavel_id?: string | null;
   responsavel_nome?: string;
   data_prevista?: string;
@@ -28,7 +30,7 @@ export interface CopilotActionDados {
 }
 
 export interface CopilotAction {
-  tipo: 'CADASTRAR_COLABORADOR' | 'CRIAR_SERVICO' | 'CRIAR_TAREFA' | 'QUITAR_SERVICO' | 'CONVERSA_GERAL';
+  tipo: 'CADASTRAR_COLABORADOR' | 'CRIAR_SERVICO' | 'CRIAR_TAREFA' | 'CONCLUIR_TAREFA' | 'QUITAR_SERVICO' | 'CONVERSA_GERAL';
   dados: CopilotActionDados;
 }
 
@@ -239,6 +241,72 @@ export async function executeCopilotActions({
           detalhes: `Data: ${dataPrev}`,
           sucesso: true,
         });
+      }
+
+      // 4. CONCLUIR TAREFA OU ITEM DA LISTA DE COMPRAS
+      else if (acao.tipo === 'CONCLUIR_TAREFA') {
+        const tarefaId = acao.dados.tarefa_id;
+        const termoBusca = acao.dados.titulo?.trim() || acao.dados.tarefa_titulo?.trim() || '';
+
+        let targetTaskId: string | null = tarefaId || null;
+        let targetTaskTitle: string = termoBusca;
+
+        // Se não veio tarefa_id direto, pesquisa nas tarefas abertas por aproximação
+        if (!targetTaskId && termoBusca) {
+          const { data: openTasks } = await (supabase as any)
+            .from('tasks')
+            .select('id, title')
+            .eq('company_id', companyId)
+            .neq('status', 'Concluída')
+            .limit(100);
+
+          if (openTasks && openTasks.length > 0) {
+            const termoNorm = termoBusca.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            
+            // 1. Match por substring direta
+            const match = openTasks.find((t: any) => {
+              const tNorm = (t.title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              return tNorm.includes(termoNorm) || termoNorm.includes(tNorm);
+            }) || openTasks.find((t: any) => {
+              // 2. Match por qualquer palavra chave significativa (>= 4 letras)
+              const words = termoNorm.split(/\s+/).filter((w: string) => w.length >= 4);
+              const tNorm = (t.title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              return words.some((w: string) => tNorm.includes(w));
+            });
+
+            if (match) {
+              targetTaskId = match.id;
+              targetTaskTitle = match.title;
+            }
+          }
+        }
+
+        if (targetTaskId) {
+          const { error: updErr } = await (supabase as any)
+            .from('tasks')
+            .update({ status: 'Concluída' })
+            .eq('id', targetTaskId);
+
+          if (updErr) throw updErr;
+
+          results.push({
+            tipo: 'tarefa',
+            badge: '✅ Concluída com Sucesso',
+            titulo: targetTaskTitle || 'Tarefa Baixada',
+            subtitulo: 'Marcada como Concluída no canteiro',
+            detalhes: 'Status atualizado pelo Copiloto IA',
+            sucesso: true,
+          });
+        } else {
+          results.push({
+            tipo: 'tarefa',
+            badge: 'ℹ️ Pendência não localizada',
+            titulo: termoBusca ? `"${termoBusca}"` : 'Tarefa não identificada',
+            subtitulo: 'Nenhuma pendência aberta correspondente encontrada para concluir.',
+            detalhes: 'Dica: Verifique se a tarefa já foi concluída ou o nome cadastrado.',
+            sucesso: false,
+          });
+        }
       }
     } catch (err: any) {
       console.error('Erro ao executar ação do Copiloto:', acao, err);

@@ -74,6 +74,7 @@ Você deve extrair com total precisão todas as ações solicitadas pelo usuári
 Contexto da Empresa:
 - Obras cadastradas: ${JSON.stringify(payload.projectsList || [])}
 - Colaboradores cadastrados: ${JSON.stringify(payload.collaboratorsList || [])}
+- Tarefas e Compras Pendentes no Sistema: ${JSON.stringify(payload.pendingTasksList || [])}
 - Data de hoje: ${todayStr}
 
 Ações Suportadas:
@@ -108,12 +109,25 @@ Ações Suportadas:
      "observacoes": string
    }
 
-4. "QUITAR_SERVICO":
+4. "CONCLUIR_TAREFA":
+   Use SEMPRE que o usuário disser que já fez, já comprou, já realizou, já terminou, ou pedir para "dar como concluído", "dar baixa" ou "marcar como feito" uma pendência ou compra existente.
+   Exemplos:
+   - "Eu já fiz a compra da tinta da Maza" -> Procura na lista de pendências a tarefa correspondente à tinta da Maza e gera CONCLUIR_TAREFA.
+   - "Já entrei em contato pra fazer o orçamento que era pro dia 29, pode dar como concluído" -> Gera CONCLUIR_TAREFA para o orçamento.
+   - "O Lázaro já comprou o Vedapren" -> Gera CONCLUIR_TAREFA para a compra do Vedapren.
+   IMPORTANTE: Se a fala do usuário contiver múltiplos pedidos de conclusão (como no exemplo acima), gere UMA AÇÃO "CONCLUIR_TAREFA" PARA CADA UMA DELAS!
+   Campos: {
+     "tarefa_id": string (UUID correspondente encontrado na lista "Tarefas e Compras Pendentes no Sistema") ou null,
+     "tarefa_titulo": string (título correspondente da tarefa),
+     "observacoes": string
+   }
+
+5. "QUITAR_SERVICO":
    Ex: "Quitar medição de R$ 1.000 do eletricista no Mingone"
    Campos: { "servico_nome": string, "obra_id": string ou null, "obra_nome": string, "valor_pago": number }
 
-5. "CONVERSA_GERAL":
-   Para perguntas gerais ou recados operacionais.
+6. "CONVERSA_GERAL":
+   Para perguntas gerais ou recados operacionais sem ação prática no banco de dados.
 
 Instruções para datas:
 - Se falar "amanhã", calcule a data correta (+1 dia a partir de ${todayStr}).
@@ -126,10 +140,10 @@ Instruções para datas:
 Retorne ESTRITAMENTE um JSON estruturado com o seguinte formato:
 {
   "transcricao": "texto completo falado ou digitado pelo usuário",
-  "resumo_ia": "mensagem amigável conversacional estilo WhatsApp confirmando detalhadamente cada ação realizada",
+  "resumo_ia": "mensagem amigável conversacional estilo WhatsApp confirmando detalhadamente cada ação realizada (ex: informando quais tarefas foram concluídas, compras registradas ou serviços criados)",
   "acoes": [
     {
-      "tipo": "CADASTRAR_COLABORADOR" | "CRIAR_SERVICO" | "CRIAR_TAREFA" | "QUITAR_SERVICO" | "CONVERSA_GERAL",
+      "tipo": "CADASTRAR_COLABORADOR" | "CRIAR_SERVICO" | "CRIAR_TAREFA" | "CONCLUIR_TAREFA" | "QUITAR_SERVICO" | "CONVERSA_GERAL",
       "dados": { ... }
     }
   ]
