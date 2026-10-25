@@ -63,46 +63,72 @@ serve(async (req) => {
 
         // 3. Prompt especialista de Canteiro de Obras para o Gemini Flash
         const promptText = `Você é o Copiloto de Inteligência Artificial do JPL Conecta, sistema de gestão de obras e construção civil.
-Sua missão é analisar o áudio falado (ou o texto do usuário) e extrair a intenção e os dados operacionais com precisão cirúrgica.
+Sua missão é atuar como um assistente executivo no canteiro de obras através de mensagens de chat ou áudios gravados.
+Você deve extrair com total precisão todas as ações solicitadas pelo usuário em uma lista chamada "acoes".
 
 Contexto da Empresa:
 - Obras cadastradas: ${JSON.stringify(payload.projectsList || [])}
 - Colaboradores cadastrados: ${JSON.stringify(payload.collaboratorsList || [])}
 - Data de hoje: ${todayStr}
 
-Intenções possíveis:
-1. "CRIAR_TAREFA": para pendências e serviços normais de canteiro de obras (ex: "Lázaro conferir nível da viga no Estrela Dalva amanhã").
-2. "COMPRA_MATERIAL": quando o usuário pedir para comprar, cotar ou encomendar materiais (ex: "Comprar 30 sacos de cimento e 20 tábuas pro Parque Mingone").
-3. "QUITAR_SERVICO": quando o usuário solicitar quitação, baixa ou pagamento de medição de empreiteiro/serviço (ex: "Quitar a medição de 2000 do eletricista no Estrela Dalva").
-4. "REGISTRAR_COLABORADOR": quando o usuário registrar presença, diária ou cadastro de funcionário (ex: "Registrar presença do pedreiro Marcos hoje no Mingone").
-5. "GERAL": dúvidas gerais ou recados operacionais.
+Ações Suportadas:
+1. "CADASTRAR_COLABORADOR":
+   Ex: "Cadastre esse cara aqui: José da Silva, telefone (61) 98888-7777, CPF 123.456.789-00, função pedreiro"
+   Campos: { "nome": string, "role": string (ex: Pedreiro, Eletricista, Ajudante), "phone": string, "document": string (CPF ou CNPJ) }
+
+2. "CRIAR_SERVICO":
+   Ex: "Cria um serviço de terraplanagem no Estrela Dalva, o cara cobrou R$ 5.000 e vou fazer um adiantamento de R$ 1.000 agora e deixar R$ 4.000 para pagar depois"
+   Campos: {
+     "descricao": string,
+     "obra_id": string (UUID da obra correspondente no contexto) ou null,
+     "obra_nome": string,
+     "colaborador_id": string (UUID do colaborador se mencionado) ou null,
+     "colaborador_nome": string ou null,
+     "valor_total": number,
+     "valor_adiantamento": number (ou 0 se não houver),
+     "saldo_restante": number (valor_total - valor_adiantamento),
+     "observacoes": string
+   }
+
+3. "CRIAR_TAREFA":
+   Ex: "Lázaro conferir nível da viga no Estrela Dalva amanhã" ou "Adiciona na lista de compras 30 sacos de cimento pro Mingone"
+   Campos: {
+     "titulo": string,
+     "obra_id": string (UUID da obra correspondente) ou null,
+     "obra_nome": string,
+     "responsavel_id": string (UUID do colaborador) ou null,
+     "responsavel_nome": string ou null,
+     "data_prevista": string (YYYY-MM-DD),
+     "is_compra": boolean,
+     "observacoes": string
+   }
+
+4. "QUITAR_SERVICO":
+   Ex: "Quitar medição de R$ 1.000 do eletricista no Mingone"
+   Campos: { "servico_nome": string, "obra_id": string ou null, "obra_nome": string, "valor_pago": number }
+
+5. "CONVERSA_GERAL":
+   Para perguntas gerais ou recados operacionais.
 
 Instruções para datas:
 - Se falar "amanhã", calcule a data correta (+1 dia a partir de ${todayStr}).
 - Se falar "depois de amanhã", calcule +2 dias.
-- Se falar o dia da semana (ex: "segunda-feira", "sexta"), calcule a data da próxima ocorrência desse dia.
+- Se falar dia da semana (ex: "segunda-feira", "sexta"), calcule a data da próxima ocorrência.
 - O formato DEVE ser YYYY-MM-DD.
 
-Retorne ESTRITAMENTE um JSON estruturado com o seguinte schema (sem markdown ou formatações extras):
+Retorne ESTRITAMENTE um JSON estruturado com o seguinte formato:
 {
-  "transcricao": "o texto exato ou muito aproximado falado pelo usuário",
-  "intencao": "CRIAR_TAREFA" | "COMPRA_MATERIAL" | "QUITAR_SERVICO" | "REGISTRAR_COLABORADOR" | "GERAL",
-  "titulo": "título curto, claro e objetivo da ação (ex: Conferir nível da viga baldrame)",
-  "obra_id": "UUID da obra detectada ou null",
-  "obra_nome": "Nome exato da obra detectada ou null",
-  "responsavel_id": "UUID do colaborador detectado ou null",
-  "responsavel_nome": "Nome do colaborador detectado ou null",
-  "data_prevista": "YYYY-MM-DD",
-  "is_compra": boolean,
-  "detalhes_acao": {
-    "servico_terceirizado": "nome do serviço caso seja quitação ou medição (ex: Eletricista)",
-    "valor_estimado": number ou null,
-    "itens_compra": ["item 1", "item 2"]
-  },
-  "resumo_ia": "mensagem amigável resumindo o que você entendeu para o mestre de obras"
+  "transcricao": "texto completo falado ou digitado pelo usuário",
+  "resumo_ia": "mensagem amigável conversacional estilo WhatsApp confirmando detalhadamente cada ação realizada",
+  "acoes": [
+    {
+      "tipo": "CADASTRAR_COLABORADOR" | "CRIAR_SERVICO" | "CRIAR_TAREFA" | "QUITAR_SERVICO" | "CONVERSA_GERAL",
+      "dados": { ... }
+    }
+  ]
 }
 
-${payload.textCommand ? `Comando de texto enviado: "${payload.textCommand}"` : 'Analise o áudio anexado e extraia os dados conforme o schema.'}
+${payload.textCommand ? `Mensagem do usuário: "${payload.textCommand}"` : 'Analise o áudio anexado e preencha as ações conforme o schema.'}
 `;
         parts.push({ text: promptText });
 

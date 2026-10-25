@@ -1,0 +1,256 @@
+import { supabase } from './supabaseClient';
+import { Project, Collaborator } from '../types';
+
+export interface CopilotActionDados {
+  // Colaborador
+  nome?: string;
+  role?: string;
+  phone?: string;
+  document?: string;
+
+  // Serviço
+  descricao?: string;
+  obra_id?: string | null;
+  obra_nome?: string;
+  colaborador_id?: string | null;
+  colaborador_nome?: string;
+  valor_total?: number;
+  valor_adiantamento?: number;
+  saldo_restante?: number;
+  observacoes?: string;
+
+  // Tarefa / Compras
+  titulo?: string;
+  responsavel_id?: string | null;
+  responsavel_nome?: string;
+  data_prevista?: string;
+  is_compra?: boolean;
+}
+
+export interface CopilotAction {
+  tipo: 'CADASTRAR_COLABORADOR' | 'CRIAR_SERVICO' | 'CRIAR_TAREFA' | 'QUITAR_SERVICO' | 'CONVERSA_GERAL';
+  dados: CopilotActionDados;
+}
+
+export interface CopilotResponse {
+  transcricao?: string;
+  resumo_ia: string;
+  acoes?: CopilotAction[];
+}
+
+export interface ActionCardResult {
+  tipo: string;
+  badge: string;
+  titulo: string;
+  subtitulo: string;
+  detalhes?: string;
+  sucesso: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  sender: 'user' | 'ia';
+  text: string;
+  timestamp: string;
+  cards?: ActionCardResult[];
+}
+
+function formatBRL(val?: number | null): string {
+  if (val === undefined || val === null) return 'R$ 0,00';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+}
+
+/**
+ * Executa as ações retornadas pelo Gemini Flash no banco de dados do Supabase
+ */
+export async function executeCopilotActions({
+  acoes,
+  companyId,
+  userId,
+  projects,
+  collaborators,
+}: {
+  acoes: CopilotAction[];
+  companyId: string;
+  userId: string;
+  projects: Project[];
+  collaborators: Collaborator[];
+}): Promise<ActionCardResult[]> {
+  const results: ActionCardResult[] = [];
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  for (const acao of acoes) {
+    try {
+      // 1. CADASTRAR COLABORADOR
+      if (acao.tipo === 'CADASTRAR_COLABORADOR') {
+        const nome = acao.dados.nome?.trim();
+        if (!nome) continue;
+
+        const { data: collab, error } = await (supabase as any)
+          .from('collaborators')
+          .insert({
+            company_id: companyId,
+            created_by: userId,
+            name: nome,
+            role: acao.dados.role || 'Prestador de Serviço',
+            phone: acao.dados.phone || null,
+            document: acao.dados.document || null,
+            rating: 5,
+            observations: 'Cadastrado via Copiloto IA (Chat/Voz)',
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        results.push({
+          tipo: 'colaborador',
+          badge: '👷 Colaborador Cadastrado',
+          titulo: collab.name,
+          subtitulo: `Função: ${collab.role || 'Geral'} • Tel: ${collab.phone || 'Não informado'}`,
+          detalhes: collab.document ? `CPF/Doc: ${collab.document}` : undefined,
+          sucesso: true,
+        });
+      }
+
+      // 2. CRIAR SERVIÇO (COM OU SEM ADIANTAMENTO)
+      else if (acao.tipo === 'CRIAR_SERVICO') {
+        const descricao = acao.dados.descricao?.trim() || 'Serviço de Empreitada';
+        const valorTotal = Number(acao.dados.valor_total) || 0;
+        const valorAdiantamento = Number(acao.dados.valor_adiantamento) || 0;
+
+        // Mapear obra pelo nome se o ID não veio direto
+        let targetProjId = acao.dados.obra_id;
+        if (!targetProjId && acao.dados.obra_nome) {
+          const found = projects.find(
+            (p) => p.name.toLowerCase().includes(acao.dados.obra_nome!.toLowerCase())
+          );
+          if (found) targetProjId = found.id;
+        }
+        if (!targetProjId && projects.length > 0) {
+          targetProjId = projects[0].id;
+        }
+
+        // Mapear colaborador pelo nome se mencionado
+        let targetCollabId = acao.dados.colaborador_id;
+        if (!targetCollabId && acao.dados.colaborador_nome) {
+          const foundC = collaborators.find(
+            (c) => c.name.toLowerCase().includes(acao.dados.colaborador_nome!.toLowerCase())
+          );
+          if (foundC) targetCollabId = foundC.id;
+        }
+
+        // Insere o Serviço
+        const { data: servico, error: sErr } = await (supabase as any)
+          .from('services')
+          .insert({
+            company_id: companyId,
+            created_by: userId,
+            project_id: targetProjId || null,
+            collaborator_id: targetCollabId || null,
+            description: descricao,
+            status: 'Em Andamento',
+            start_date: todayStr,
+            end_date: todayStr,
+            total_value: valorTotal,
+            observations: acao.dados.observacoes || `Criado via Copiloto IA (Chat/Voz)`,
+          })
+          .select()
+          .single();
+
+        if (sErr) throw sErr;
+
+        // Se houver adiantamento, insere o registro na tabela advances
+        if (servico && valorAdiantamento > 0) {
+          await (supabase as any).from('advances').insert({
+            company_id: companyId,
+            created_by: userId,
+            service_id: servico.id,
+            value: valorAdiantamento,
+            payment_date: todayStr,
+            description: 'Adiantamento inicial via Copiloto IA',
+          });
+        }
+
+        const pName = projects.find((p) => p.id === targetProjId)?.name || 'Obra Geral';
+        const saldo = Math.max(0, valorTotal - valorAdiantamento);
+
+        results.push({
+          tipo: 'servico',
+          badge: '🏗️ Contrato de Serviço Criado',
+          titulo: `${descricao} (${pName})`,
+          subtitulo: `Valor Total: ${formatBRL(valorTotal)} • Adiantamento: ${formatBRL(valorAdiantamento)} (Pago ✅)`,
+          detalhes: `Saldo Restante a Pagar: ${formatBRL(saldo)}`,
+          sucesso: true,
+        });
+      }
+
+      // 3. CRIAR TAREFA OU ITEM DE LISTA DE COMPRAS
+      else if (acao.tipo === 'CRIAR_TAREFA') {
+        const titulo = acao.dados.titulo?.trim();
+        if (!titulo) continue;
+
+        let targetProjId = acao.dados.obra_id;
+        if (!targetProjId && acao.dados.obra_nome) {
+          const found = projects.find(
+            (p) => p.name.toLowerCase().includes(acao.dados.obra_nome!.toLowerCase())
+          );
+          if (found) targetProjId = found.id;
+        }
+        if (!targetProjId && projects.length > 0) {
+          targetProjId = projects[0].id;
+        }
+
+        let targetCollabId = acao.dados.responsavel_id;
+        if (!targetCollabId && acao.dados.responsavel_nome) {
+          const foundC = collaborators.find(
+            (c) => c.name.toLowerCase().includes(acao.dados.responsavel_nome!.toLowerCase())
+          );
+          if (foundC) targetCollabId = foundC.id;
+        }
+
+        const isPurchase = acao.dados.is_compra || (acao.dados.observacoes || '').includes('[COMPRA]');
+        const dataPrev = acao.dados.data_prevista || todayStr;
+
+        const { error: tErr } = await (supabase as any).from('tasks').insert({
+          company_id: companyId,
+          created_by: userId,
+          project_id: targetProjId || null,
+          responsavel_execucao_id: targetCollabId || null,
+          title: titulo,
+          description: isPurchase ? '[COMPRA] Material para compra/cotação' : '',
+          data_inicio_prevista: dataPrev,
+          data_fim_prevista: dataPrev,
+          status: 'Planejada',
+          prioridade: isPurchase ? 'Alta' : 'Média',
+          observacoes: isPurchase ? '[COMPRA]' : null,
+        });
+
+        if (tErr) throw tErr;
+
+        const pName = projects.find((p) => p.id === targetProjId)?.name || 'Obra Padrão';
+        const respName = collaborators.find((c) => c.id === targetCollabId)?.name;
+
+        results.push({
+          tipo: isPurchase ? 'compra' : 'tarefa',
+          badge: isPurchase ? '🛒 Lista de Compras' : '📋 Pendência de Canteiro',
+          titulo: titulo,
+          subtitulo: `Obra: ${pName}${respName ? ` • Resp: ${respName}` : ''}`,
+          detalhes: `Data: ${dataPrev}`,
+          sucesso: true,
+        });
+      }
+    } catch (err: any) {
+      console.error('Erro ao executar ação do Copiloto:', acao, err);
+      results.push({
+        tipo: 'erro',
+        badge: '⚠️ Erro na Execução',
+        titulo: `Falha ao processar ação: ${acao.tipo}`,
+        subtitulo: err.message || 'Erro inesperado no banco de dados',
+        sucesso: false,
+      });
+    }
+  }
+
+  return results;
+}

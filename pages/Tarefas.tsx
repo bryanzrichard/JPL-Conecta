@@ -14,7 +14,7 @@ import {
   CalendarIcon, ConstructionIcon, UserIcon, BuildingIcon,
   Trash2Icon, EditIcon, FilterIcon, SparklesIcon,
   ShoppingBagIcon, CopyIcon, SendIcon, MicIcon, MicOffIcon,
-  AlertTriangleIcon, CheckCircle2Icon
+  AlertTriangleIcon, CheckCircle2Icon, BotIcon, MessageSquareIcon
 } from '../lib/icons';
 import { parseQuickTask, toISODate, checkSpeechRecognitionSupport, ParsedTaskResult } from '../lib/taskParser';
 import {
@@ -24,6 +24,7 @@ import {
   openOfficialGroupLink,
   TaskForWhatsApp
 } from '../lib/whatsappGenerator';
+import { executeCopilotActions, ChatMessage, ActionCardResult } from '../lib/copilotExecutor';
 import { formatApiError } from '../lib/handleError';
 
 // Abas da Central de Tarefas
@@ -53,6 +54,25 @@ export const Tarefas: React.FC = () => {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<any>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Estados do Chat Copiloto JPL (Estilo WhatsApp)
+  const [chatInputText, setChatInputText] = useState<string>('');
+  const [isChatExpanded, setIsChatExpanded] = useState<boolean>(true);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome',
+      sender: 'ia',
+      text: 'Olá! Sou o Copiloto IA do JPL Conecta. Você pode me mandar um áudio ou mensagem de texto para:\n• 👷 Cadastrar colaboradores ("Cadastre o pedreiro José da Silva, telefone 61 98888-7777, CPF 123.456...")\n• 🏗️ Criar serviços com adiantamento ("Crie um serviço de terraplanagem no Mingone de R$ 5.000 com R$ 1.000 de adiantamento agora")\n• 🛒 Compras & Tarefas ("Comprar 30 sacos de cimento e avisar o Lázaro amanhã")\n\nComo posso te ajudar hoje?',
+      timestamp: 'Hoje',
+    },
+  ]);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (chatBottomRef.current) {
+      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, isProcessingAudioIA]);
 
   // WhatsApp Preview Controls
   const [previewDateMode, setPreviewDateMode] = useState<'today' | 'tomorrow'>('today');
@@ -312,8 +332,94 @@ export const Tarefas: React.FC = () => {
     setRecordingSeconds(0);
   };
 
+  // -------------------------------------------------------------
+  // ENVIO DE MENSAGENS AO COPILOTO IA (TEXTO OU ÁUDIO)
+  // -------------------------------------------------------------
+  const handleSendCopilotTextMessage = async (textToSend?: string) => {
+    const text = (textToSend || chatInputText).trim();
+    if (!text || isProcessingAudioIA) return;
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setChatMessages((prev) => [...prev, userMsg]);
+    setChatInputText('');
+    setIsProcessingAudioIA(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('processar-comando-voz', {
+        body: {
+          textCommand: text,
+          projectsList: projects.map((p) => ({ id: p.id, name: p.name })),
+          collaboratorsList: collaborators.map((c) => ({ id: c.id, name: c.name })),
+        },
+      });
+
+      if (error || !data?.result) {
+        throw new Error(error?.message || 'Falha ao processar com o Gemini Flash');
+      }
+
+      const res = data.result;
+      let cardResults: ActionCardResult[] = [];
+
+      if (res.acoes && Array.isArray(res.acoes) && res.acoes.length > 0) {
+        cardResults = await executeCopilotActions({
+          acoes: res.acoes,
+          companyId: profile?.company_id || '',
+          userId: user?.id || '',
+          projects,
+          collaborators,
+        });
+
+        // Invalida as queries relevantes para atualizar a tela inteira em tempo real
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['collaborators'] });
+        queryClient.invalidateQueries({ queryKey: ['services'] });
+        queryClient.invalidateQueries({ queryKey: ['advances'] });
+      }
+
+      const iaMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ia',
+        text: res.resumo_ia || 'Ações executadas com sucesso!',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        cards: cardResults,
+      };
+
+      setChatMessages((prev) => [...prev, iaMsg]);
+      toast({
+        title: '✨ Copiloto IA executou o comando!',
+        description: res.resumo_ia || 'Dados atualizados no sistema.',
+      });
+    } catch (err: any) {
+      console.warn('Erro ao processar mensagem no Copiloto:', err);
+      const errorMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ia',
+        text: 'Não consegui concluir a ação via Gemini Flash na Edge Function. Certifique-se de que a function "processar-comando-voz" está deployada no Supabase.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setChatMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsProcessingAudioIA(false);
+    }
+  };
+
   const processAudioWithGemini = async (blob: Blob, mimeType: string) => {
     setIsProcessingAudioIA(true);
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: '🎙️ [Mensagem de Áudio enviada]',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setChatMessages((prev) => [...prev, userMsg]);
+
     try {
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
@@ -341,22 +447,48 @@ export const Tarefas: React.FC = () => {
       }
 
       const res = data.result;
-      if (res.transcricao) {
-        setQuickInputText(res.transcricao);
+      let cardResults: ActionCardResult[] = [];
+
+      if (res.acoes && Array.isArray(res.acoes) && res.acoes.length > 0) {
+        cardResults = await executeCopilotActions({
+          acoes: res.acoes,
+          companyId: profile?.company_id || '',
+          userId: user?.id || '',
+          projects,
+          collaborators,
+        });
+
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['collaborators'] });
+        queryClient.invalidateQueries({ queryKey: ['services'] });
+        queryClient.invalidateQueries({ queryKey: ['advances'] });
       }
 
+      const iaMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ia',
+        text: `Transcrição: "${res.transcricao}"\n\n${res.resumo_ia || 'Ações processadas com sucesso!'}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        cards: cardResults,
+      };
+
+      setChatMessages((prev) => [...prev, iaMsg]);
       toast({
-        title: '✨ Gemini Flash processou o áudio!',
-        description: res.resumo_ia || `Comando: ${res.titulo || res.transcricao}`,
+        title: '✨ Áudio processado pelo Gemini Flash!',
+        description: res.resumo_ia,
       });
     } catch (err: any) {
-      console.warn('Erro ao processar com Gemini na Edge Function:', err);
-      toast({
-        title: '🎙️ Áudio gravado com sucesso!',
-        description: 'Para o Gemini Flash transcrever diretamente, atualize a Edge Function no Supabase. Enquanto isso, use o microfone do teclado do celular ou digite!',
-      });
+      console.warn('Erro ao processar áudio no Copiloto:', err);
+      const errorMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ia',
+        text: 'Não consegui transcrever o áudio na Edge Function. Verifique o deploy de "processar-comando-voz" no Supabase.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setChatMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsProcessingAudioIA(false);
+      setIsRecordingAudio(false);
     }
   };
 
@@ -1019,139 +1151,191 @@ export const Tarefas: React.FC = () => {
       </header>
 
       {/* ========================================================= */}
-      {/* 2. BARRA DE ENTRADA ULTRARRÁPIDA (COM IA GEMINI FLASH)     */}
+      {/* 2. COPILOTO JPL — CHAT & VOZ WHATSAPP-STYLE COM GEMINI IA  */}
       {/* ========================================================= */}
-      <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl p-3.5 shadow-sm space-y-2.5">
-        {/* Banner de Gravação Ativa com MediaRecorder (Sem quedas de rede) */}
-        {isRecordingAudio && (
-          <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="relative flex h-3 w-3 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-600"></span>
-              </span>
-              <div className="min-w-0">
-                <span className="font-bold text-xs">
-                  Gravando Áudio com IA ({String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:{String(recordingSeconds % 60).padStart(2, '0')})
+      <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">
+        {/* Cabeçalho do Copiloto */}
+        <div className="p-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0">
+              <BotIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-bold tracking-tight">Copiloto JPL — Assistente de Canteiro</h3>
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-400/30 text-emerald-100 text-[10px] font-semibold border border-emerald-300/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                  Gemini Flash Ativo
                 </span>
-                <p className="text-[10px] text-slate-500 dark:text-gray-400 truncate">
-                  Fale normalmente a pendência, material de compra ou serviço
-                </p>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={cancelAudioRecording}
-                className="px-2 py-1 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs cursor-pointer"
-              >
-                Cancelar ❌
-              </button>
-              <button
-                type="button"
-                onClick={stopAudioRecording}
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1.5 transition-all"
-              >
-                <span>Concluir e Enviar ✨</span>
-              </button>
+              <p className="text-[11px] text-emerald-100/90 hidden sm:block">
+                Fale ou digite como no WhatsApp: cadastre pessoas, crie serviços com adiantamento ou liste compras
+              </p>
             </div>
           </div>
-        )}
 
-        {/* Banner de Processamento do Gemini Flash */}
-        {isProcessingAudioIA && (
-          <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs animate-pulse">
-            <SparklesIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400 animate-spin" />
-            <span className="font-bold">✨ Gemini Flash ouvindo e analisando o seu áudio...</span>
-          </div>
-        )}
+          <button
+            type="button"
+            onClick={() => setIsChatExpanded(!isChatExpanded)}
+            className="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-semibold cursor-pointer transition-colors"
+          >
+            {isChatExpanded ? 'Recolher Conversa ▲' : 'Abrir Chat ▼'}
+          </button>
+        </div>
 
-        <form onSubmit={handleQuickSubmit} className="relative flex items-center gap-2">
-          {/* Ícone de Raio */}
-          <div className="absolute left-3 text-emerald-600 dark:text-emerald-400">
-            <SparklesIcon className="h-4 w-4" />
-          </div>
+        {/* Corpo do Chat (Estilo WhatsApp) */}
+        {isChatExpanded && (
+          <div className="flex flex-col">
+            {/* Área de Mensagens com Fundo WhatsApp */}
+            <div className="p-3.5 bg-[#EFEAE2]/60 dark:bg-[#0D1418] max-h-[320px] min-h-[160px] overflow-y-auto custom-scrollbar space-y-3">
+              {chatMessages.map((msg) => {
+                const isUser = msg.sender === 'user';
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} animate-in fade-in-50`}
+                  >
+                    <div
+                      className={`max-w-[88%] sm:max-w-[78%] rounded-2xl p-3 shadow-xs text-xs leading-relaxed ${
+                        isUser
+                          ? 'bg-[#D9FDD3] dark:bg-[#005C4B] text-slate-800 dark:text-[#E9EDEF] rounded-tr-xs border border-emerald-300/40 dark:border-emerald-600/30'
+                          : 'bg-white dark:bg-[#1F2C34] text-slate-800 dark:text-[#E9EDEF] rounded-tl-xs border border-slate-200/80 dark:border-gray-700/60'
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap font-sans">{msg.text}</p>
 
-          {/* Campo de Texto Principal */}
-          <input
-            ref={inputRef}
-            type="text"
-            value={quickInputText}
-            onChange={(e) => setQuickInputText(e.target.value)}
-            placeholder={
-              isRecordingAudio
-                ? 'Gravando áudio com IA... Fale à vontade e clique em Concluir quando terminar.'
-                : 'Digite ou fale a pendência (ex: "Lázaro: conferir nível do baldrame no Estrela Dalva amanhã" ou "Comprar 20 tábuas")...'
-            }
-            className={`w-full h-11 pl-9 pr-24 text-xs sm:text-sm bg-slate-50/70 dark:bg-slate-900/40 border rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none transition-all ${
-              isRecordingAudio
-                ? 'border-rose-400 ring-2 ring-rose-400/30'
-                : 'border-slate-200 dark:border-gray-800 focus:ring-2 focus:ring-emerald-500/40'
-            }`}
-          />
+                      {/* Cards Interativos de Ações Executadas pela IA */}
+                      {msg.cards && msg.cards.length > 0 && (
+                        <div className="mt-2.5 space-y-2 pt-2 border-t border-slate-100 dark:border-gray-700/60">
+                          {msg.cards.map((card, idx) => (
+                            <div
+                              key={idx}
+                              className={`p-2.5 rounded-xl border text-xs ${
+                                card.tipo === 'colaborador'
+                                  ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/40 text-blue-900 dark:text-blue-200'
+                                  : card.tipo === 'servico'
+                                  ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200'
+                                  : card.tipo === 'compra'
+                                  ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200'
+                                  : 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-900/40 text-indigo-900 dark:text-indigo-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 font-bold text-[11px] mb-1">
+                                {card.tipo === 'colaborador' && <UserIcon className="h-3.5 w-3.5 text-blue-600" />}
+                                {card.tipo === 'servico' && <ConstructionIcon className="h-3.5 w-3.5 text-emerald-600" />}
+                                {card.tipo === 'compra' && <ShoppingBagIcon className="h-3.5 w-3.5 text-amber-600" />}
+                                {card.tipo === 'tarefa' && <ClipboardListIcon className="h-3.5 w-3.5 text-indigo-600" />}
+                                <span>{card.badge}</span>
+                              </div>
+                              <p className="font-bold text-xs">{card.titulo}</p>
+                              <p className="text-[11px] opacity-90 mt-0.5">{card.subtitulo}</p>
+                              {card.detalhes && (
+                                <p className="text-[11px] font-semibold opacity-95 mt-0.5">{card.detalhes}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
-          {/* Botões Internos: Ditado por Voz e Salvar */}
-          <div className="absolute right-2 flex items-center gap-1.5">
-            {/* Botão Microfone de Gravação com IA */}
-            <button
-              type="button"
-              onClick={isRecordingAudio ? stopAudioRecording : startAudioRecording}
-              className={`p-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                isRecordingAudio
-                  ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/40 ring-2 ring-rose-300'
-                  : 'text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-              title={isRecordingAudio ? 'Clique para concluir gravação de áudio' : 'Gravar áudio com IA Gemini Flash'}
-            >
-              {isRecordingAudio ? <MicOffIcon className="h-4 w-4" /> : <MicIcon className="h-4 w-4" />}
-            </button>
+                      <span className="block text-right text-[9px] text-slate-400 dark:text-gray-400 mt-1">
+                        {msg.timestamp}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
 
-            {/* Botão Salvar (Enter) */}
-            <Button
-              type="submit"
-              disabled={!quickInputText.trim() || createQuickTaskMutation.isPending}
-              className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer disabled:opacity-30"
-            >
-              <span>Salvar ⚡</span>
-            </Button>
-          </div>
-        </form>
+              {/* Indicador de "Digitando / Processando IA" */}
+              {isProcessingAudioIA && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white dark:bg-[#1F2C34] border border-slate-200/80 dark:border-gray-700/60 max-w-[240px] text-xs text-slate-600 dark:text-gray-300 animate-pulse shadow-2xs">
+                  <SparklesIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400 animate-spin" />
+                  <span className="font-semibold text-[11px]">Gemini Flash processando...</span>
+                </div>
+              )}
 
-        {/* Pílulas Inteligentes de Feedback em Tempo Real */}
-        {quickInputText.trim().length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap pt-0.5 text-[11px] animate-in fade-in-50">
-            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-              Identificado:
-            </span>
+              <div ref={chatBottomRef} />
+            </div>
 
-            {/* Obra */}
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 font-semibold">
-              <ConstructionIcon className="h-2.5 w-2.5" />
-              {parsedPreview.projectName || 'Obra Padrão'}
-            </span>
+            {/* Barra de Gravação de Áudio Ativa (MediaRecorder com timer) */}
+            {isRecordingAudio && (
+              <div className="px-3.5 py-2.5 bg-rose-500/10 border-t border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="relative flex h-3 w-3 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-600"></span>
+                  </span>
+                  <div>
+                    <span className="font-bold text-xs">
+                      Gravando Áudio ({String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:{String(recordingSeconds % 60).padStart(2, '0')})
+                    </span>
+                    <p className="text-[10px] text-slate-500 dark:text-gray-400">
+                      Fale o comando completo com calma e clique em Enviar
+                    </p>
+                  </div>
+                </div>
 
-            {/* Responsável */}
-            {parsedPreview.collaboratorName && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 font-semibold">
-                <UserIcon className="h-2.5 w-2.5" />
-                {parsedPreview.collaboratorName}
-              </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={cancelAudioRecording}
+                    className="px-2 py-1 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs cursor-pointer"
+                  >
+                    Cancelar ❌
+                  </button>
+                  <button
+                    type="button"
+                    onClick={stopAudioRecording}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1.5 transition-all"
+                  >
+                    <span>Concluir e Enviar ✨</span>
+                  </button>
+                </div>
+              </div>
             )}
 
-            {/* Prazo */}
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold">
-              <CalendarIcon className="h-2.5 w-2.5" />
-              {parsedPreview.detectedDateLabel || 'Hoje'}
-            </span>
+            {/* Barra de Entrada estilo WhatsApp */}
+            <div className="p-2.5 bg-slate-50 dark:bg-[#111827] border-t border-slate-200/80 dark:border-gray-800 flex items-center gap-2">
+              {/* Botão de Microfone */}
+              <button
+                type="button"
+                onClick={isRecordingAudio ? stopAudioRecording : startAudioRecording}
+                className={`p-2 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                  isRecordingAudio
+                    ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/40 ring-2 ring-rose-300'
+                    : 'text-slate-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500'
+                }`}
+                title={isRecordingAudio ? 'Clique para concluir gravação' : 'Gravar áudio com IA Gemini Flash'}
+              >
+                {isRecordingAudio ? <MicOffIcon className="h-4 w-4" /> : <MicIcon className="h-4 w-4" />}
+              </button>
 
-            {/* Tipo Compra */}
-            {parsedPreview.isPurchase && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 font-bold">
-                <ShoppingBagIcon className="h-2.5 w-2.5" />
-                🛒 Compra de Material
-              </span>
-            )}
+              {/* Campo de Texto Estilo WhatsApp */}
+              <input
+                type="text"
+                value={chatInputText}
+                onChange={(e) => setChatInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendCopilotTextMessage();
+                  }
+                }}
+                disabled={isProcessingAudioIA || isRecordingAudio}
+                placeholder='Mande uma mensagem ou comando (ex: "Cadastra o pedreiro José 61988887777" ou "Cria serviço de terraplanagem no Mingone de 5 mil com adiantamento de 1 mil")...'
+                className="flex-1 h-10 px-3 text-xs sm:text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-gray-700 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all disabled:opacity-50"
+              />
+
+              {/* Botão de Enviar (Aviãozinho) */}
+              <button
+                type="button"
+                onClick={() => handleSendCopilotTextMessage()}
+                disabled={!chatInputText.trim() || isProcessingAudioIA || isRecordingAudio}
+                className="w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shrink-0 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shadow-xs"
+                title="Enviar comando para o Copiloto IA"
+              >
+                <SendIcon className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
