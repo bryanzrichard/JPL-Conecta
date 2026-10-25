@@ -71,7 +71,8 @@ serve(async (req) => {
             });
         }
 
-        const todayStr = new Date().toISOString().split('T')[0];
+        // Data de hoje no fuso de Brasilia (toISOString usa UTC e vira o dia seguinte apos as 21h)
+        const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
         const promptText = `Você é o Copiloto de Inteligência Artificial do JPL Conecta, sistema de gestão de obras e construção civil.
 Sua missão é atuar como um assistente executivo no canteiro de obras através de mensagens de chat ou áudios gravados.
