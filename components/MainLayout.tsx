@@ -117,6 +117,7 @@ const MainLayout: React.FC = () => {
     const userEmail = user?.email || 'bryanrichardjpl@icloud.com';
     const userInitial = userEmail.charAt(0).toUpperCase();
     const isFullBleedRoute = ['/registro', '/registros'].includes(location.pathname);
+    const isCompactTopRoute = ['/servicos'].includes(location.pathname);
 
     const formattedKeyExpiry = profile?.company_keys?.expires_at 
         ? formatDateBR(profile.company_keys.expires_at)
@@ -413,11 +414,13 @@ const MainLayout: React.FC = () => {
                     </div>
                 </header>
 
-                {/* CONTAINER OPERACIONAL: Full-Bleed Split-View para Cadastros, e Scroll Vertical Completo para as demais páginas */}
+                {/* CONTAINER OPERACIONAL: Full-Bleed Split-View para Cadastros, Compact-Top para Serviços, e Scroll Vertical Completo para as demais páginas */}
                 <main
                     className={`flex-1 min-w-0 pt-14 md:pt-0 ${
                         isFullBleedRoute
                             ? 'h-full flex flex-col overflow-hidden'
+                            : isCompactTopRoute
+                            ? 'h-full overflow-y-auto custom-scrollbar px-3 sm:px-5 lg:px-6 pt-2 sm:pt-2.5 lg:pt-3 pb-20 md:pb-6'
                             : 'h-full overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 pb-24 md:pb-8'
                     }`}
                 >
