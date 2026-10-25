@@ -466,12 +466,12 @@ const Servicos: React.FC = () => {
         }
     }, [allServices, selectedServiceIndex]);
 
-    // Acompanhar a linha selecionada rolando suavemente para ela
+    // Acompanhar a linha selecionada ao navegar pelas setas
     useEffect(() => {
         if (!selectedService) return;
         const el = document.getElementById(`service-row-${selectedService.id}`);
         if (el) {
-            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
         }
     }, [selectedService?.id]);
 
@@ -1362,7 +1362,7 @@ const Servicos: React.FC = () => {
                                     </div>
 
                                     {/* Desktop: Painel Esquerdo (Tabela Retrátil em Split View) */}
-                                    <div className={`transition-all duration-300 ease-in-out ${
+                                    <div className={`${
                                         selectedService && isDesktop
                                             ? 'w-full lg:w-[48%] xl:w-[46%] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800'
                                             : 'w-full'
@@ -1533,7 +1533,7 @@ const Servicos: React.FC = () => {
 
                                     {/* Desktop: Painel Direito (Mestre-Detalhe Embutido - Sem Modal / Sem Backdrop) */}
                                     {selectedService && isDesktop && (
-                                        <div className="w-full lg:w-[52%] xl:w-[54%] shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col transition-all duration-300 ease-in-out animate-in fade-in-0 slide-in-from-right-2">
+                                        <div className="w-full lg:w-[52%] xl:w-[54%] shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col animate-in fade-in-0 duration-150">
                                             <ServicoDetailPanel
                                                 service={selectedService}
                                                 onClose={() => setSelectedService(null)}

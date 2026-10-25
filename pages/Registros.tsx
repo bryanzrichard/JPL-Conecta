@@ -480,7 +480,7 @@ const Registros: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [hasSelectedItem, isDesktop, handlePrev, handleNext, handleCloseDetail]);
 
-  // Smooth scroll into view when selected item changes
+  // Acompanhar a linha selecionada ao navegar pelas setas
   useEffect(() => {
     const currentId = selectedSupplier?.id || selectedProject?.id || selectedCollaborator?.id;
     if (!currentId) return;
@@ -488,7 +488,7 @@ const Registros: React.FC = () => {
     const prefix = activeTab === 'suppliers' ? 'supplier-row-' : activeTab === 'projects' ? 'project-row-' : 'collaborator-row-';
     const el = document.getElementById(`${prefix}${currentId}`);
     if (el) {
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
     }
   }, [selectedSupplier?.id, selectedProject?.id, selectedCollaborator?.id, activeTab]);
 
@@ -1373,7 +1373,7 @@ const Registros: React.FC = () => {
         {/* --------------------------------------------------------- */}
         {/* LADO ESQUERDO: TABELA RETRÁTIL                            */}
         {/* --------------------------------------------------------- */}
-        <div className={`transition-all duration-300 ease-in-out flex flex-col ${
+        <div className={`flex flex-col ${
           hasSelectedItem && isDesktop
             ? 'w-full lg:w-[48%] xl:w-[46%] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800'
             : 'w-full'
@@ -1877,7 +1877,7 @@ const Registros: React.FC = () => {
         {/* LADO DIREITO: PAINEL DE INSPEÇÃO RETRÁTIL INLINE          */}
         {/* --------------------------------------------------------- */}
         {hasSelectedItem && isDesktop && (
-          <div className="w-full lg:w-[52%] xl:w-[54%] flex flex-col bg-white dark:bg-[#111827] overflow-hidden">
+          <div className="w-full lg:w-[52%] xl:w-[54%] flex flex-col bg-white dark:bg-[#111827] overflow-hidden animate-in fade-in-0 duration-150">
             {/* Topbar Fixa do Painel com Navegação Sequencial */}
             <div className="h-14 px-4 sm:px-5 border-b border-slate-200 dark:border-gray-800 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-brand-dark-800/20">
               {/* Esquerda: Identificador da entidade */}

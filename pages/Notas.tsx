@@ -243,12 +243,12 @@ const Notas: React.FC = () => {
         }
     }, [allNotas, selectedNotaIndex]);
 
-    // Acompanhar a linha selecionada na tabela rolando suavemente para ela ao navegar
+    // Acompanhar a linha selecionada na tabela ao navegar pelas setas
     useEffect(() => {
         if (!selectedNota) return;
         const el = document.getElementById(`nota-row-${selectedNota.id}`);
         if (el) {
-            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
         }
     }, [selectedNota?.id]);
 
@@ -1002,7 +1002,7 @@ const Notas: React.FC = () => {
                             </div>
 
                             {/* Desktop: Painel Esquerdo (Tabela Retrátil em Split View) */}
-                            <div className={`transition-all duration-300 ease-in-out ${
+                            <div className={`${
                                 selectedNota && isDesktop
                                     ? 'w-full lg:w-[48%] xl:w-[46%] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800'
                                     : 'w-full'
@@ -1146,7 +1146,7 @@ const Notas: React.FC = () => {
 
                             {/* Desktop: Painel Direito (Mestre-Detalhe Embutido - Sem Modal / Sem Backdrop) */}
                             {selectedNota && isDesktop && (
-                                <div className="w-full lg:w-[52%] xl:w-[54%] shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col transition-all duration-300 ease-in-out animate-in fade-in-0 slide-in-from-right-2">
+                                <div className="w-full lg:w-[52%] xl:w-[54%] shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col animate-in fade-in-0 duration-150">
                                     <NotaDetailPanel
                                         nota={selectedNota}
                                         onClose={() => setSelectedNota(null)}
