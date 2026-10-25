@@ -167,21 +167,19 @@ export const Orcamentos: React.FC = () => {
   });
 
   // 3. Carregar Todos os Itens da Obra Selecionada
-  const etapaIds = useMemo(() => etapas.map(e => e.id), [etapas]);
-
   const { data: allItens = [], isLoading: isLoadingItens } = useQuery<OrcamentoItem[]>({
-    queryKey: ['orcamento_itens', profile?.company_id, selectedProjectId, etapaIds],
+    queryKey: ['orcamento_itens', profile?.company_id, selectedProjectId],
     queryFn: async () => {
-      if (!profile?.company_id || etapaIds.length === 0) return [];
+      if (!profile?.company_id || !selectedProjectId) return [];
       const { data, error } = await (supabase as any)
         .from('orcamento_itens')
         .select('*')
         .eq('company_id', profile.company_id)
-        .in('etapa_id', etapaIds);
+        .eq('project_id', selectedProjectId);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!profile?.company_id && etapaIds.length > 0,
+    enabled: !!profile?.company_id && !!selectedProjectId,
   });
 
   // 4. Carregar Resumo por Categoria da RPC
@@ -438,6 +436,7 @@ export const Orcamentos: React.FC = () => {
             nome: etapaNameInput.trim(),
             ordem: etapaOrdemInput,
             status: etapaStatusInput,
+            created_by: user?.id,
           })
           .select()
           .single();
@@ -525,6 +524,7 @@ export const Orcamentos: React.FC = () => {
         .from('orcamento_itens')
         .insert({
           company_id: profile.company_id,
+          project_id: selectedProjectId,
           etapa_id: selectedEtapaId,
           descricao: newItemDescricao.trim(),
           tipo: newItemTipo,
@@ -644,6 +644,7 @@ export const Orcamentos: React.FC = () => {
             nome: sEtapa.nome,
             ordem: sEtapa.ordem,
             status: 'Planejado',
+            created_by: user?.id,
           })
           .select()
           .single();
@@ -654,6 +655,7 @@ export const Orcamentos: React.FC = () => {
         if (itensForThisEtapa.length > 0) {
           const itensToInsert = itensForThisEtapa.map((it: any) => ({
             company_id: profile.company_id,
+            project_id: selectedProjectId,
             etapa_id: newEtapa.id,
             descricao: it.descricao,
             tipo: it.tipo,

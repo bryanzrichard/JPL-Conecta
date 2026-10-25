@@ -42,12 +42,15 @@ export type OrcamentoEtapa = {
   nome: string;
   ordem: number;
   status: OrcamentoEtapaStatus;
+  observacoes?: string | null;
+  created_by?: string | null;
   created_at: string;
 };
 
 export type OrcamentoItem = {
   id: string;
   company_id: string;
+  project_id: string;
   etapa_id: string;
   descricao: string;
   tipo: OrcamentoItemTipo;
@@ -348,7 +351,7 @@ export type Database = {
       notas_fiscais: { Row: NotaFiscal; Insert: Partial<Omit<NotaFiscal, 'id' | 'created_at' | 'suppliers' | 'projects'>>; Update: Partial<Omit<NotaFiscal, 'id' | 'created_at' | 'suppliers' | 'projects'>>; Relationships: []; };
       itens_nota_fiscal: { Row: ItemNotaFiscal; Insert: Partial<Omit<ItemNotaFiscal, 'id'>>; Update: Partial<Omit<ItemNotaFiscal, 'id'>>; Relationships: []; };
       orcamento_etapas: { Row: OrcamentoEtapa; Insert: Partial<Omit<OrcamentoEtapa, 'id' | 'created_at'>> & { company_id: string; project_id: string; nome: string }; Update: Partial<Omit<OrcamentoEtapa, 'id' | 'created_at'>>; Relationships: []; };
-      orcamento_itens: { Row: OrcamentoItem; Insert: Partial<Omit<OrcamentoItem, 'id' | 'created_at' | 'valor_total'>> & { company_id: string; etapa_id: string; descricao: string; tipo: OrcamentoItemTipo; categoria: CategoriaNota }; Update: Partial<Omit<OrcamentoItem, 'id' | 'created_at' | 'valor_total'>>; Relationships: []; };
+      orcamento_itens: { Row: OrcamentoItem; Insert: Partial<Omit<OrcamentoItem, 'id' | 'created_at' | 'valor_total'>> & { company_id: string; project_id: string; etapa_id: string; descricao: string; tipo: OrcamentoItemTipo; categoria: CategoriaNota }; Update: Partial<Omit<OrcamentoItem, 'id' | 'created_at' | 'valor_total'>>; Relationships: []; };
       ai_process_jobs: { Row: AIProcessJob; Insert: Partial<Omit<AIProcessJob, 'id' | 'created_at'>>; Update: Partial<Omit<AIProcessJob, 'id' | 'created_at'>>; Relationships: []; };
       profiles: { Row: Profile; Insert: Partial<Omit<Profile, 'id' | 'company_keys' | 'companies'>>; Update: Partial<Omit<Profile, 'id' | 'company_keys' | 'companies'>>; Relationships: []; };
       cartorio_records: { Row: CartorioRecord; Insert: Partial<Omit<CartorioRecord, 'id' | 'created_at'>>; Update: Partial<Omit<CartorioRecord, 'id' | 'created_at'>>; Relationships: []; };
