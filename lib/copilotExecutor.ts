@@ -142,9 +142,9 @@ export async function executeCopilotActions({
           if (foundC) targetCollabId = foundC.id;
         }
 
-        // Insere o Serviço
+        // Insere o Serviço na tabela 'servicos'
         const { data: servico, error: sErr } = await (supabase as any)
-          .from('services')
+          .from('servicos')
           .insert({
             company_id: companyId,
             created_by: userId,
@@ -162,9 +162,9 @@ export async function executeCopilotActions({
 
         if (sErr) throw sErr;
 
-        // Se houver adiantamento, insere o registro na tabela advances
+        // Se houver adiantamento, insere o registro na tabela 'adiantamentos'
         if (servico && valorAdiantamento > 0) {
-          await (supabase as any).from('advances').insert({
+          await (supabase as any).from('adiantamentos').insert({
             company_id: companyId,
             created_by: userId,
             service_id: servico.id,
@@ -305,6 +305,63 @@ export async function executeCopilotActions({
             subtitulo: 'Nenhuma pendência aberta correspondente encontrada para concluir.',
             detalhes: 'Dica: Verifique se a tarefa já foi concluída ou o nome cadastrado.',
             sucesso: false,
+          });
+        }
+      }
+
+      // 5. QUITAR SERVIÇO DE EMPREITADA
+      else if (acao.tipo === 'QUITAR_SERVICO') {
+        const termoBusca = (acao.dados as any).servico_nome?.trim() || '';
+        const valorPago = Number((acao.dados as any).valor_pago) || 0;
+
+        let targetServiceId: string | null = (acao.dados as any).servico_id || null;
+        let targetServiceTitle: string = termoBusca;
+
+        if (!targetServiceId && termoBusca) {
+          const { data: openServices } = await (supabase as any)
+            .from('servicos')
+            .select('id, description')
+            .eq('company_id', companyId)
+            .eq('status', 'Em Andamento')
+            .limit(50);
+
+          if (openServices && openServices.length > 0) {
+            const termoNorm = termoBusca.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const match = openServices.find((s: any) => {
+              const sNorm = (s.description || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              return sNorm.includes(termoNorm) || termoNorm.includes(sNorm);
+            });
+            if (match) {
+              targetServiceId = match.id;
+              targetServiceTitle = match.description;
+            }
+          }
+        }
+
+        if (targetServiceId) {
+          if (valorPago > 0) {
+            await (supabase as any).from('adiantamentos').insert({
+              company_id: companyId,
+              created_by: userId,
+              service_id: targetServiceId,
+              value: valorPago,
+              payment_date: todayStr,
+              description: 'Quitação final via Copiloto IA',
+            });
+          }
+
+          await (supabase as any)
+            .from('servicos')
+            .update({ status: 'Concluído' })
+            .eq('id', targetServiceId);
+
+          results.push({
+            tipo: 'servico',
+            badge: '✅ Serviço Quitado & Concluído',
+            titulo: targetServiceTitle || 'Serviço Quitado',
+            subtitulo: valorPago > 0 ? `Pagamento registrado: ${formatBRL(valorPago)}` : 'Status atualizado para Concluído',
+            detalhes: 'Baixa efetuada pelo Copiloto IA',
+            sucesso: true,
           });
         }
       }

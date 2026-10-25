@@ -396,8 +396,10 @@ export const Tarefas: React.FC = () => {
         // Invalida as queries relevantes para atualizar a tela inteira em tempo real
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
         queryClient.invalidateQueries({ queryKey: ['collaborators'] });
-        queryClient.invalidateQueries({ queryKey: ['services'] });
-        queryClient.invalidateQueries({ queryKey: ['advances'] });
+        queryClient.invalidateQueries({ queryKey: ['servicos'] });
+        queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
+        queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
+        queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
       }
 
       const iaMsg: ChatMessage = {
@@ -497,8 +499,10 @@ export const Tarefas: React.FC = () => {
 
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
         queryClient.invalidateQueries({ queryKey: ['collaborators'] });
-        queryClient.invalidateQueries({ queryKey: ['services'] });
-        queryClient.invalidateQueries({ queryKey: ['advances'] });
+        queryClient.invalidateQueries({ queryKey: ['servicos'] });
+        queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
+        queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
+        queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
       }
 
       const iaMsg: ChatMessage = {
