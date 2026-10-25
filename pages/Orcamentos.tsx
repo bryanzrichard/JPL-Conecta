@@ -158,8 +158,9 @@ export const Orcamentos: React.FC = () => {
   const [newItemQtd, setNewItemQtd] = useState<string>('1');
   const [newItemValorUnit, setNewItemValorUnit] = useState<string>('');
 
-  // Drag and Drop State para Reordenar Sub-passos
+  // Drag and Drop State para Reordenar Sub-passos na Tabela da Esquerda
   const [draggedSubId, setDraggedSubId] = useState<string | null>(null);
+  const [draggedSubParentId, setDraggedSubParentId] = useState<string | null>(null);
   const [dragOverSubId, setDragOverSubId] = useState<string | null>(null);
 
   // Modal Edição de Item
@@ -487,6 +488,97 @@ export const Orcamentos: React.FC = () => {
     const parentId = (selectedEtapaOrSub as any).parent_id;
     return enrichedMainEtapas.find(m => m.id === parentId) || null;
   }, [selectedEtapaOrSub, enrichedMainEtapas]);
+
+  // -------------------------------------------------------------
+  // NAVEGAÇÃO SEQUENCIAL (SETAS DO TECLADO E BOTÕES ANTERIOR/PRÓXIMO)
+  // -------------------------------------------------------------
+  // Lista linear de itens visíveis na árvore esquerda
+  const visibleTreeItems = useMemo(() => {
+    const list: (EnrichedMainEtapa | EnrichedSubEtapa)[] = [];
+    filteredMainEtapas.forEach(main => {
+      list.push(main);
+      if (expandedEtapaIds.has(main.id)) {
+        (main.subPassos || []).forEach(sub => {
+          list.push(sub);
+        });
+      }
+    });
+    return list;
+  }, [filteredMainEtapas, expandedEtapaIds]);
+
+  const selectedItemIndex = useMemo(() => {
+    if (!selectedEtapaId) return -1;
+    return visibleTreeItems.findIndex(it => it.id === selectedEtapaId);
+  }, [visibleTreeItems, selectedEtapaId]);
+
+  const hasPrevItem = selectedItemIndex > 0;
+  const hasNextItem = selectedItemIndex >= 0 && selectedItemIndex < visibleTreeItems.length - 1;
+
+  const handlePrevItem = useCallback(() => {
+    if (hasPrevItem) {
+      const prev = visibleTreeItems[selectedItemIndex - 1];
+      if (prev) {
+        setSelectedEtapaId(prev.id);
+      }
+    }
+  }, [hasPrevItem, visibleTreeItems, selectedItemIndex]);
+
+  const handleNextItem = useCallback(() => {
+    if (hasNextItem) {
+      const next = visibleTreeItems[selectedItemIndex + 1];
+      if (next) {
+        setSelectedEtapaId(next.id);
+      }
+    } else if (!selectedEtapaId && visibleTreeItems.length > 0) {
+      setSelectedEtapaId(visibleTreeItems[0].id);
+    }
+  }, [hasNextItem, selectedEtapaId, visibleTreeItems, selectedItemIndex]);
+
+  // Listener para navegação com as setas do teclado (ArrowUp / ArrowDown / Escape)
+  useEffect(() => {
+    if (activeTab !== 'etapas') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      if (['input', 'textarea', 'select'].includes(activeTag)) return;
+      if (isEtapaModalOpen || isCopyModalOpen || etapaToDelete || itemToDelete || itemToEdit) return;
+
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        handlePrevItem();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        handleNextItem();
+      } else if (e.key === 'Escape') {
+        if (selectedEtapaId) {
+          e.preventDefault();
+          setSelectedEtapaId(null);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    activeTab,
+    handlePrevItem,
+    handleNextItem,
+    selectedEtapaId,
+    isEtapaModalOpen,
+    isCopyModalOpen,
+    etapaToDelete,
+    itemToDelete,
+    itemToEdit,
+  ]);
+
+  // Rolar automaticamente para a linha selecionada ao navegar
+  useEffect(() => {
+    if (!selectedEtapaId) return;
+    const el = document.getElementById(`etapa-row-${selectedEtapaId}`);
+    if (el) {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [selectedEtapaId]);
 
   // -------------------------------------------------------------
   // KPIS DINÂMICOS DA PÁGINA
@@ -1409,12 +1501,19 @@ export const Orcamentos: React.FC = () => {
                 <table className="w-full text-sm text-left text-slate-600 dark:text-gray-400">
                   <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-[#94A3B8] bg-slate-50 dark:bg-[#111827] border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
                     <tr>
-                      <th className="px-3 py-3 font-semibold">Etapa & Sub-passos</th>
+                      <th className="px-3 py-3 font-semibold">
+                        <div className="flex items-center justify-between">
+                          <span>Etapa & Sub-passos</span>
+                          <span className="hidden sm:inline-flex items-center text-[10px] font-normal text-slate-400 dark:text-gray-500 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-gray-700">
+                            ↑↓ Setas
+                          </span>
+                        </div>
+                      </th>
                       <th className="px-2 py-3 font-semibold">Status</th>
                       <th className={selectedEtapaOrSub && isDesktop ? 'hidden' : 'px-3 py-3 font-semibold text-right whitespace-nowrap'}>Material</th>
                       <th className={selectedEtapaOrSub && isDesktop ? 'hidden' : 'px-3 py-3 font-semibold text-right whitespace-nowrap'}>Mão de Obra</th>
                       <th className="px-3 py-3 font-semibold text-right whitespace-nowrap">Total</th>
-                      <th className="px-2 py-3 font-semibold text-center w-20">Ações</th>
+                      <th className="px-2 py-3 font-semibold text-center w-24">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-gray-800/80 bg-white dark:bg-[#111827]">
@@ -1565,31 +1664,86 @@ export const Orcamentos: React.FC = () => {
                               </td>
                             </tr>
 
-                            {/* LINHAS DOS SUB-PASSOS (QUANDO EXPANDIDO) */}
-                            {isExpanded && (main.subPassos || []).map((sub) => {
+                            {/* LINHAS DOS SUB-PASSOS COM DRAG & DROP NA TABELA ESQUERDA */}
+                            {isExpanded && (main.subPassos || []).map((sub, subIdx) => {
                               const isSubSelected = selectedEtapaOrSub?.id === sub.id;
+                              const isDragging = draggedSubId === sub.id;
+                              const isOver = dragOverSubId === sub.id && draggedSubParentId === main.id;
 
                               return (
                                 <tr
                                   key={sub.id}
                                   id={`etapa-row-${sub.id}`}
+                                  draggable={true}
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.effectAllowed = 'move';
+                                    e.dataTransfer.setData('text/plain', sub.id);
+                                    setDraggedSubId(sub.id);
+                                    setDraggedSubParentId(main.id);
+                                  }}
+                                  onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.dataTransfer.dropEffect = 'move';
+                                    if (draggedSubParentId === main.id && draggedSubId !== sub.id) {
+                                      if (dragOverSubId !== sub.id) setDragOverSubId(sub.id);
+                                    }
+                                  }}
+                                  onDragLeave={() => {
+                                    if (dragOverSubId === sub.id) setDragOverSubId(null);
+                                  }}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setDragOverSubId(null);
+                                    if (draggedSubParentId === main.id && draggedSubId && draggedSubId !== sub.id) {
+                                      const fromIdx = (main.subPassos || []).findIndex(s => s.id === draggedSubId);
+                                      const toIdx = (main.subPassos || []).findIndex(s => s.id === sub.id);
+                                      if (fromIdx !== -1 && toIdx !== -1) {
+                                        handleReorderSubs(main.id, fromIdx, toIdx);
+                                      }
+                                    }
+                                    setDraggedSubId(null);
+                                    setDraggedSubParentId(null);
+                                  }}
+                                  onDragEnd={() => {
+                                    setDraggedSubId(null);
+                                    setDragOverSubId(null);
+                                    setDraggedSubParentId(null);
+                                  }}
                                   onClick={() => setSelectedEtapaId(sub.id)}
-                                  className={`group transition-colors cursor-pointer bg-slate-50/40 dark:bg-slate-900/30 ${
-                                    isSubSelected
+                                  className={`group transition-all cursor-pointer select-none ${
+                                    isDragging
+                                      ? 'opacity-30 bg-indigo-100/50 dark:bg-indigo-950/40'
+                                      : isOver
+                                      ? 'border-t-2 border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/60 ring-1 ring-indigo-500'
+                                      : isSubSelected
                                       ? 'bg-[#F5F3FF] dark:bg-indigo-500/[0.12] border-l-4 border-[#818CF8]'
-                                      : 'hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
+                                      : 'bg-slate-50/40 dark:bg-slate-900/30 hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
                                   }`}
                                 >
-                                  {/* Nome Indentado com Conector Visual de Árvore */}
+                                  {/* Nome Indentado com Alça de Arraste (Drag Handle) e Conector Visual */}
                                   <td className="px-3 py-2 pl-9">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5 min-w-0">
                                       <span className="text-slate-300 dark:text-gray-600 font-mono text-xs select-none">
                                         └─
                                       </span>
-                                      <span className="font-medium text-xs text-slate-700 dark:text-gray-200">
-                                        {main.ordem}.{sub.subIndex} {sub.nome}
+
+                                      {/* Alça de Arraste (Drag Handle) */}
+                                      <div
+                                        className="cursor-grab active:cursor-grabbing p-1 -m-1 text-slate-300 hover:text-indigo-600 dark:text-gray-600 dark:hover:text-indigo-400 transition-colors shrink-0"
+                                        title="Arraste para reposicionar este sub-passo"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <GripVerticalIcon className="h-3.5 w-3.5" />
+                                      </div>
+
+                                      <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+                                        {main.ordem}.{sub.subIndex}
                                       </span>
-                                      <span className="text-[10px] text-slate-400">
+                                      <span className="font-medium text-xs text-slate-700 dark:text-gray-200 truncate">
+                                        {sub.nome}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400 shrink-0">
                                         ({sub.itens_count} insumos)
                                       </span>
                                     </div>
@@ -1615,9 +1769,36 @@ export const Orcamentos: React.FC = () => {
                                     {formatCurrency(sub.totalPrevisto)}
                                   </td>
 
-                                  {/* Ações do Sub-passo */}
+                                  {/* Ações do Sub-passo (Reordenação ↑ / ↓, Editar e Excluir) */}
                                   <td className="px-2 py-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                                    <div className="flex items-center justify-center gap-1">
+                                    <div className="flex items-center justify-center gap-0.5">
+                                      {/* Subir ordem */}
+                                      <button
+                                        type="button"
+                                        disabled={subIdx === 0}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleReorderSubs(main.id, subIdx, subIdx - 1);
+                                        }}
+                                        className="p-1 rounded text-slate-300 hover:text-slate-700 dark:text-gray-600 dark:hover:text-gray-200 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
+                                        title="Mover sub-passo para cima"
+                                      >
+                                        <ChevronUpIcon className="h-3 w-3" />
+                                      </button>
+                                      {/* Descer ordem */}
+                                      <button
+                                        type="button"
+                                        disabled={subIdx === (main.subPassos || []).length - 1}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleReorderSubs(main.id, subIdx, subIdx + 1);
+                                        }}
+                                        className="p-1 rounded text-slate-300 hover:text-slate-700 dark:text-gray-600 dark:hover:text-gray-200 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
+                                        title="Mover sub-passo para baixo"
+                                      >
+                                        <ChevronDownIcon className="h-3 w-3" />
+                                      </button>
+                                      {/* Editar */}
                                       <button
                                         type="button"
                                         onClick={(e) => {
@@ -1629,6 +1810,7 @@ export const Orcamentos: React.FC = () => {
                                       >
                                         <EditIcon className="h-3 w-3" />
                                       </button>
+                                      {/* Excluir */}
                                       <button
                                         type="button"
                                         onClick={(e) => {
@@ -1694,6 +1876,33 @@ export const Orcamentos: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Controles de Navegação Sequencial: Anterior (↑) e Próxima (↓) */}
+                      <div className="inline-flex items-center bg-slate-50 dark:bg-[#162235] rounded-lg p-0.5 border border-slate-200 dark:border-[#273549]">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handlePrevItem}
+                          disabled={!hasPrevItem}
+                          className="h-7 w-7 text-slate-600 dark:text-gray-300 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-800 rounded cursor-pointer"
+                          title="Etapa Anterior (Seta Cima do Teclado)"
+                        >
+                          <ChevronUpIcon className="h-3.5 w-3.5" />
+                        </Button>
+                        <span className="text-[10px] font-mono font-semibold px-1.5 text-slate-500 dark:text-gray-400 select-none">
+                          {selectedItemIndex + 1}/{visibleTreeItems.length}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleNextItem}
+                          disabled={!hasNextItem}
+                          className="h-7 w-7 text-slate-600 dark:text-gray-300 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-800 rounded cursor-pointer"
+                          title="Próxima Etapa (Seta Baixo do Teclado)"
+                        >
+                          <ChevronDownIcon className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
                       {/* Seletor Rápido de Status */}
                       <select
                         value={selectedEtapaOrSub.status}
@@ -1710,145 +1919,57 @@ export const Orcamentos: React.FC = () => {
                         size="sm"
                         onClick={() => setSelectedEtapaId(null)}
                         className="h-8 w-8 p-0 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
-                        title="Fechar painel"
+                        title="Fechar painel (Esc)"
                       >
                         <XIcon className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
 
-                  {/* SEÇÃO DE SUB-PASSOS ARRASTÁVEIS (QUANDO ETAPA PRINCIPAL) */}
+                  {/* Resumo Financeiro da Etapa / Sub-passo Selecionado */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-2 rounded-lg bg-slate-50 dark:bg-[#162235]/60 border border-slate-100 dark:border-[#273549]">
+                      <span className="text-[10px] text-slate-400 font-semibold block">Total Previsto</span>
+                      <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                        {formatCurrency((selectedEtapaOrSub as any).totalPrevisto || 0)}
+                      </span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40">
+                      <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold block">Material</span>
+                      <span className="text-xs font-mono font-bold text-indigo-700 dark:text-indigo-300">
+                        {formatCurrency((selectedEtapaOrSub as any).totalMaterial || 0)}
+                      </span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40">
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block">Mão de Obra</span>
+                      <span className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-300">
+                        {formatCurrency((selectedEtapaOrSub as any).totalMaoDeObra || 0)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Banner Compacto de Sub-passos (quando Etapa Principal) */}
                   {!(selectedEtapaOrSub as any).isSubPasso && (
-                    <div className="bg-slate-50/70 dark:bg-[#162235]/60 border border-slate-200/80 dark:border-[#273549] rounded-xl p-3 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-xs font-bold text-slate-800 dark:text-white block">
-                            Sub-passos Executivos ({currentSubPassos.length})
+                    <div className="flex items-center justify-between px-3 py-2 bg-slate-50/70 dark:bg-[#162235]/40 border border-slate-200/80 dark:border-[#273549] rounded-lg text-xs">
+                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-gray-300 min-w-0 truncate">
+                        <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                          {currentSubPassos.length} {currentSubPassos.length === 1 ? 'sub-passo' : 'sub-passos'}
+                        </span>
+                        {currentSubPassos.length > 0 && (
+                          <span className="text-[11px] text-slate-400 hidden sm:inline truncate">
+                            • Reordene arrastando na tabela à esquerda
                           </span>
-                          <span className="text-[10px] text-slate-400">
-                            Arraste e solte para definir a ordem cronológica
-                          </span>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleOpenNewSubPasso(selectedEtapaOrSub as EnrichedMainEtapa)}
-                          className="h-7 text-xs bg-indigo-600 hover:bg-indigo-500 text-white gap-1 cursor-pointer font-bold shrink-0"
-                        >
-                          <PlusIcon className="h-3 w-3" />
-                          <span>+ Sub-passo</span>
-                        </Button>
+                        )}
                       </div>
-
-                      {currentSubPassos.length === 0 ? (
-                        <div className="py-4 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-gray-800 rounded-lg">
-                          Esta etapa ainda não possui sub-passos. Clique em &quot;+ Sub-passo&quot; para detalhar a execução (ex: Gabarito, Gaiolas, Estacas).
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {currentSubPassos.map((sub, idx) => {
-                            const isDragging = draggedSubId === sub.id;
-                            const isOver = dragOverSubId === sub.id;
-
-                            return (
-                              <div
-                                key={sub.id}
-                                draggable={true}
-                                onDragStart={() => setDraggedSubId(sub.id)}
-                                onDragOver={(e) => {
-                                  e.preventDefault();
-                                  if (dragOverSubId !== sub.id) setDragOverSubId(sub.id);
-                                }}
-                                onDragLeave={() => {
-                                  if (dragOverSubId === sub.id) setDragOverSubId(null);
-                                }}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  setDragOverSubId(null);
-                                  setDraggedSubId(null);
-                                  if (draggedSubId) {
-                                    const fromIdx = currentSubPassos.findIndex(s => s.id === draggedSubId);
-                                    if (fromIdx !== -1) handleReorderSubs(selectedEtapaOrSub.id, fromIdx, idx);
-                                  }
-                                }}
-                                onDragEnd={() => {
-                                  setDraggedSubId(null);
-                                  setDragOverSubId(null);
-                                }}
-                                onClick={() => setSelectedEtapaId(sub.id)}
-                                className={`p-2.5 rounded-lg border transition-all flex items-center justify-between gap-2 select-none cursor-pointer ${
-                                  isDragging
-                                    ? 'opacity-40 border-indigo-400 bg-indigo-50/50 scale-[0.98]'
-                                    : isOver
-                                    ? 'border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/40 ring-1 ring-indigo-500'
-                                    : 'bg-white dark:bg-[#111827] border-slate-200/80 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <div
-                                    className="cursor-grab active:cursor-grabbing p-1 -m-1 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200"
-                                    title="Arraste para reposicionar a ordem cronológica"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <GripVerticalIcon className="h-4 w-4" />
-                                  </div>
-                                  <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/50">
-                                    {selectedEtapaOrSub.ordem}.{idx + 1}
-                                  </span>
-                                  <span className="font-semibold text-xs text-slate-800 dark:text-white truncate">
-                                    {sub.nome}
-                                  </span>
-                                  <span className="text-[10px] text-slate-400 shrink-0">
-                                    ({sub.itens_count} insumos)
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                  <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
-                                    {formatCurrency(sub.totalPrevisto)}
-                                  </span>
-                                  <div className="flex items-center gap-0.5">
-                                    <button
-                                      type="button"
-                                      disabled={idx === 0}
-                                      onClick={() => handleReorderSubs(selectedEtapaOrSub.id, idx, idx - 1)}
-                                      className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                                      title="Mover para cima"
-                                    >
-                                      <ChevronUpIcon className="h-3.5 w-3.5" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={idx === currentSubPassos.length - 1}
-                                      onClick={() => handleReorderSubs(selectedEtapaOrSub.id, idx, idx + 1)}
-                                      className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                                      title="Mover para baixo"
-                                    >
-                                      <ChevronDownIcon className="h-3.5 w-3.5" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenEditEtapa(sub)}
-                                      className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
-                                      title="Editar sub-passo"
-                                    >
-                                      <EditIcon className="h-3 w-3" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setEtapaToDelete(sub)}
-                                      className="p-1 rounded text-rose-400 hover:text-rose-600 cursor-pointer"
-                                      title="Excluir sub-passo"
-                                    >
-                                      <Trash2Icon className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleOpenNewSubPasso(selectedEtapaOrSub as EnrichedMainEtapa)}
+                        className="h-6 px-2 text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white gap-1 cursor-pointer font-bold shrink-0"
+                      >
+                        <PlusIcon className="h-3 w-3" />
+                        <span>+ Sub-passo</span>
+                      </Button>
                     </div>
                   )}
 
