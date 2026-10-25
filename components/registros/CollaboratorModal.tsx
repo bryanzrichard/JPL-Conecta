@@ -7,7 +7,8 @@ import {
   ResponsiveModalHeader, 
   ResponsiveModalTitle, 
   ResponsiveModalDescription, 
-  ResponsiveModalFooter 
+  ResponsiveModalFooter,
+  ModalDisplayMode
 } from '../ui/ResponsiveModal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -27,7 +28,7 @@ interface CollaboratorModalProps {
   isOpen: boolean;
   onClose: () => void;
   collaborator?: Collaborator | null;
-  displayMode?: 'dialog' | 'drawer';
+  displayMode?: ModalDisplayMode;
 }
 
 const customResolver = createZodResolver(collaboratorSchema);
@@ -44,7 +45,7 @@ const COLLABORATOR_ROLES_PRESETS = [
   'Ajudante Geral',
 ];
 
-const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, collaborator, displayMode = 'drawer' }) => {
+const CollaboratorModal: React.FC<CollaboratorModalProps> = ({ isOpen, onClose, collaborator, displayMode = 'drawer' }: CollaboratorModalProps) => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();

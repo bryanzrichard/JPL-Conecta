@@ -334,7 +334,11 @@ export const Orcamentos: React.FC = () => {
   // -------------------------------------------------------------
   // ESTRUTURAÇÃO HIERÁRQUICA: ETAPAS PRINCIPAIS & SUB-PASSOS
   // -------------------------------------------------------------
-  const { rawMainEtapas, rawSubPassosByParent, allEtapasMap } = useMemo(() => {
+  const { rawMainEtapas, rawSubPassosByParent, allEtapasMap }: {
+    rawMainEtapas: OrcamentoEtapa[];
+    rawSubPassosByParent: Map<string, OrcamentoEtapa[]>;
+    allEtapasMap: Map<string, OrcamentoEtapa>;
+  } = useMemo(() => {
     const allMap = new Map<string, OrcamentoEtapa>();
     etapas.forEach(e => allMap.set(e.id, e));
 
@@ -607,7 +611,7 @@ export const Orcamentos: React.FC = () => {
 
   // Resumo Previsto vs Realizado por Categoria (11 Categorias consolidadas)
   const categoryComparison = useMemo(() => {
-    const orcadoMap = new Map<string, { material: number;毛: number }>();
+    const orcadoMap = new Map<string, { material: number; maoDeObra: number }>();
     CATEGORIA_NOTA_ENUM.forEach(cat => orcadoMap.set(cat, { material: 0, maoDeObra: 0 }));
 
     allItens.forEach(it => {

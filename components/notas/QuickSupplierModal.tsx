@@ -7,7 +7,8 @@ import {
   ResponsiveModalHeader, 
   ResponsiveModalTitle, 
   ResponsiveModalDescription, 
-  ResponsiveModalFooter 
+  ResponsiveModalFooter,
+  ModalDisplayMode
 } from '../ui/ResponsiveModal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -27,7 +28,7 @@ interface QuickSupplierModalProps {
   onSuccess: (newSupplier: Supplier) => void;
   initialName: string;
   initialCnpj: string;
-  displayMode?: 'dialog' | 'drawer';
+  displayMode?: ModalDisplayMode;
 }
 
 const customResolver = createZodResolver(supplierSchema);
@@ -39,7 +40,7 @@ const QuickSupplierModal: React.FC<QuickSupplierModalProps> = ({
   initialName, 
   initialCnpj,
   displayMode = 'drawer'
-}) => {
+}: QuickSupplierModalProps) => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
 

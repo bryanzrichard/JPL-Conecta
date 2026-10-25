@@ -4,7 +4,7 @@ import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tansta
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabaseClient';
-import { ServiceWithDetails, AdvanceWithDetails, Collaborator, Project, SERVICE_STATUSES, ServiceStatus } from '../types';
+import { ServiceWithDetails, AdvanceWithDetails, Advance, Collaborator, Project, SERVICE_STATUSES, ServiceStatus } from '../types';
 import { formatCurrency, formatDateBR as formatDate, openStorageFile } from '../lib/utils';
 import { formatApiError } from '../lib/handleError';
 import { deleteServiceWithAttachments, deleteAdvanceWithAttachment } from '../components/servicos/serviceActions';
@@ -61,6 +61,16 @@ type AdvanceFilters = {
     projectId: string | null;
     dateRange: DateRange | undefined;
     serviceId?: string | null;
+};
+
+type AdvanceQueryResult = Advance & {
+    servicos: {
+        description: string;
+        collaborator_id: string | null;
+        project_id: string | null;
+        collaborators: { name: string } | null;
+        projects: { name: string } | null;
+    } | null;
 };
 
 const PAGE_SIZE = 10;
@@ -237,6 +247,7 @@ const Servicos: React.FC = () => {
                         .from('adiantamentos')
                         .select('*, servicos(description, collaborator_id, project_id, collaborators(name), projects(name))')
                         .eq('id', editAdvanceId)
+                        .returns<AdvanceQueryResult>()
                         .maybeSingle();
 
                     if (advData && isMounted) {

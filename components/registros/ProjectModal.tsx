@@ -7,7 +7,8 @@ import {
   ResponsiveModalHeader, 
   ResponsiveModalTitle, 
   ResponsiveModalDescription, 
-  ResponsiveModalFooter 
+  ResponsiveModalFooter,
+  ModalDisplayMode
 } from '../ui/ResponsiveModal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -25,12 +26,12 @@ interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   project?: Project | null;
-  displayMode?: 'dialog' | 'drawer';
+  displayMode?: ModalDisplayMode;
 }
 
 const customResolver = createZodResolver(projectSchema);
 
-const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, displayMode = 'drawer' }) => {
+const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, displayMode = 'drawer' }: ProjectModalProps) => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
