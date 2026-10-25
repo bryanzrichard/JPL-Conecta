@@ -765,7 +765,6 @@ export const Orcamentos: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orcamento_etapas'] });
-      toast({ title: 'Ordem atualizada!', description: 'Sub-passos reordenados com sucesso.' });
     },
     onError: (err) => {
       toast({ variant: 'destructive', title: 'Erro ao reordenar', description: formatApiError(err) });
