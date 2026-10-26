@@ -48,7 +48,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, d
         name: project.name || '',
         status: (isPastOrToday ? 'Concluído' : project.status) || 'Planejamento',
         manager: project.manager || '',
-        area_m2: project.area_m2 ?? null,
+        area_m2: project.area_m2 != null
+          ? new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(Number(project.area_m2))
+          : null,
         start_date: project.start_date ? project.start_date.split('T')[0] : '',
         end_date: project.end_date ? project.end_date.split('T')[0] : null,
         address_zip: project.address_zip || '',
