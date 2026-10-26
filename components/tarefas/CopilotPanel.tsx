@@ -1,9 +1,10 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   ChatMessage,
   ResolvedCopilotAction,
 } from '../../lib/copilotExecutor';
 import { CopilotReviewCard } from './CopilotReviewCard';
+import { CopilotActivityFeed, CopilotActivityItem } from './CopilotActivityFeed';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import {
   BotIcon,
@@ -68,6 +69,23 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
   const pendingLabel = pendingCount === 1
     ? '1 ação aguardando confirmação'
     : `${pendingCount} ações aguardando confirmação`;
+
+  // Lista de todas as ações executadas pelo Copiloto para a janela lateral de controle
+  const recentActivities = useMemo<CopilotActivityItem[]>(() => {
+    const list: CopilotActivityItem[] = [];
+    chatMessages.forEach((msg) => {
+      if (msg.cards && msg.cards.length > 0) {
+        msg.cards.forEach((card) => {
+          list.push({
+            ...card,
+            messageTimestamp: msg.timestamp,
+            messageId: msg.id,
+          });
+        });
+      }
+    });
+    return list.reverse();
+  }, [chatMessages]);
 
   // Altura automática de 3 linhas até 10 linhas
   const adjustTextareaHeight = () => {
@@ -159,12 +177,12 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
   }
 
   // -------------------------------------------------------------
-  // Aberto: Chat Completo com Botão Minimizar e Textarea
+  // Aberto: Chat Completo Expandido na Vertical + Janela Lateral
   // -------------------------------------------------------------
   return (
-    <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">
+    <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm flex flex-col h-[calc(100vh-210px)] min-h-[560px] max-h-[820px] transition-all">
       {/* Topo do Chat */}
-      <div className="p-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white flex items-center justify-between">
+      <div className="p-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0">
             <BotIcon className="h-5 w-5" />
@@ -196,12 +214,15 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
         </button>
       </div>
 
-      <div className="flex flex-col">
-        {/* Histórico de Mensagens */}
-        <div
-          ref={chatContainerRef}
-          className="p-3.5 bg-[#EFEAE2]/60 dark:bg-[#0D1418] max-h-[320px] min-h-[120px] overflow-y-auto custom-scrollbar space-y-3"
-        >
+      {/* Corpo Dividido em 2 Colunas no Desktop */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
+        {/* Coluna da Esquerda: Chat do Copiloto */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-200/80 dark:border-gray-800">
+          {/* Histórico de Mensagens */}
+          <div
+            ref={chatContainerRef}
+            className="flex-1 p-3.5 bg-[#EFEAE2]/60 dark:bg-[#0D1418] overflow-y-auto custom-scrollbar space-y-3 min-h-0"
+          >
           {chatMessages.length === 0 && !isProcessingAudioIA && !isRecordingAudio && (
             <div className="py-6 text-center text-xs text-slate-400 dark:text-gray-500">
               Envie uma mensagem ou áudio para o Copiloto...
@@ -363,8 +384,14 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Coluna da Direita (Horizontal): Janela de Controle das Últimas Ações do Copiloto */}
+      <div className="hidden lg:flex lg:w-[38%] xl:w-[36%] flex-col min-h-0 bg-slate-50/60 dark:bg-[#0B1115] shrink-0 overflow-hidden">
+        <CopilotActivityFeed activities={recentActivities} />
+      </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default CopilotPanel;
