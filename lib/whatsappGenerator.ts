@@ -1,4 +1,5 @@
 export const WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/L6enTk86iVxJgYUm7iiefX';
+import { parseCompraItens, formatCompraItemTexto } from './compraItens';
 
 export interface TaskForWhatsApp {
   id: string;
@@ -9,6 +10,7 @@ export interface TaskForWhatsApp {
   collaboratorName?: string;
   data_fim_prevista?: string | null;
   isPurchase?: boolean;
+  materiais_previstos?: unknown;
 }
 
 export function formatDayOfWeek(date: Date): string {
@@ -72,6 +74,14 @@ export function generateWhatsAppSchedule({
       const purchaseTag = t.isPurchase ? '🛒 ' : '';
       const resp = t.collaboratorName ? ` (Resp: ${t.collaboratorName})` : '';
       lines.push(`• ${checkMark} ${purchaseTag}${t.title}${resp}`);
+
+      if (t.isPurchase && t.materiais_previstos) {
+        const itens = parseCompraItens(t.materiais_previstos);
+        const pendentes = itens.filter((i) => !i.comprado);
+        pendentes.forEach((item) => {
+          lines.push(`   - ${formatCompraItemTexto(item)}`);
+        });
+      }
     });
     lines.push(``);
   });

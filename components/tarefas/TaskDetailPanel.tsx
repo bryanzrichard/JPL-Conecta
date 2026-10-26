@@ -8,6 +8,8 @@ import {
 } from '../../lib/icons';
 import { formatCurrency, formatDateBR } from '../../lib/utils';
 import { TaskPriority, TaskStatus } from '../../types';
+import { parseCompraItens } from '../../lib/compraItens';
+import CompraItensChecklist from './CompraItensChecklist';
 
 interface TaskDetailPanelProps {
   task: EnrichedTask;
@@ -71,6 +73,7 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
   onPrevTask, onNextTask, hasPrev, hasNext, currentIndex, totalCount,
 }) => {
   const materiais = extractNames(task.materiais_previstos);
+  const compraItens = parseCompraItens(task.materiais_previstos);
   const equipamentos = extractNames(task.equipamentos_utilizados);
   const hasCustoReal = task.custo_real !== null && task.custo_real !== undefined && Number(task.custo_real) > 0;
 
@@ -258,7 +261,9 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
           </div>
         )}
 
-        {materiais.length > 0 && (
+        {task.isPurchase && compraItens.length > 0 ? (
+          <CompraItensChecklist task={task} />
+        ) : materiais.length > 0 ? (
           <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-2">
             <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-gray-800">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -277,7 +282,7 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
               ))}
             </ul>
           </div>
-        )}
+        ) : null}
 
         {equipamentos.length > 0 && (
           <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-2">

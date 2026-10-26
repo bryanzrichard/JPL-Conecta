@@ -8,6 +8,7 @@ import {
 } from '../../lib/icons';
 import { formatDateDM } from '../../lib/utils';
 import { TaskPriority } from '../../types';
+import { parseCompraItens, formatCompraItem } from '../../lib/compraItens';
 
 interface TarefasTableProps {
   tasks: EnrichedTask[];
@@ -114,6 +115,31 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
                         </span>
                       )}
                     </div>
+
+                    {/* Resumo de itens de compra abaixo do título */}
+                    {task.isPurchase && (() => {
+                      const itens = parseCompraItens(task.materiais_previstos);
+                      if (itens.length === 0) return null;
+                      const comprados = itens.filter((i) => i.comprado).length;
+                      const pendentes = itens.filter((i) => !i.comprado);
+                      return (
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className="text-[10px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+                            {comprados} de {itens.length} comprados
+                          </span>
+                          {pendentes.slice(0, 3).map((item, idx) => (
+                            <span key={idx} className="text-[10px] text-slate-600 dark:text-gray-300 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                              {formatCompraItem(item)}
+                            </span>
+                          ))}
+                          {pendentes.length > 3 && (
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-gray-500">
+                              +{pendentes.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 dark:text-gray-400 flex-wrap">
                       <span className="flex items-center gap-1">
@@ -224,6 +250,31 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
                           </span>
                         )}
                       </div>
+
+                      {/* Resumo de itens de compra abaixo do título */}
+                      {task.isPurchase && (() => {
+                        const itens = parseCompraItens(task.materiais_previstos);
+                        if (itens.length === 0) return null;
+                        const comprados = itens.filter((i) => i.comprado).length;
+                        const pendentes = itens.filter((i) => !i.comprado);
+                        return (
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="text-[10px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+                              {comprados} de {itens.length} comprados
+                            </span>
+                            {pendentes.slice(0, 3).map((item, idx) => (
+                              <span key={idx} className="text-[10px] text-slate-600 dark:text-gray-300 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                {formatCompraItem(item)}
+                              </span>
+                            ))}
+                            {pendentes.length > 3 && (
+                              <span className="text-[10px] font-bold text-slate-400 dark:text-gray-500">
+                                +{pendentes.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Subtítulo integrado estilo Linear/Notion (Obra • Responsável) */}
                       <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-500 dark:text-gray-400 flex-wrap">

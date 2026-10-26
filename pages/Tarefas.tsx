@@ -871,6 +871,7 @@ export const Tarefas: React.FC = () => {
         collaboratorName: t.collaboratorName || undefined,
         data_fim_prevista: t.data_fim_prevista,
         isPurchase: t.isPurchase,
+        materiais_previstos: t.materiais_previstos,
       } as TaskForWhatsApp));
   }, [filteredTasks, previewDateMode, todayStr, tomorrowStr]);
 
