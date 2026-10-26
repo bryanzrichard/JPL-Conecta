@@ -45,6 +45,11 @@ import {
   executarConsulta,
   ConsultaResultado,
 } from '../lib/copilotConsultas';
+import {
+  loadCopilotHistory,
+  saveCopilotHistory,
+  clearCopilotHistory,
+} from '../lib/copilotHistorico';
 import { CopilotPanel } from '../components/tarefas/CopilotPanel';
 import { formatApiError } from '../lib/handleError';
 import { formatDateBR } from '../lib/utils';
@@ -97,6 +102,59 @@ export const Tarefas: React.FC = () => {
   const [chatInputText, setChatInputText] = useState<string>('');
   const [isChatExpanded, setIsChatExpanded] = useState<boolean>(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const hasLoadedHistoryRef = useRef<string | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+
+  // Carrega o histórico salvo no navegador ao identificar o usuário e a empresa
+  useEffect(() => {
+    if (!profile?.company_id || !user?.id) return;
+    const userKey = `${profile.company_id}:${user.id}`;
+    if (hasLoadedHistoryRef.current === userKey) return;
+    hasLoadedHistoryRef.current = userKey;
+
+    const initialHistory = loadCopilotHistory(profile.company_id, user.id, (msg) => {
+      toast({
+        variant: 'default',
+        title: 'Aviso',
+        description: msg,
+      });
+    });
+    setChatMessages(initialHistory);
+  }, [profile?.company_id, user?.id, toast]);
+
+  // Salva a conversa com debounce mínimo de 300ms entre gravações
+  useEffect(() => {
+    if (!profile?.company_id || !user?.id) return;
+    const userKey = `${profile.company_id}:${user.id}`;
+    if (hasLoadedHistoryRef.current !== userKey) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current as NodeJS.Timeout);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      saveCopilotHistory(profile.company_id, user.id, chatMessages, (msg) => {
+        toast({
+          variant: 'default',
+          title: 'Aviso',
+          description: msg,
+        });
+      });
+    }, 350);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current as NodeJS.Timeout);
+      }
+    };
+  }, [chatMessages, profile?.company_id, user?.id, toast]);
+
+  const handleClearCopilotConversation = () => {
+    setChatMessages([]);
+    if (profile?.company_id && user?.id) {
+      clearCopilotHistory(profile.company_id, user.id);
+    }
+  };
 
   // WhatsApp Preview Controls
   const [previewDateMode, setPreviewDateMode] = useState<'today' | 'tomorrow'>('today');
@@ -310,6 +368,31 @@ export const Tarefas: React.FC = () => {
   // -------------------------------------------------------------
   // ENVIO DE MENSAGENS AO COPILOTO IA (TEXTO OU ÁUDIO)
   // -------------------------------------------------------------
+  const handleRefreshConsulta = async (messageId: string, consultaIndex: number) => {
+    if (!profile?.company_id) return;
+    const targetMsg = chatMessages.find((m) => m.id === messageId);
+    if (!targetMsg || !targetMsg.consultas || !targetMsg.consultas[consultaIndex]) return;
+
+    const alvo = targetMsg.consultas[consultaIndex];
+    const resolvida = resolverConsulta(alvo.pedido, projects);
+    const resultado = await executarConsulta(resolvida, profile.company_id);
+
+    setChatMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id !== messageId || !msg.consultas) return msg;
+        const updatedConsultas = [...msg.consultas];
+        updatedConsultas[consultaIndex] = {
+          ...resultado,
+          executadoEm: new Date().toISOString(),
+        };
+        return {
+          ...msg,
+          consultas: updatedConsultas,
+        };
+      })
+    );
+  };
+
   const handleProcessCopilotResponse = async (
     res: { resumo_ia?: string; transcricao?: string; acoes?: CopilotAction[] },
     baseText: string
@@ -320,28 +403,28 @@ export const Tarefas: React.FC = () => {
       (a) => a.tipo !== 'CONVERSA_GERAL' && a.tipo !== 'CONSULTAR'
     );
 
+    const nowIso = new Date().toISOString();
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     if (consultaActions.length > 0) {
       const iaMsgId = (Date.now() + 1).toString();
-      const initialIaMsg: ChatMessage = {
-        id: iaMsgId,
-        sender: 'ia',
-        text: baseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        consultando: true,
-      };
-      setChatMessages((prev) => [...prev, initialIaMsg]);
 
-      const companyId = profile?.company_id || '';
-      const consultasResultados: ConsultaResultado[] = [];
+      // Monta os cards iniciais de consulta com indicador individual de carregamento
+      const initialConsultas: ConsultaResultado[] = consultaActions.map((a) => {
+        const resolvida = resolverConsulta(a.dados?.consulta || { tipo: 'GASTOS' }, projects);
+        return {
+          pedido: resolvida.pedido,
+          obraNome: resolvida.obraNome,
+          linhas: [],
+          notas: [],
+          total: 0,
+          erro: resolvida.erro,
+          carregando: !resolvida.erro,
+          executadoEm: nowIso,
+        };
+      });
 
-      for (const a of consultaActions) {
-        if (a.dados?.consulta) {
-          const resolvida = resolverConsulta(a.dados.consulta, projects);
-          const resultado = await executarConsulta(resolvida, companyId);
-          consultasResultados.push(resultado);
-        }
-      }
-
+      // Se a mensagem misturar consultas com ações que gravam, prepara o card de confirmação
       let reviewData: PendingReviewData | undefined = undefined;
       if (actionableActions.length > 0) {
         const openTasksList = allTasks.filter((t) => t.status !== 'Concluída');
@@ -360,18 +443,69 @@ export const Tarefas: React.FC = () => {
         };
       }
 
-      setChatMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === iaMsgId
-            ? {
-                ...msg,
-                consultando: false,
-                consultas: consultasResultados,
-                ...(reviewData ? { review: reviewData } : {}),
-              }
-            : msg
-        )
-      );
+      const initialIaMsg: ChatMessage = {
+        id: iaMsgId,
+        sender: 'ia',
+        text: baseText,
+        timestamp: timeStr,
+        createdAt: nowIso,
+        consultas: initialConsultas,
+        ...(reviewData ? { review: reviewData } : {}),
+      };
+
+      setChatMessages((prev) => [...prev, initialIaMsg]);
+
+      const companyId = profile?.company_id || '';
+
+      // Executa todas as consultas em paralelo (Promise.allSettled)
+      const queryPromises = initialConsultas.map(async (item, idx) => {
+        if (item.erro) {
+          return { idx, resultado: item };
+        }
+        try {
+          const resultado = await executarConsulta(
+            { pedido: item.pedido, obraNome: item.obraNome },
+            companyId
+          );
+          const finalResult: ConsultaResultado = {
+            ...resultado,
+            carregando: false,
+            executadoEm: new Date().toISOString(),
+          };
+          setChatMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== iaMsgId || !m.consultas) return m;
+              const updated = [...m.consultas];
+              updated[idx] = finalResult;
+              return { ...m, consultas: updated };
+            })
+          );
+          return { idx, resultado: finalResult };
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Erro ao consultar';
+          const errorResult: ConsultaResultado = {
+            pedido: item.pedido,
+            obraNome: item.obraNome,
+            linhas: [],
+            notas: [],
+            total: 0,
+            erro: msg,
+            carregando: false,
+            executadoEm: new Date().toISOString(),
+          };
+          setChatMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== iaMsgId || !m.consultas) return m;
+              const updated = [...m.consultas];
+              updated[idx] = errorResult;
+              return { ...m, consultas: updated };
+            })
+          );
+          return { idx, resultado: errorResult };
+        }
+      });
+
+      await Promise.allSettled(queryPromises);
     } else if (actionableActions.length > 0) {
       const openTasksList = allTasks.filter((t) => t.status !== 'Concluída');
       const resolvedActions = resolveCopilotActions(
@@ -386,7 +520,8 @@ export const Tarefas: React.FC = () => {
         id: (Date.now() + 1).toString(),
         sender: 'ia',
         text: baseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: timeStr,
+        createdAt: nowIso,
         review: {
           acoes: resolvedActions,
           items: reviewItems,
@@ -399,7 +534,8 @@ export const Tarefas: React.FC = () => {
         id: (Date.now() + 1).toString(),
         sender: 'ia',
         text: baseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: timeStr,
+        createdAt: nowIso,
       };
       setChatMessages((prev) => [...prev, iaMsg]);
     }
@@ -409,11 +545,15 @@ export const Tarefas: React.FC = () => {
     const text = (textToSend || chatInputText).trim();
     if (!text || isProcessingAudioIA) return;
 
+    const nowIso = new Date().toISOString();
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
       text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: timeStr,
+      createdAt: nowIso,
     };
 
     setChatMessages((prev) => [...prev, userMsg]);
@@ -463,7 +603,8 @@ export const Tarefas: React.FC = () => {
         id: (Date.now() + 1).toString(),
         sender: 'ia',
         text: `⚠️ Não consegui concluir a ação: ${msgText}. Verifique o deploy de "processar-comando-voz" ou a API_KEY no Supabase.`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: timeStr,
+        createdAt: new Date().toISOString(),
       };
       setChatMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -535,11 +676,15 @@ export const Tarefas: React.FC = () => {
   const processAudioWithGemini = async (blob: Blob, mimeType: string) => {
     setIsProcessingAudioIA(true);
 
+    const nowIso = new Date().toISOString();
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
       text: '🎤 Mensagem de voz gravada...',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: timeStr,
+      createdAt: nowIso,
     };
     setChatMessages((prev) => [...prev, userMsg]);
 
@@ -604,7 +749,8 @@ export const Tarefas: React.FC = () => {
         id: (Date.now() + 1).toString(),
         sender: 'ia',
         text: `⚠️ Não consegui transcrever o áudio: ${msgText}. Verifique o deploy de "processar-comando-voz" ou a API_KEY no Supabase.`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: timeStr,
+        createdAt: nowIso,
       };
       setChatMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -1206,6 +1352,8 @@ export const Tarefas: React.FC = () => {
         onCancelAudioRecording={cancelAudioRecording}
         onConfirmActions={handleConfirmCopilotActions}
         onCancelActions={handleCancelCopilotActions}
+        onRefreshConsulta={handleRefreshConsulta}
+        onClearConversation={handleClearCopilotConversation}
       />
 
       {/* ========================================================= */}

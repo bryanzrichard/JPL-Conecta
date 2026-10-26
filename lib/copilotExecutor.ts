@@ -174,6 +174,7 @@ export interface ChatMessage {
   sender: 'user' | 'ia';
   text: string;
   timestamp: string;
+  createdAt?: string;
   cards?: ActionCardResult[];
   review?: PendingReviewData;
   consultas?: ConsultaResultado[];

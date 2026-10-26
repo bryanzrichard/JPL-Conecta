@@ -2,6 +2,7 @@ import React from 'react';
 import { ChatMessage, ResolvedCopilotAction } from '../../lib/copilotExecutor';
 import { CopilotReviewCard } from './CopilotReviewCard';
 import { CopilotConsultaCard } from './CopilotConsultaCard';
+import { formatMessageTimestamp } from '../../lib/copilotHistorico';
 import {
   SparklesIcon,
   UserIcon,
@@ -15,6 +16,7 @@ export interface CopilotMensagemProps {
   onConfirmActions: (messageId: string, acoes: ResolvedCopilotAction[]) => void;
   onCancelActions: (messageId: string) => void;
   isProcessingAudioIA: boolean;
+  onRefreshConsulta?: (messageId: string, consultaIndex: number) => Promise<void>;
 }
 
 export const CopilotMensagem: React.FC<CopilotMensagemProps> = ({
@@ -22,11 +24,15 @@ export const CopilotMensagem: React.FC<CopilotMensagemProps> = ({
   onConfirmActions,
   onCancelActions,
   isProcessingAudioIA,
+  onRefreshConsulta,
 }) => {
   const isUser = message.sender === 'user';
 
   return (
-    <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} animate-in fade-in-50`}>
+    <div
+      id={`copilot-msg-${message.id}`}
+      className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} animate-in fade-in-50 transition-all rounded-2xl`}
+    >
       <div
         className={`max-w-[88%] sm:max-w-[78%] rounded-2xl p-3 shadow-xs text-xs leading-relaxed ${
           isUser
@@ -36,8 +42,8 @@ export const CopilotMensagem: React.FC<CopilotMensagemProps> = ({
       >
         <p className="whitespace-pre-wrap font-sans">{message.text}</p>
 
-        {/* Indicador de consulta em andamento */}
-        {message.consultando && (
+        {/* Indicador de consulta em andamento (quando não há cards individuais com estado) */}
+        {message.consultando && (!message.consultas || message.consultas.length === 0) && (
           <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-semibold animate-pulse">
             <SparklesIcon className="h-3.5 w-3.5 animate-spin" />
             <span>Consultando...</span>
@@ -48,7 +54,13 @@ export const CopilotMensagem: React.FC<CopilotMensagemProps> = ({
         {message.consultas && message.consultas.length > 0 && (
           <div className="mt-2.5 space-y-2 pt-2 border-t border-slate-100 dark:border-gray-700/60">
             {message.consultas.map((consulta, idx) => (
-              <CopilotConsultaCard key={idx} resultado={consulta} />
+              <CopilotConsultaCard
+                key={idx}
+                resultado={consulta}
+                perguntaIndex={idx}
+                totalPerguntas={message.consultas!.length}
+                onRefresh={onRefreshConsulta ? () => onRefreshConsulta(message.id, idx) : undefined}
+              />
             ))}
           </div>
         )}
@@ -99,7 +111,7 @@ export const CopilotMensagem: React.FC<CopilotMensagemProps> = ({
         )}
 
         <span className="block text-right text-[9px] text-slate-400 dark:text-gray-400 mt-1">
-          {message.timestamp}
+          {formatMessageTimestamp(message.createdAt, message.timestamp)}
         </span>
       </div>
     </div>

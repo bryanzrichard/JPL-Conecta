@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActionCardResult } from '../../lib/copilotExecutor';
+import type { CopilotActivityItem } from '../../lib/copilotHistorico';
+export type { CopilotActivityItem };
 import {
   UserIcon,
   ConstructionIcon,
@@ -8,18 +9,26 @@ import {
   CheckCircle2Icon,
   SparklesIcon,
   ClockIcon,
+  FileTextIcon,
 } from '../../lib/icons';
-
-export interface CopilotActivityItem extends ActionCardResult {
-  messageTimestamp?: string;
-  messageId?: string;
-}
 
 interface CopilotActivityFeedProps {
   activities: CopilotActivityItem[];
 }
 
 export const CopilotActivityFeed: React.FC<CopilotActivityFeedProps> = ({ activities }) => {
+  const handleScrollToMessage = (messageId?: string) => {
+    if (!messageId) return;
+    const el = document.getElementById(`copilot-msg-${messageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      el.classList.add('ring-2', 'ring-emerald-500/50');
+      setTimeout(() => {
+        el.classList.remove('ring-2', 'ring-emerald-500/50');
+      }, 1500);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Cabeçalho do Painel Lateral */}
@@ -33,13 +42,13 @@ export const CopilotActivityFeed: React.FC<CopilotActivityFeedProps> = ({ activi
               Últimas Ações do Copiloto
             </h4>
             <p className="text-[10px] text-slate-500 dark:text-gray-400 truncate">
-              Controle em tempo real do que foi gravado
+              Ações gravadas e consultas feitas
             </p>
           </div>
         </div>
 
         <span className="px-2 py-0.5 rounded-full bg-slate-200/80 dark:bg-gray-800 text-slate-700 dark:text-gray-300 text-[10px] font-bold shrink-0">
-          {activities.length} {activities.length === 1 ? 'ação' : 'ações'}
+          {activities.length} {activities.length === 1 ? 'item' : 'itens'}
         </span>
       </div>
 
@@ -54,7 +63,7 @@ export const CopilotActivityFeed: React.FC<CopilotActivityFeedProps> = ({ activi
               Nenhuma ação executada ainda
             </p>
             <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-1 max-w-[220px] leading-relaxed">
-              Fale ou digite comandos no chat ao lado. Assim que você confirmar, cada item gravado no banco aparecerá aqui para seu controle total.
+              Fale ou digite comandos no chat ao lado. Cada ação gravada no banco ou consulta realizada aparecerá aqui para seu controle total.
             </p>
           </div>
         ) : (
@@ -64,12 +73,24 @@ export const CopilotActivityFeed: React.FC<CopilotActivityFeedProps> = ({ activi
             const isPurchase = act.tipo === 'compra';
             const isTask = act.tipo === 'tarefa';
             const isError = act.tipo === 'erro';
+            const isConsulta = act.tipo === 'consulta';
 
             return (
               <div
                 key={`${act.messageId || ''}-${index}`}
-                className={`p-3 rounded-xl border transition-all text-xs shadow-xs ${
-                  isCollab
+                role="button"
+                tabIndex={0}
+                onClick={() => handleScrollToMessage(act.messageId)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleScrollToMessage(act.messageId);
+                  }
+                }}
+                className={`p-3 rounded-xl border transition-all text-xs shadow-xs cursor-pointer hover:shadow-xs hover:border-emerald-300 dark:hover:border-emerald-700 select-none ${
+                  isConsulta
+                    ? 'bg-teal-50/70 dark:bg-teal-950/30 border-teal-200/80 dark:border-teal-900/40 text-teal-950 dark:text-teal-200'
+                    : isCollab
                     ? 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-200/80 dark:border-blue-900/40 text-blue-950 dark:text-blue-200'
                     : isService
                     ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-900/40 text-emerald-950 dark:text-emerald-200'
@@ -79,10 +100,12 @@ export const CopilotActivityFeed: React.FC<CopilotActivityFeedProps> = ({ activi
                     ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200/80 dark:border-rose-900/40 text-rose-950 dark:text-rose-200'
                     : 'bg-indigo-50/70 dark:bg-indigo-950/30 border-indigo-200/80 dark:border-indigo-900/40 text-indigo-950 dark:text-indigo-200'
                 }`}
+                title="Clique para ir até a mensagem no chat"
               >
                 {/* Cabeçalho do Card */}
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-1.5 font-bold text-[11px]">
+                    {isConsulta && <FileTextIcon className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0" />}
                     {isCollab && <UserIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
                     {isService && <ConstructionIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
                     {isPurchase && <ShoppingBagIcon className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
@@ -90,9 +113,24 @@ export const CopilotActivityFeed: React.FC<CopilotActivityFeedProps> = ({ activi
                     <span className="truncate">{act.badge}</span>
                   </div>
 
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-white/80 dark:bg-black/30 px-1.5 py-0.5 rounded border border-emerald-300/40 shrink-0">
-                    <CheckCircle2Icon className="h-3 w-3" />
-                    <span>Executado</span>
+                  <span
+                    className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${
+                      isConsulta
+                        ? 'text-teal-700 dark:text-teal-400 bg-white/80 dark:bg-black/30 border-teal-300/40'
+                        : 'text-emerald-700 dark:text-emerald-400 bg-white/80 dark:bg-black/30 border-emerald-300/40'
+                    }`}
+                  >
+                    {isConsulta ? (
+                      <>
+                        <SparklesIcon className="h-3 w-3" />
+                        <span>Consulta</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2Icon className="h-3 w-3" />
+                        <span>Executado</span>
+                      </>
+                    )}
                   </span>
                 </div>
 
@@ -104,11 +142,11 @@ export const CopilotActivityFeed: React.FC<CopilotActivityFeedProps> = ({ activi
                   {act.subtitulo}
                 </p>
 
-                {/* Detalhes de Valores ou Prazos */}
-                {act.detalhes && (
+                {/* Detalhes de Valores ou Prazos e Horário */}
+                {(act.detalhes || act.messageTimestamp) && (
                   <div className="mt-1.5 pt-1.5 border-t border-black/5 dark:border-white/10 flex items-center justify-between gap-2">
                     <span className="text-[11px] font-semibold opacity-95 truncate">
-                      {act.detalhes}
+                      {act.detalhes || (isConsulta ? 'Consulta apurada' : '')}
                     </span>
                     {act.messageTimestamp && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] opacity-70 shrink-0">

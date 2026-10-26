@@ -38,6 +38,8 @@ export interface ConsultaResultado {
   notas?: ListarNotasConsultaRow[];
   total: number;
   erro?: string;
+  executadoEm?: string;
+  carregando?: boolean;
 }
 
 export interface SupabaseRpcClient {
@@ -229,6 +231,7 @@ export async function executarConsulta(
       notas: [],
       total: 0,
       erro,
+      executadoEm: new Date().toISOString(),
     };
   }
 
@@ -257,6 +260,7 @@ export async function executarConsulta(
         obraNome,
         notas,
         total,
+        executadoEm: new Date().toISOString(),
       };
     } else {
       // Tipo GASTOS
@@ -282,6 +286,7 @@ export async function executarConsulta(
         obraNome,
         linhas,
         total,
+        executadoEm: new Date().toISOString(),
       };
     }
   } catch (err: unknown) {
@@ -293,6 +298,7 @@ export async function executarConsulta(
       notas: [],
       total: 0,
       erro: errorMsg,
+      executadoEm: new Date().toISOString(),
     };
   }
 }

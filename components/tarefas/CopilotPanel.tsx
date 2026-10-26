@@ -1,10 +1,11 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   ChatMessage,
   ResolvedCopilotAction,
 } from '../../lib/copilotExecutor';
+import { buildRecentActivities, CopilotActivityItem } from '../../lib/copilotHistorico';
 import { CopilotMensagem } from './CopilotMensagem';
-import { CopilotActivityFeed, CopilotActivityItem } from './CopilotActivityFeed';
+import { CopilotActivityFeed } from './CopilotActivityFeed';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import {
   BotIcon,
@@ -31,6 +32,8 @@ interface CopilotPanelProps {
   onCancelAudioRecording: () => void;
   onConfirmActions: (messageId: string, acoes: ResolvedCopilotAction[]) => void;
   onCancelActions: (messageId: string) => void;
+  onRefreshConsulta?: (messageId: string, consultaIndex: number) => Promise<void>;
+  onClearConversation?: () => void;
 }
 
 export const CopilotPanel: React.FC<CopilotPanelProps> = ({
@@ -48,11 +51,45 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
   onCancelAudioRecording,
   onConfirmActions,
   onCancelActions,
+  onRefreshConsulta,
+  onClearConversation,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
+
+  // Confirmação em 2 cliques para limpar conversa (3 segundos)
+  const [isConfirmingClear, setIsConfirmingClear] = useState<boolean>(false);
+  const clearTimerRef = useRef<NodeJS.Timeout | number | null>(null);
+
+  const handleClearClick = () => {
+    if (isConfirmingClear) {
+      if (clearTimerRef.current) {
+        clearTimeout(clearTimerRef.current as NodeJS.Timeout);
+        clearTimerRef.current = null;
+      }
+      setIsConfirmingClear(false);
+      onClearConversation?.();
+    } else {
+      setIsConfirmingClear(true);
+      if (clearTimerRef.current) {
+        clearTimeout(clearTimerRef.current as NodeJS.Timeout);
+      }
+      clearTimerRef.current = setTimeout(() => {
+        setIsConfirmingClear(false);
+        clearTimerRef.current = null;
+      }, 3000);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (clearTimerRef.current) {
+        clearTimeout(clearTimerRef.current as NodeJS.Timeout);
+      }
+    };
+  }, []);
 
   // Contagem de ações aguardando revisão
   const pendingCount = chatMessages.reduce((sum, msg) => {
@@ -66,22 +103,11 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
     ? '1 ação aguardando confirmação'
     : `${pendingCount} ações aguardando confirmação`;
 
-  // Lista de todas as ações executadas pelo Copiloto para a janela lateral de controle
-  const recentActivities = useMemo<CopilotActivityItem[]>(() => {
-    const list: CopilotActivityItem[] = [];
-    chatMessages.forEach((msg) => {
-      if (msg.cards && msg.cards.length > 0) {
-        msg.cards.forEach((card) => {
-          list.push({
-            ...card,
-            messageTimestamp: msg.timestamp,
-            messageId: msg.id,
-          });
-        });
-      }
-    });
-    return list.reverse();
-  }, [chatMessages]);
+  // Lista de todas as ações gravadas e consultas realizadas pelo Copiloto
+  const recentActivities = useMemo<CopilotActivityItem[]>(
+    () => buildRecentActivities(chatMessages),
+    [chatMessages]
+  );
 
   // Altura automática de 3 linhas até 10 linhas
   const adjustTextareaHeight = () => {
@@ -199,15 +225,32 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onToggleExpanded}
-          className="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 shrink-0 ml-2"
-          aria-label="Minimizar Copiloto"
-        >
-          <span>Minimizar</span>
-          <ChevronUpIcon className="h-3 w-3" />
-        </button>
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          {chatMessages.length > 0 && onClearConversation && (
+            <button
+              type="button"
+              onClick={handleClearClick}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                isConfirmingClear
+                  ? 'bg-rose-500 hover:bg-rose-600 text-white animate-pulse'
+                  : 'bg-white/15 hover:bg-white/25 text-white'
+              }`}
+              title="Limpar histórico da conversa"
+            >
+              {isConfirmingClear ? 'Clique de novo para limpar' : 'Limpar conversa'}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onToggleExpanded}
+            className="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1"
+            aria-label="Minimizar Copiloto"
+          >
+            <span>Minimizar</span>
+            <ChevronUpIcon className="h-3 w-3" />
+          </button>
+        </div>
       </div>
 
       {/* Corpo Dividido em 2 Colunas no Desktop */}
@@ -232,6 +275,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
               onConfirmActions={onConfirmActions}
               onCancelActions={onCancelActions}
               isProcessingAudioIA={isProcessingAudioIA}
+              onRefreshConsulta={onRefreshConsulta}
             />
           ))}
 

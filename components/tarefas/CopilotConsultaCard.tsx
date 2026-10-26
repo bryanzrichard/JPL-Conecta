@@ -1,17 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ConsultaResultado, descreverConsulta } from '../../lib/copilotConsultas';
 import { formatCurrency, formatDateDM, formatMonthYear } from '../../lib/utils';
 import { formatQuantidadeBR } from '../../lib/compraItens';
-import { DollarSignIcon, FileTextIcon, BuildingIcon } from '../../lib/icons';
+import { formatHoraConsulta } from '../../lib/copilotHistorico';
+import { DollarSignIcon, FileTextIcon, BuildingIcon, RefreshCwIcon, SparklesIcon } from '../../lib/icons';
 
 export interface CopilotConsultaCardProps {
   resultado: ConsultaResultado;
+  perguntaIndex?: number;
+  totalPerguntas?: number;
+  onRefresh?: () => Promise<void>;
 }
 
-export const CopilotConsultaCard: React.FC<CopilotConsultaCardProps> = ({ resultado }) => {
+export const CopilotConsultaCard: React.FC<CopilotConsultaCardProps> = ({
+  resultado,
+  perguntaIndex,
+  totalPerguntas,
+  onRefresh,
+}) => {
   const navigate = useNavigate();
-  const { pedido, obraNome, linhas, notas, total, erro } = resultado;
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { pedido, obraNome, linhas, notas, total, erro, executadoEm, carregando } = resultado;
 
   const descricaoHeader = descreverConsulta(pedido, obraNome);
   const isGastos = pedido.tipo === 'GASTOS';
@@ -20,6 +30,18 @@ export const CopilotConsultaCard: React.FC<CopilotConsultaCardProps> = ({ result
   const hasLinhas = Boolean(linhas && linhas.length > 0);
   const hasNotas = Boolean(notas && notas.length > 0);
   const hasData = isGastos ? hasLinhas : hasNotas;
+
+  const handleRefresh = async () => {
+    if (!onRefresh || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const horaConsultaLabel = formatHoraConsulta(executadoEm);
 
   return (
     <div className="p-3 rounded-xl border border-slate-200/90 dark:border-gray-700/80 bg-slate-50/70 dark:bg-slate-900/40 text-xs space-y-2.5 transition-all shadow-2xs">
@@ -30,12 +52,20 @@ export const CopilotConsultaCard: React.FC<CopilotConsultaCardProps> = ({ result
           <span>{isGastos ? 'Consulta de Gastos' : 'Notas Fiscais'}</span>
         </div>
 
-        {obraNome && (
-          <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-gray-400 bg-white/80 dark:bg-brand-dark-900/60 px-2 py-0.5 rounded-md border border-slate-200/60 dark:border-gray-800 shrink-0">
-            <BuildingIcon className="h-3 w-3 text-slate-400" />
-            <span className="truncate max-w-[120px]">{obraNome}</span>
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {totalPerguntas && totalPerguntas > 1 && perguntaIndex !== undefined && (
+            <span className="px-2 py-0.5 rounded-full bg-slate-200/80 dark:bg-gray-800 text-slate-700 dark:text-gray-300 text-[10px] font-bold">
+              Pergunta {perguntaIndex + 1} de {totalPerguntas}
+            </span>
+          )}
+
+          {obraNome && (
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-gray-400 bg-white/80 dark:bg-brand-dark-900/60 px-2 py-0.5 rounded-md border border-slate-200/60 dark:border-gray-800">
+              <BuildingIcon className="h-3 w-3 text-slate-400" />
+              <span className="truncate max-w-[120px]">{obraNome}</span>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Descrição curta do que foi compreendido */}
@@ -43,8 +73,16 @@ export const CopilotConsultaCard: React.FC<CopilotConsultaCardProps> = ({ result
         {descricaoHeader}
       </p>
 
+      {/* Indicador de carregando para este card */}
+      {carregando && (
+        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-semibold animate-pulse">
+          <SparklesIcon className="h-3.5 w-3.5 animate-spin" />
+          <span>Consultando...</span>
+        </div>
+      )}
+
       {/* 2. ERRO (Ex: Obra não localizada) */}
-      {erro && (
+      {!carregando && erro && (
         <div className="p-2.5 rounded-lg bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-800 dark:text-rose-200 text-xs font-semibold flex items-center gap-2">
           <span>⚠️</span>
           <span>{erro}</span>
@@ -52,14 +90,14 @@ export const CopilotConsultaCard: React.FC<CopilotConsultaCardProps> = ({ result
       )}
 
       {/* 3. SEM RESULTADOS (Quando não houve erro, mas linhas ou notas vazias) */}
-      {!erro && !hasData && (
+      {!carregando && !erro && !hasData && (
         <div className="py-3 px-2 text-center rounded-lg bg-white/60 dark:bg-brand-dark-900/40 border border-dashed border-slate-200 dark:border-gray-800 text-[11px] text-slate-500 dark:text-gray-400">
           Nenhum lançamento encontrado para <span className="font-semibold text-slate-700 dark:text-gray-300">{descricaoHeader}</span>.
         </div>
       )}
 
       {/* 4. RESULTADO TIPO GASTOS */}
-      {!erro && isGastos && hasLinhas && linhas && (
+      {!carregando && !erro && isGastos && hasLinhas && linhas && (
         <div className="space-y-2">
           {/* Total em destaque */}
           <div className="flex items-baseline justify-between p-2 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20">
@@ -131,7 +169,7 @@ export const CopilotConsultaCard: React.FC<CopilotConsultaCardProps> = ({ result
       )}
 
       {/* 5. RESULTADO TIPO LISTAR_NOTAS */}
-      {!erro && isNotas && hasNotas && notas && (
+      {!carregando && !erro && isNotas && hasNotas && notas && (
         <div className="space-y-2">
           {/* Total e contagem no topo */}
           <div className="flex items-baseline justify-between p-2 rounded-lg bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20">
@@ -191,10 +229,29 @@ export const CopilotConsultaCard: React.FC<CopilotConsultaCardProps> = ({ result
       )}
 
       {/* 6. RODAPÉ FIXO (Somente se houver filtro de termo ou categoria) */}
-      {(pedido.termo || pedido.categoria) && (
+      {!carregando && (pedido.termo || pedido.categoria) && (
         <p className="text-[10px] text-slate-400 dark:text-gray-500 pt-1.5 border-t border-slate-200/60 dark:border-gray-800 text-center">
           Material com filtro de item ou categoria não inclui frete.
         </p>
+      )}
+
+      {/* 7. INDICAÇÃO DE DATA/HORA E BOTÃO DE ATUALIZAR */}
+      {!carregando && (horaConsultaLabel || onRefresh) && (
+        <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/60 dark:border-gray-800 text-[10px] text-slate-400 dark:text-gray-500">
+          <span>{horaConsultaLabel}</span>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 disabled:opacity-50 cursor-pointer flex items-center gap-1 transition-colors"
+              title="Recarregar dados atualizados do banco"
+            >
+              <RefreshCwIcon className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>{isRefreshing ? 'Atualizando...' : 'Atualizar'}</span>
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
