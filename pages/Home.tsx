@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useVisaoGeral } from '../hooks/useVisaoGeral';
 import { PainelHoje } from '../components/home/PainelHoje';
 import { CardObra } from '../components/home/CardObra';
@@ -8,19 +9,21 @@ import { ComposicaoCategorias } from '../components/home/ComposicaoCategorias';
 import { PrevistoRealizado } from '../components/home/PrevistoRealizado';
 import { GastoMensal } from '../components/home/GastoMensal';
 import { AuditLogsPanel } from '../components/home/AuditLogsPanel';
-import { PageHeader } from '../components/ui/PageHeader';
+import { Button } from '../components/ui/Button';
 import { 
   HomeIcon, 
   ConstructionIcon, 
   BarChartIcon, 
   ClipboardListIcon, 
   ChevronUpIcon, 
-  ChevronDownIcon 
+  ChevronDownIcon,
+  PlusIcon
 } from '../lib/icons';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useMediaQuery } from '../hooks/use-media-query';
 
 const Home: React.FC = () => {
+  const navigate = useNavigate();
   const [mesesGasto, setMesesGasto] = useState<number>(6);
   const { painelHoje, obrasResumo, obrasCategorias, gastoMensal } = useVisaoGeral(mesesGasto);
 
@@ -58,13 +61,34 @@ const Home: React.FC = () => {
   }, [obrasResumo.data]);
 
   return (
-    <div className="space-y-7 animate-in fade-in-50 pb-20 md:pb-6">
-      {/* CABEÇALHO DA PÁGINA */}
-      <PageHeader
-        icon={HomeIcon}
-        title="Visão Geral"
-        description="Pendências do dia, situação de cada obra e custos acima do previsto."
-      />
+    <div className="w-full space-y-4 animate-in fade-in-50 pb-20 md:pb-6">
+      {/* 1. CABEÇALHO OPERACIONAL NO PADRÃO NOTAS */}
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/20 shrink-0">
+            <HomeIcon className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-[#F8FAFC] tracking-tight">
+              Visão Geral
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-[#94A3B8] mt-0.5">
+              Pendências do dia, situação de cada obra e custos acima do previsto.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <Button
+            size="sm"
+            onClick={() => navigate('/tarefas')}
+            className="h-9 text-xs font-bold bg-[#4F46E5] hover:bg-indigo-600 dark:bg-[#6366F1] dark:hover:bg-indigo-500 text-white gap-1.5 shadow-sm shadow-indigo-600/30 cursor-pointer"
+          >
+            <PlusIcon className="h-4 w-4" />
+            <span>+ Nova Tarefa</span>
+          </Button>
+        </div>
+      </header>
 
       {/* BLOCO 1: HOJE */}
       <PainelHoje
@@ -74,55 +98,55 @@ const Home: React.FC = () => {
       />
 
       {/* BLOCO 2: OBRAS EM ANDAMENTO */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
+      <section className="space-y-0">
+        <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] rounded-t-xl px-4 py-3 flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
-              <ConstructionIcon className="h-4 w-4" />
-            </span>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-gray-200">
+            <ConstructionIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300">
               Obras em andamento
             </h2>
           </div>
           {!obrasResumo.isLoading && (
-            <span className="text-[11px] text-slate-500 dark:text-gray-400">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-[#94A3B8]">
               {activeObras.length} {activeObras.length === 1 ? 'obra ativa' : 'obras ativas'}
             </span>
           )}
         </div>
 
-        {obrasResumo.isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-64 rounded-2xl" />
-            ))}
-          </div>
-        ) : obrasResumo.isError ? (
-          <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/20 text-xs text-amber-800 dark:text-amber-300">
-            Não foi possível carregar o resumo das obras no momento.
-          </div>
-        ) : activeObras.length === 0 ? (
-          <div className="p-8 text-center bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl space-y-1">
-            <p className="text-xs font-semibold text-slate-700 dark:text-gray-300">
-              Nenhuma obra em andamento no momento.
-            </p>
-            <p className="text-[11px] text-slate-400 dark:text-gray-500">
-              Cadastre uma nova obra ou reabra uma obra em planejamento para acompanhar o consumo.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
+        <div className="bg-slate-50/50 dark:bg-brand-dark-950/40 border-x border-b border-[#E2E8F0] dark:border-[#1E293B] rounded-b-xl p-4 space-y-3">
+          {obrasResumo.isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {activeObras.map((obra) => (
-                <CardObra key={obra.project_id} obra={obra} />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-64 rounded-xl" />
               ))}
             </div>
-            {/* LEGENDA CURTA ABAIXO DOS CARDS */}
-            <p className="text-xs text-slate-500 dark:text-gray-400 text-center sm:text-left pt-1">
-              Barra: dinheiro gasto. Traço: obra pronta.
-            </p>
-          </div>
-        )}
+          ) : obrasResumo.isError ? (
+            <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/20 text-xs text-amber-800 dark:text-amber-300">
+              Não foi possível carregar o resumo das obras no momento.
+            </div>
+          ) : activeObras.length === 0 ? (
+            <div className="p-8 text-center bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] rounded-xl space-y-1">
+              <p className="text-xs font-semibold text-slate-700 dark:text-[#F8FAFC]">
+                Nenhuma obra em andamento no momento.
+              </p>
+              <p className="text-[11px] text-slate-400 dark:text-[#94A3B8]">
+                Cadastre uma nova obra ou reabra uma obra em planejamento para acompanhar o consumo.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {activeObras.map((obra) => (
+                  <CardObra key={obra.project_id} obra={obra} />
+                ))}
+              </div>
+              {/* LEGENDA CURTA ABAIXO DOS CARDS */}
+              <p className="text-xs text-slate-500 dark:text-[#94A3B8] text-center sm:text-left pt-1">
+                Barra: dinheiro gasto. Traço: obra pronta.
+              </p>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* BLOCO 3: ESTOURANDO O PREVISTO */}
@@ -134,27 +158,20 @@ const Home: React.FC = () => {
       />
 
       {/* BLOCO 4: ANÁLISE E COMPARAÇÃO */}
-      <section className="space-y-4 pt-2 border-t border-slate-200/80 dark:border-gray-800">
-        <div className="flex items-center justify-between">
+      <section className="space-y-0">
+        <div className={`bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] ${isAnaliseOpen ? 'rounded-t-xl' : 'rounded-xl'} px-4 py-3 flex items-center justify-between shadow-xs transition-colors`}>
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
-              <BarChartIcon className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-gray-200">
-                Análise e comparação
-              </h2>
-              <p className="text-[11px] text-slate-500 dark:text-gray-400">
-                Comparativo de custo/m², distribuição por categorias e evolução de desembolso
-              </p>
-            </div>
+            <BarChartIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300">
+              Análise e comparação
+            </h2>
           </div>
 
-          {/* Botão de recolher/expandir no mobile */}
+          {/* Botão de recolher/expandir */}
           <button
             type="button"
             onClick={() => setIsAnaliseOpen((prev) => !prev)}
-            className="lg:hidden text-xs font-semibold text-brand-blue-600 dark:text-brand-blue-400 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white dark:bg-[#111827] border border-slate-200 dark:border-gray-800 cursor-pointer shadow-xs"
+            className="text-xs font-semibold text-brand-blue-600 dark:text-[#818CF8] flex items-center gap-1 cursor-pointer"
           >
             {isAnaliseOpen ? 'Recolher' : 'Expandir'}
             {isAnaliseOpen ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
@@ -162,7 +179,7 @@ const Home: React.FC = () => {
         </div>
 
         {isAnaliseOpen && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
+          <div className="bg-slate-50/50 dark:bg-brand-dark-950/40 border-x border-b border-[#E2E8F0] dark:border-[#1E293B] rounded-b-xl p-4 space-y-4 animate-in fade-in slide-in-from-top-2">
             {/* 1. Comparativo entre obras por m² */}
             <ComparativoObras obras={obrasResumo.data} isLoading={obrasResumo.isLoading} />
 
@@ -191,33 +208,26 @@ const Home: React.FC = () => {
       </section>
 
       {/* BLOCO 5: HISTÓRICO DE ALTERAÇÕES (RECOLHIDO POR PADRÃO) */}
-      <section className="pt-2 border-t border-slate-200/80 dark:border-gray-800">
+      <section className="space-y-0">
         <button
           type="button"
           onClick={() => setIsAuditLogsOpen((prev) => !prev)}
-          className="w-full flex items-center justify-between p-4 bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl hover:border-slate-300 dark:hover:border-gray-700 transition-colors cursor-pointer text-left shadow-xs"
+          className={`w-full bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] ${isAuditLogsOpen ? 'rounded-t-xl' : 'rounded-xl'} px-4 py-3 flex items-center justify-between shadow-xs transition-colors cursor-pointer text-left`}
         >
-          <div className="flex items-center gap-2.5">
-            <span className="p-1.5 rounded-lg bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300">
-              <ClipboardListIcon className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-gray-200">
-                Histórico de alterações
-              </h2>
-              <p className="text-[11px] text-slate-500 dark:text-gray-400">
-                Registro de auditoria de criações, edições e exclusões no sistema
-              </p>
-            </div>
+          <div className="flex items-center gap-2">
+            <ClipboardListIcon className="h-4 w-4 text-slate-600 dark:text-[#94A3B8]" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300">
+              Histórico de alterações
+            </h2>
           </div>
-          <span className="text-xs font-semibold text-brand-blue-600 dark:text-brand-blue-400 flex items-center gap-1 shrink-0">
+          <span className="text-xs font-semibold text-brand-blue-600 dark:text-[#818CF8] flex items-center gap-1 shrink-0">
             {isAuditLogsOpen ? 'Recolher' : 'Expandir'}
             {isAuditLogsOpen ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
           </span>
         </button>
 
         {isAuditLogsOpen && (
-          <div className="pt-4 animate-in fade-in slide-in-from-top-2">
+          <div className="border-x border-b border-[#E2E8F0] dark:border-[#1E293B] rounded-b-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
             <AuditLogsPanel />
           </div>
         )}

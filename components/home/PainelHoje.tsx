@@ -85,11 +85,8 @@ export const PainelHoje: React.FC<PainelHojeProps> = ({ data, isLoading, isError
   if (isLoading) {
     return (
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Skeleton className="h-5 w-24" />
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
@@ -101,7 +98,7 @@ export const PainelHoje: React.FC<PainelHojeProps> = ({ data, isLoading, isError
   if (isError) {
     return (
       <section className="space-y-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300">
           Hoje
         </h2>
         <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/20 text-xs text-amber-800 dark:text-amber-300">
@@ -113,39 +110,30 @@ export const PainelHoje: React.FC<PainelHojeProps> = ({ data, isLoading, isError
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-gray-200">
-            Hoje
-          </h2>
-        </div>
-        <span className="text-[11px] text-slate-500 dark:text-gray-400">
-          Toque no card para abrir o módulo
-        </span>
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300">
+          Hoje
+        </h2>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {items.map((item) => {
           const Icon = item.icon;
           const isZero = item.value === 0;
 
-          let cardClasses = 'border-slate-200/80 dark:border-gray-800 bg-white dark:bg-[#111827] hover:border-slate-300 dark:hover:border-gray-700';
-          let valueClasses = 'text-slate-900 dark:text-white';
-          let iconWrapperClasses = 'text-slate-400 bg-slate-100 dark:bg-gray-800';
+          let iconStyle = 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400';
+          let valueStyle = 'text-slate-800 dark:text-[#F8FAFC]';
 
           if (isZero) {
-            cardClasses = 'border-slate-200/60 dark:border-gray-800/80 bg-slate-50/50 dark:bg-brand-dark-900/40 hover:border-slate-300 dark:hover:border-gray-700';
-            valueClasses = 'text-slate-400 dark:text-gray-500';
-            iconWrapperClasses = 'text-slate-400/70 bg-slate-100/70 dark:bg-gray-800/60';
+            iconStyle = 'bg-slate-500/10 border-slate-500/20 text-slate-400 dark:text-slate-500';
+            valueStyle = 'text-slate-400 dark:text-slate-500';
           } else if (item.colorType === 'danger') {
-            cardClasses = 'border-rose-300/80 dark:border-rose-900/60 bg-rose-50/70 dark:bg-rose-950/20 hover:border-rose-400 dark:hover:border-rose-800';
-            valueClasses = 'text-rose-600 dark:text-rose-400';
-            iconWrapperClasses = 'text-rose-600 dark:text-rose-400 bg-rose-100/80 dark:bg-rose-900/40';
+            iconStyle = 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400';
+            valueStyle = 'text-rose-600 dark:text-rose-400';
           } else if (item.colorType === 'warning') {
-            cardClasses = 'border-amber-300/80 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 hover:border-amber-400 dark:hover:border-amber-800';
-            valueClasses = 'text-amber-600 dark:text-amber-400';
-            iconWrapperClasses = 'text-amber-600 dark:text-amber-400 bg-amber-100/80 dark:bg-amber-900/40';
+            iconStyle = 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400';
+            valueStyle = 'text-amber-600 dark:text-amber-400';
           }
 
           return (
@@ -153,23 +141,23 @@ export const PainelHoje: React.FC<PainelHojeProps> = ({ data, isLoading, isError
               type="button"
               key={item.id}
               onClick={() => navigate(item.href)}
-              className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer shadow-xs hover:shadow-md flex flex-col justify-between gap-2.5 ${cardClasses}`}
+              className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] p-3.5 rounded-xl shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer text-left flex flex-col justify-between gap-3 group"
             >
               <div className="flex items-center justify-between w-full">
-                <span className={`p-1.5 rounded-lg ${iconWrapperClasses}`}>
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className={`text-2xl font-black tabular-nums tracking-tight ${valueClasses}`}>
+                <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${iconStyle}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <span className={`text-xl font-bold font-mono ${valueStyle}`}>
                   {item.value}
                 </span>
               </div>
 
               <div>
-                <p className={`text-xs font-semibold leading-tight line-clamp-1 ${isZero ? 'text-slate-500 dark:text-gray-400' : 'text-slate-800 dark:text-gray-200'}`}>
+                <p className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium leading-tight">
                   {item.label}
                 </p>
                 {item.sublabel && (
-                  <p className="text-[10px] text-slate-400 dark:text-gray-500 mt-0.5 font-medium">
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium">
                     {item.sublabel}
                   </p>
                 )}
