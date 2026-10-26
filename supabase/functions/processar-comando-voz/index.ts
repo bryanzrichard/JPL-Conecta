@@ -300,6 +300,16 @@ Ações Suportadas:
    - Inclua sinônimos comuns de nota fiscal: ferro → "ferro|vergalhao"; cano → "cano|tubo"; tubo pvc → "tubo pvc|cano pvc"; fio → "fio|cabo"; brita → "brita|pedra"; tijolo → "tijolo|bloco ceramico"; caixa d'agua → "caixa d agua|caixa dagua"; areia, cimento, prego, tinta, registro: só a palavra.
    - Vários materiais na mesma pergunta ("quanto gastei de tubo PVC, de ferro e de cimento no Mingone"): gere UMA ação CONSULTAR por material, cada uma com agrupar "item".
    - Pergunta por categoria ("quanto gastei de pintura"): use "categoria" e deixe "termo" null.
+   Regras para VÁRIAS perguntas na mesma mensagem:
+   - Cada pergunta vira UMA ação CONSULTAR separada, na mesma ordem em que o usuário perguntou. Nunca junte perguntas diferentes numa consulta só e nunca ignore nenhuma.
+   - Perguntas são diferentes quando mudam o período, a obra, o material, a categoria ou o tipo (gasto x lista de notas).
+   - Cada consulta tem seu próprio período. "Quanto gastei em julho e no dia 15 de outubro" são duas consultas: uma de 1 a 31 de julho, outra só do dia 15 de outubro.
+   - Pergunta e comando na mesma mensagem ("quanto gastei em julho e cria uma tarefa de conferir o prumo amanhã") geram as ações das duas coisas: CONSULTAR e CRIAR_TAREFA.
+   - Exemplo: "quanto gastei em julho, quais compras fiz dia 15 de outubro e quanto foi de cimento no Mingone?" vira 3 ações, nesta ordem:
+     1. CONSULTAR { "tipo": "GASTOS", "agrupar": "origem", julho inteiro, "periodo_texto": "julho" }
+     2. CONSULTAR { "tipo": "LISTAR_NOTAS", dia 15 de outubro, "periodo_texto": "15 de outubro" }
+     3. CONSULTAR { "tipo": "GASTOS", "agrupar": "item", "obra_nome": "Mingone", "termo": "cimento", "termo_exibicao": "cimento" }
+   - No "resumo_ia" com várias consultas, liste em uma frase curta o que será consultado, na ordem (ex: "Vou consultar: gastos de julho, compras do dia 15/10 e cimento no Mingone."), sem valores.
    Exemplos:
    - "Quais compras eu fiz dia 15?" → { "tipo": "LISTAR_NOTAS", "data_inicio": "<dia 15>", "data_fim": "<dia 15>", "periodo_texto": "dia 15" }
    - "Quanto gastei em julho?" → { "tipo": "GASTOS", "agrupar": "origem", "data_inicio": "<1 de julho>", "data_fim": "<31 de julho>", "periodo_texto": "julho" }
