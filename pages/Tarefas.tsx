@@ -472,11 +472,6 @@ export const Tarefas: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
       queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
       queryClient.invalidateQueries({ queryKey: ['copilotOpenServices'] });
-
-      toast({
-        title: '✅ Ações executadas!',
-        description: `${acoes.length} ação(ões) gravada(s) no sistema com sucesso.`,
-      });
     } catch (err: unknown) {
       console.warn('Erro ao executar ações do Copiloto:', err);
       const msgText = err instanceof Error ? err.message : 'Erro ao gravar';

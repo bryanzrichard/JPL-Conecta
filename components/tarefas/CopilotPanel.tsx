@@ -54,6 +54,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   // Contagem de ações aguardando revisão
@@ -95,10 +96,10 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
     }
   }, [isExpanded]);
 
-  // Scroll suave ao receber novas mensagens
+  // Scroll no container interno ao receber novas mensagens (evita arrastar a página externa)
   useEffect(() => {
-    if (isExpanded && chatBottomRef.current) {
-      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (isExpanded && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [chatMessages, isProcessingAudioIA, isExpanded]);
 
@@ -197,7 +198,10 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
 
       <div className="flex flex-col">
         {/* Histórico de Mensagens */}
-        <div className="p-3.5 bg-[#EFEAE2]/60 dark:bg-[#0D1418] max-h-[320px] min-h-[120px] overflow-y-auto custom-scrollbar space-y-3">
+        <div
+          ref={chatContainerRef}
+          className="p-3.5 bg-[#EFEAE2]/60 dark:bg-[#0D1418] max-h-[320px] min-h-[120px] overflow-y-auto custom-scrollbar space-y-3"
+        >
           {chatMessages.length === 0 && !isProcessingAudioIA && !isRecordingAudio && (
             <div className="py-6 text-center text-xs text-slate-400 dark:text-gray-500">
               Envie uma mensagem ou áudio para o Copiloto...

@@ -16,7 +16,6 @@ import {
 import ListaNotas from '../components/notas/ListaNotas';
 import DetalhesNotaModal from '../components/notas/DetalhesNotaModal';
 import ManualNotaModal from '../components/notas/ManualNotaModal';
-import SuccessPopup from '../components/notas/SuccessPopup';
 import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalHeader, ResponsiveModalTitle, ResponsiveModalDescription, ResponsiveModalFooter } from '../components/ui/ResponsiveModal';
 import FiltrosNotas, { NotaFilters } from '../components/notas/FiltrosNotas';
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from '@tanstack/react-query';
@@ -142,7 +141,6 @@ const Notas: React.FC = () => {
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-    const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
     // Edit and Delete Modal state
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -515,8 +513,6 @@ const Notas: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['active_ai_jobs', user?.id] });
         queryClient.invalidateQueries({ queryKey: ['notasSummary'] });
         queryClient.invalidateQueries({ queryKey: ['dashboardItems'] });
-        
-        setShowSuccessPopup(true);
     };
 
     const handleSelectJobForReview = (job: AIProcessJob) => {
@@ -1266,13 +1262,6 @@ const Notas: React.FC = () => {
                     />
                 )}
             </Suspense>
-
-            {showSuccessPopup && (
-                <SuccessPopup 
-                    message="Nota fiscal registrada com sucesso!" 
-                    onClose={() => setShowSuccessPopup(false)} 
-                />
-            )}
             
             {/* Confirmação de Exclusão de Nota Fiscal */}
             <ConfirmationModal

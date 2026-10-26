@@ -31,6 +31,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const toast = useCallback(({ id, ...props }: ToastProps) => {
+    // Suprime pop outs / toasts de sucesso em todas as páginas (mantém apenas erros destrutivos)
+    if (props.variant !== 'destructive') {
+      return;
+    }
     const newId = id || String(Date.now());
     setToasts((prevToasts) => [...prevToasts, { id: newId, ...props }]);
 
