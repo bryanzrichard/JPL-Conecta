@@ -381,6 +381,25 @@ export type GastoMensalRow = {
   total: number;
 };
 
+export type ConsultarGastosRow = {
+  grupo: string;
+  total: number;
+  quantidade: number | null;
+  unidade: string | null;
+  lancamentos: number;
+};
+
+export type ListarNotasConsultaRow = {
+  nota_id: string;
+  data: string;
+  numero: string;
+  fornecedor: string;
+  obra: string;
+  total: number;
+  qtd_itens: number;
+  itens_encontrados: string | null;
+};
+
 // --- Supabase Database Definition (Inferred) ---
 
 export type Json =
@@ -499,6 +518,29 @@ export type Database = {
       get_gasto_mensal: {
         Args: { p_company_id: string; p_meses: number };
         Returns: GastoMensalRow[];
+      };
+      consultar_gastos: {
+        Args: {
+          p_company_id: string;
+          p_inicio?: string | null;
+          p_fim?: string | null;
+          p_project_id?: string | null;
+          p_categoria?: string | null;
+          p_termo?: string | null;
+          p_agrupar?: string | null;
+        };
+        Returns: ConsultarGastosRow[];
+      };
+      listar_notas_consulta: {
+        Args: {
+          p_company_id: string;
+          p_inicio?: string | null;
+          p_fim?: string | null;
+          p_project_id?: string | null;
+          p_termo?: string | null;
+          p_limite?: number | null;
+        };
+        Returns: ListarNotasConsultaRow[];
       };
     };
     Enums: {

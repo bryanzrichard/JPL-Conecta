@@ -38,7 +38,13 @@ import {
   ResolvedCopilotAction,
   ChatMessage,
   OpenServiceItem,
+  PendingReviewData,
 } from '../lib/copilotExecutor';
+import {
+  resolverConsulta,
+  executarConsulta,
+  ConsultaResultado,
+} from '../lib/copilotConsultas';
 import { CopilotPanel } from '../components/tarefas/CopilotPanel';
 import { formatApiError } from '../lib/handleError';
 import { formatDateBR } from '../lib/utils';
@@ -304,6 +310,101 @@ export const Tarefas: React.FC = () => {
   // -------------------------------------------------------------
   // ENVIO DE MENSAGENS AO COPILOTO IA (TEXTO OU ÁUDIO)
   // -------------------------------------------------------------
+  const handleProcessCopilotResponse = async (
+    res: { resumo_ia?: string; transcricao?: string; acoes?: CopilotAction[] },
+    baseText: string
+  ) => {
+    const rawAcoes = res.acoes || [];
+    const consultaActions = rawAcoes.filter((a) => a.tipo === 'CONSULTAR');
+    const actionableActions = rawAcoes.filter(
+      (a) => a.tipo !== 'CONVERSA_GERAL' && a.tipo !== 'CONSULTAR'
+    );
+
+    if (consultaActions.length > 0) {
+      const iaMsgId = (Date.now() + 1).toString();
+      const initialIaMsg: ChatMessage = {
+        id: iaMsgId,
+        sender: 'ia',
+        text: baseText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        consultando: true,
+      };
+      setChatMessages((prev) => [...prev, initialIaMsg]);
+
+      const companyId = profile?.company_id || '';
+      const consultasResultados: ConsultaResultado[] = [];
+
+      for (const a of consultaActions) {
+        if (a.dados?.consulta) {
+          const resolvida = resolverConsulta(a.dados.consulta, projects);
+          const resultado = await executarConsulta(resolvida, companyId);
+          consultasResultados.push(resultado);
+        }
+      }
+
+      let reviewData: PendingReviewData | undefined = undefined;
+      if (actionableActions.length > 0) {
+        const openTasksList = allTasks.filter((t) => t.status !== 'Concluída');
+        const resolvedActions = resolveCopilotActions(
+          actionableActions,
+          projects,
+          collaborators,
+          openTasksList,
+          openServices
+        );
+        const reviewItems = buildActionReviewItems(resolvedActions);
+        reviewData = {
+          acoes: resolvedActions,
+          items: reviewItems,
+          status: 'pending',
+        };
+      }
+
+      setChatMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === iaMsgId
+            ? {
+                ...msg,
+                consultando: false,
+                consultas: consultasResultados,
+                ...(reviewData ? { review: reviewData } : {}),
+              }
+            : msg
+        )
+      );
+    } else if (actionableActions.length > 0) {
+      const openTasksList = allTasks.filter((t) => t.status !== 'Concluída');
+      const resolvedActions = resolveCopilotActions(
+        actionableActions,
+        projects,
+        collaborators,
+        openTasksList,
+        openServices
+      );
+      const reviewItems = buildActionReviewItems(resolvedActions);
+      const iaMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ia',
+        text: baseText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        review: {
+          acoes: resolvedActions,
+          items: reviewItems,
+          status: 'pending',
+        },
+      };
+      setChatMessages((prev) => [...prev, iaMsg]);
+    } else {
+      const iaMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ia',
+        text: baseText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setChatMessages((prev) => [...prev, iaMsg]);
+    }
+  };
+
   const handleSendCopilotTextMessage = async (textToSend?: string) => {
     const text = (textToSend || chatInputText).trim();
     if (!text || isProcessingAudioIA) return;
@@ -353,41 +454,8 @@ export const Tarefas: React.FC = () => {
       }
 
       const res = data.result;
-      const actionableActions = (res.acoes || []).filter(
-        (a: CopilotAction) => a.tipo !== 'CONVERSA_GERAL'
-      );
-
-      if (actionableActions.length > 0) {
-        const openTasksList = allTasks.filter((t) => t.status !== 'Concluída');
-        const resolvedActions = resolveCopilotActions(
-          actionableActions,
-          projects,
-          collaborators,
-          openTasksList,
-          openServices
-        );
-        const reviewItems = buildActionReviewItems(resolvedActions);
-        const iaMsg: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          sender: 'ia',
-          text: res.resumo_ia || 'Revise as ações identificadas antes de confirmar:',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          review: {
-            acoes: resolvedActions,
-            items: reviewItems,
-            status: 'pending',
-          },
-        };
-        setChatMessages((prev) => [...prev, iaMsg]);
-      } else {
-        const iaMsg: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          sender: 'ia',
-          text: res.resumo_ia || 'Comando processado.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        setChatMessages((prev) => [...prev, iaMsg]);
-      }
+      const baseText = res.resumo_ia || 'Comando processado.';
+      await handleProcessCopilotResponse(res, baseText);
     } catch (err: unknown) {
       console.warn('Erro ao processar mensagem no Copiloto:', err);
       const msgText = err instanceof Error ? err.message : 'Erro na Edge Function';
@@ -524,45 +592,11 @@ export const Tarefas: React.FC = () => {
       }
 
       const res = data.result;
-      const actionableActions = (res.acoes || []).filter(
-        (a: CopilotAction) => a.tipo !== 'CONVERSA_GERAL'
-      );
-
       const baseText = res.transcricao
         ? `Transcrição: "${res.transcricao}"\n\n${res.resumo_ia || 'Revise as ações identificadas antes de confirmar:'}`
         : res.resumo_ia || 'Revise as ações identificadas antes de confirmar:';
 
-      if (actionableActions.length > 0) {
-        const openTasksList = allTasks.filter((t) => t.status !== 'Concluída');
-        const resolvedActions = resolveCopilotActions(
-          actionableActions,
-          projects,
-          collaborators,
-          openTasksList,
-          openServices
-        );
-        const reviewItems = buildActionReviewItems(resolvedActions);
-        const iaMsg: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          sender: 'ia',
-          text: baseText,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          review: {
-            acoes: resolvedActions,
-            items: reviewItems,
-            status: 'pending',
-          },
-        };
-        setChatMessages((prev) => [...prev, iaMsg]);
-      } else {
-        const iaMsg: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          sender: 'ia',
-          text: baseText,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        setChatMessages((prev) => [...prev, iaMsg]);
-      }
+      await handleProcessCopilotResponse(res, baseText);
     } catch (err: unknown) {
       console.warn('Erro ao processar áudio no Copiloto:', err);
       const msgText = err instanceof Error ? err.message : 'Erro na Edge Function';

@@ -36,6 +36,23 @@ export const formatDateDM = (dateString: string | Date | null | undefined): stri
     return dateString;
 };
 
+// Helper to format year-month as "mmm/yy" in pt-BR (ex: "jul/26")
+export const formatMonthYear = (val: string | Date | null | undefined): string => {
+    if (!val) return '-';
+    const str = typeof val === 'string' ? (val.includes('T') ? val.split('T')[0] : val) : formatDateYMD(val);
+    const parts = str.split('-');
+    if (parts.length >= 2) {
+        const year = parts[0];
+        const monthIdx = parseInt(parts[1], 10) - 1;
+        const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+        if (monthIdx >= 0 && monthIdx < 12) {
+            const shortYear = year.slice(-2);
+            return `${months[monthIdx]}/${shortYear}`;
+        }
+    }
+    return String(val);
+};
+
 // Helper to format dates as YYYY-MM-DD in local timezone (never using toISOString)
 export const formatDateYMD = (dateInput: Date | string): string => {
     if (typeof dateInput === 'string') {

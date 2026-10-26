@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 import { Project, Collaborator } from '../types';
 import { toISODate } from './taskParser';
 import { parseCompraItens, formatCompraItem, localizarItens, CompraItem } from './compraItens';
+import type { ConsultaPedido, ConsultaResultado } from './copilotConsultas';
 
 export interface CopilotActionDados {
   // Colaborador
@@ -36,6 +37,9 @@ export interface CopilotActionDados {
   servico_id?: string | null;
   servico_nome?: string;
   valor_pago?: number;
+
+  // Consulta de gastos e notas
+  consulta?: ConsultaPedido;
 }
 
 export type CopilotActionType = 
@@ -45,6 +49,7 @@ export type CopilotActionType =
   | 'CONCLUIR_TAREFA' 
   | 'MARCAR_ITENS_COMPRADOS'
   | 'QUITAR_SERVICO' 
+  | 'CONSULTAR'
   | 'CONVERSA_GERAL';
 
 export interface CopilotAction {
@@ -171,6 +176,8 @@ export interface ChatMessage {
   timestamp: string;
   cards?: ActionCardResult[];
   review?: PendingReviewData;
+  consultas?: ConsultaResultado[];
+  consultando?: boolean;
 }
 
 export function formatBRL(val?: number | null): string {
