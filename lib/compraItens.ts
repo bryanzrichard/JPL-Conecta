@@ -25,55 +25,13 @@ export const UNIDADES_CONHECIDAS: readonly string[] = [
 ] as const;
 
 const UNIDADES_MAP: Record<string, string> = {
-  saco: 'saco',
-  sacos: 'saco',
-  kg: 'kg',
-  quilo: 'kg',
-  quilos: 'kg',
-  g: 'g',
-  grama: 'g',
-  gramas: 'g',
-  m: 'm',
-  metro: 'm',
-  metros: 'm',
-  m2: 'm²',
-  'm²': 'm²',
-  m3: 'm³',
-  'm³': 'm³',
-  barra: 'barra',
-  barras: 'barra',
-  lata: 'lata',
-  latas: 'lata',
-  galao: 'galão',
-  galão: 'galão',
-  galoes: 'galão',
-  galões: 'galão',
-  l: 'litro',
-  litro: 'litro',
-  litros: 'litro',
-  caixa: 'caixa',
-  caixas: 'caixa',
-  cx: 'caixa',
-  cxs: 'caixa',
-  rolo: 'rolo',
-  rolos: 'rolo',
-  pc: 'peça',
-  pç: 'peça',
-  peca: 'peça',
-  pecas: 'peça',
-  peça: 'peça',
-  peças: 'peça',
-  un: 'unidade',
-  und: 'unidade',
-  unid: 'unidade',
-  unidade: 'unidade',
-  unidades: 'unidade',
-  milheiro: 'milheiro',
-  milheiros: 'milheiro',
-  t: 'tonelada',
-  ton: 'tonelada',
-  tonelada: 'tonelada',
-  toneladas: 'tonelada',
+  saco: 'saco', sacos: 'saco', kg: 'kg', quilo: 'kg', quilos: 'kg', g: 'g', grama: 'g', gramas: 'g',
+  m: 'm', metro: 'm', metros: 'm', m2: 'm²', 'm²': 'm²', m3: 'm³', 'm³': 'm³', barra: 'barra', barras: 'barra',
+  lata: 'lata', latas: 'lata', galao: 'galão', galão: 'galão', galoes: 'galão', galões: 'galão',
+  l: 'litro', litro: 'litro', litros: 'litro', caixa: 'caixa', caixas: 'caixa', cx: 'caixa', cxs: 'caixa',
+  rolo: 'rolo', rolos: 'rolo', pc: 'peça', pç: 'peça', peca: 'peça', pecas: 'peça', peça: 'peça', peças: 'peça',
+  un: 'unidade', und: 'unidade', unid: 'unidade', unidade: 'unidade', unidades: 'unidade',
+  milheiro: 'milheiro', milheiros: 'milheiro', t: 'tonelada', ton: 'tonelada', tonelada: 'tonelada', toneladas: 'tonelada',
 };
 
 /**
@@ -174,46 +132,96 @@ export function formatCompraItemTexto(item: CompraItem): string {
   return item.nome;
 }
 
+const NUMEROS_EXTENSO: Record<string, number> = {
+  meio: 0.5, meia: 0.5, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, três: 3, quatro: 4, cinco: 5,
+  seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12, treze: 13, quatorze: 14, catorze: 14,
+  quinze: 15, dezesseis: 16, dezessete: 17, dezoito: 18, dezenove: 19, vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50, cem: 100, cento: 100,
+};
+
+const NUM_WORDS_PATTERN =
+  'meio|meia|um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|cem|cento';
+
+const MATERIAIS_COM_BITOLA = new Set([
+  'ferro', 'vergalhao', 'vergalhão', 'brita', 'pedra', 'cano', 'tubo', 'fio', 'cabo', 'disjuntor',
+  'chave', 'prego', 'parafuso', 'eletroduto', 'conduite', 'conduíte', 'joelho', 'curva', 'luva',
+  'te', 'tê', 'reducao', 'redução', 'tijolo', 'bloco', 'broca',
+]);
+
+const MATERIAIS_M3 = ['areia', 'brita', 'pedra', 'terra'];
+
+function parseNumeroToken(val: string): number | null {
+  const normKey = val.toLowerCase().trim();
+  if (normKey in NUMEROS_EXTENSO) {
+    return NUMEROS_EXTENSO[normKey];
+  }
+  const cleanStr = normKey.replace(',', '.');
+  const num = parseFloat(cleanStr);
+  return isNaN(num) ? null : num;
+}
+
 /**
- * Transforma uma linha ou texto colado em itens estruturados de compra
+ * Transforma uma linha ou texto colado em itens estruturados de compra.
+ * Suporta separadores: quebras de linha, vírgulas não-decimais, ponto e vírgula, barra '/', sinal '+' e ' e ' antes de números.
  */
 export function parseListaColada(texto: string): CompraItem[] {
   if (!texto || !texto.trim()) return [];
 
-  let rawLines: string[];
-  if (texto.includes('\n')) {
-    rawLines = texto.split(/\r?\n/);
-  } else {
-    // Quando houver uma única linha, separa por vírgula (que não seja decimal) ou ponto e vírgula
-    rawLines = texto.split(/(?<!\d),(?!\d)|;/);
-  }
+  // 1.1 Separadores de itens:
+  // - Preservar vírgula decimal entre dois dígitos (ex: 1,5) e barra de fração entre dígitos (ex: 1/2)
+  let prepared = texto
+    .replace(/(?<=\d),(?=\d)/g, '__DECIMAL_COMMA__')
+    .replace(/(?<=\d)\/(?=\d)/g, '__SLASH__');
+
+  // - " e " logo antes de um número (dígito ou por extenso)
+  const eRegex = new RegExp(`(?:^|\\s+)e\\s+(?=\\d|\\b(?:${NUM_WORDS_PATTERN})\\b)`, 'gi');
+  prepared = prepared.replace(eRegex, '\n');
+
+  // - ponto e vírgula, sinal +, barra, vírgula
+  prepared = prepared
+    .replace(/;/g, '\n')
+    .replace(/\+/g, '\n')
+    .replace(/\//g, '\n')
+    .replace(/,/g, '\n');
+
+  // - Restaurar vírgula decimal e barra de fração
+  prepared = prepared
+    .replace(/__DECIMAL_COMMA__/g, ',')
+    .replace(/__SLASH__/g, '/');
+
+  const rawLines = prepared
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 
   const results: CompraItem[] = [];
 
   for (const rawLine of rawLines) {
-    let line = rawLine.trim();
-    if (!line) continue;
-
-    // Remover marcadores de lista comuns no início: "- ", "* ", "• "
-    line = line.replace(/^[-*•]\s*/, '').trim();
+    let line = rawLine.replace(/^[-*•]\s*/, '').trim();
     if (!line) continue;
 
     let quantidade: number | null = null;
     let unidade: string | null = null;
     let restOfLine = line;
 
-    // Verificar se começa com número (ex: 10, 1.5, 1,5)
-    const numMatch = restOfLine.match(/^([0-9]+(?:[.,][0-9]+)?)\s*(.*)$/);
-    if (numMatch) {
-      const numStr = numMatch[1].replace(',', '.');
-      const parsedNum = parseFloat(numStr);
-      if (!isNaN(parsedNum)) {
-        quantidade = parsedNum;
-        restOfLine = numMatch[2].trim();
+    // 1.2 Tentar quantidade no início (dígitos ou extenso)
+    const numStartDigits = restOfLine.match(/^([0-9]+(?:[.,][0-9]+)?)\s*(?:[xX]|-|:)?\s*(.*)$/);
+    const numStartWords = restOfLine.match(new RegExp(`^(${NUM_WORDS_PATTERN})\\b\\s*(?:[xX]|-|:)?\\s*(.*)$`, 'i'));
+
+    if (numStartDigits) {
+      const q = parseNumeroToken(numStartDigits[1]);
+      if (q !== null) {
+        quantidade = q;
+        restOfLine = numStartDigits[2].trim();
+      }
+    } else if (numStartWords) {
+      const q = parseNumeroToken(numStartWords[1]);
+      if (q !== null) {
+        quantidade = q;
+        restOfLine = numStartWords[2].trim();
       }
     }
 
-    // Se encontramos quantidade, verificar se a palavra seguinte é uma unidade conhecida
+    // Se achou quantidade no início, verificar se palavra seguinte é unidade conhecida
     if (quantidade !== null && restOfLine) {
       const unitMatch = restOfLine.match(/^([^\s]+)\s*(.*)$/);
       if (unitMatch) {
@@ -225,9 +233,48 @@ export function parseListaColada(texto: string): CompraItem[] {
       }
     }
 
-    // O restante vira o nome do item com a primeira letra maiúscula
+    // Se NÃO achou quantidade no início, tentar no fim
+    if (quantidade === null) {
+      // 2a. Número + Unidade no fim (ex: "cimento 10 sacos", "areia 2 m3")
+      const endNumUnitMatch = restOfLine.match(
+        new RegExp(
+          `^(.*?)\\s+([0-9]+(?:[.,][0-9]+)?|${NUM_WORDS_PATTERN})\\s+([a-zA-ZÀ-ÿ0-9²³]+)$`,
+          'i'
+        )
+      );
+      if (endNumUnitMatch) {
+        const potentialUnit = endNumUnitMatch[3].toLowerCase().replace(/[.,;]$/, '');
+        if (potentialUnit in UNIDADES_MAP) {
+          const q = parseNumeroToken(endNumUnitMatch[2]);
+          if (q !== null) {
+            quantidade = q;
+            unidade = UNIDADES_MAP[potentialUnit];
+            restOfLine = endNumUnitMatch[1].trim();
+          }
+        }
+      }
+    }
+
+    if (quantidade === null) {
+      // 2b. Número no fim sem unidade (ex: "cimento 10")
+      // Exceto quando o item for material com bitola/medida (ex: "ferro 10", "brita 1")
+      const endNumOnlyMatch = restOfLine.match(
+        new RegExp(`^(.*?)\\s+([0-9]+(?:[.,][0-9]+)?|${NUM_WORDS_PATTERN})$`, 'i')
+      );
+      if (endNumOnlyMatch) {
+        const prefix = endNumOnlyMatch[1].trim();
+        const lastWord = prefix.split(/\s+/).pop()?.toLowerCase() || '';
+        if (!MATERIAIS_COM_BITOLA.has(lastWord)) {
+          const q = parseNumeroToken(endNumOnlyMatch[2]);
+          if (q !== null) {
+            quantidade = q;
+            restOfLine = prefix;
+          }
+        }
+      }
+    }
+
     if (!restOfLine) {
-      // Caso especial: usuário colou só "10 sacos", usar a unidade como nome se nada sobrou
       if (unidade) {
         restOfLine = unidade;
         unidade = null;
@@ -236,7 +283,25 @@ export function parseListaColada(texto: string): CompraItem[] {
       }
     }
 
-    const nome = restOfLine.charAt(0).toUpperCase() + restOfLine.slice(1);
+    // 1.3 Remover preposições no início do nome ("de", "do", "da", "dos", "das")
+    while (/^(?:de|do|da|dos|das)\s+/i.test(restOfLine)) {
+      restOfLine = restOfLine.replace(/^(?:de|do|da|dos|das)\s+/i, '').trim();
+    }
+
+    // 1.4 Nome: primeira letra maiúscula e o resto como digitado; se estiver tudo em MAIÚSCULAS, converter para minúsculas antes
+    let nome = restOfLine;
+    const hasLetters = /[a-zA-ZÀ-ÿ]/.test(nome);
+    const hasLowerCase = /[a-zà-ÿ]/.test(nome);
+    if (hasLetters && !hasLowerCase) {
+      nome = nome.toLowerCase();
+    }
+    nome = nome.charAt(0).toUpperCase() + nome.slice(1);
+
+    // 1.5 Areia, brita, pedra e terra com unidade "m"/"metro"/"metros" gravam "m³"
+    const nomeLower = nome.toLowerCase();
+    if (unidade === 'm' && MATERIAIS_M3.some((m) => nomeLower.includes(m))) {
+      unidade = 'm³';
+    }
 
     results.push({
       nome,
