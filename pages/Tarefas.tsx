@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
 import { useMediaQuery } from '../hooks/use-media-query';
-import { Task, Project, Collaborator, Service } from '../types';
+import { Task, Project, Collaborator } from '../types';
 import { Button } from '../components/ui/Button';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { ResponsiveModal, ResponsiveModalContent } from '../components/ui/ResponsiveModal';
@@ -20,7 +20,7 @@ import {
   CalendarIcon, ConstructionIcon, UserIcon,
   Trash2Icon, EditIcon, FilterIcon, SparklesIcon,
   ShoppingBagIcon, CopyIcon, SendIcon, MicIcon, MicOffIcon,
-  AlertTriangleIcon, CheckCircle2Icon, BotIcon, ClockIcon, BellIcon
+  CheckCircle2Icon, BotIcon, ClockIcon, BellIcon
 } from '../lib/icons';
 import { parseQuickTask, toISODate, ParsedTaskResult } from '../lib/taskParser';
 import {
@@ -43,8 +43,8 @@ import { CopilotPanel } from '../components/tarefas/CopilotPanel';
 import { formatApiError } from '../lib/handleError';
 import { formatDateBR } from '../lib/utils';
 
-// Abas da Central de Tarefas: Hoje & Amanhã, Programadas Futuras, Compras, Alertas, Concluídas
-type TarefasTab = 'today' | 'upcoming' | 'purchases' | 'alerts' | 'completed';
+// Abas da Central de Tarefas: Hoje & Amanhã, Programadas Futuras, Compras, Concluídas
+type TarefasTab = 'today' | 'upcoming' | 'purchases' | 'completed';
 
 const initialFilters: TarefasFilters = {
   project_id: null,
@@ -180,54 +180,6 @@ export const Tarefas: React.FC = () => {
 
       if (error) throw error;
       return (data as unknown as Task[]) || [];
-    },
-    enabled: !!profile?.company_id,
-  });
-
-  // -------------------------------------------------------------
-  // 3. AUTO-FEED: GATILHOS AUTOMÁTICOS DE OUTROS MÓDULOS
-  // -------------------------------------------------------------
-  const { data: activeServices = [] } = useQuery<Service[]>({
-    queryKey: ['active_services_for_tasks', profile?.company_id],
-    queryFn: async () => {
-      if (!profile?.company_id) return [];
-      const { data, error } = await supabase
-        .from('servicos')
-        .select('*')
-        .eq('company_id', profile.company_id)
-        .eq('status', 'Em Andamento');
-      if (error) return [];
-      return (data || []) as Service[];
-    },
-    enabled: !!profile?.company_id,
-  });
-
-  const { data: pendingAiCount = 0 } = useQuery<number>({
-    queryKey: ['pending_ai_jobs_for_tasks', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return 0;
-      const { count, error } = await supabase
-        .from('ai_process_jobs')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .in('status', ['pending', 'processing', 'completed']);
-      if (error) return 0;
-      return count || 0;
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: activeOrcamentoEtapas = [] } = useQuery<{ id: string; nome: string; project_id: string; status: string; ordem: number }[]>({
-    queryKey: ['active_orcamento_etapas_for_tasks', profile?.company_id],
-    queryFn: async () => {
-      if (!profile?.company_id) return [];
-      const { data, error } = await supabase
-        .from('orcamento_etapas')
-        .select('id, nome, project_id, status, ordem')
-        .eq('company_id', profile.company_id)
-        .eq('status', 'Em Execução');
-      if (error) return [];
-      return (data || []) as { id: string; nome: string; project_id: string; status: string; ordem: number }[];
     },
     enabled: !!profile?.company_id,
   });
@@ -625,50 +577,6 @@ export const Tarefas: React.FC = () => {
     return typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
   });
 
-  const requestNotificationPermission = async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      toast({
-        variant: 'destructive',
-        title: 'Notificações não suportadas',
-        description: 'Seu navegador não possui suporte a notificações nativas.',
-      });
-      return;
-    }
-
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        setHasNotificationPermission(true);
-
-        const pendentesHoje = todayAndTomorrowTasks.filter(t => t.isTodayTask || t.isDelayed);
-        const pendentesAmanha = todayAndTomorrowTasks.filter(t => t.isTomorrowTask);
-
-        let textoCorpo = 'Lembretes automáticos ativados no seu aparelho!';
-        if (pendentesHoje.length > 0 || pendentesAmanha.length > 0) {
-          textoCorpo = `Você tem ${pendentesHoje.length} tarefa(s) para hoje e ${pendentesAmanha.length} para amanhã.`;
-        }
-
-        toast({
-          title: '🔔 Lembretes Ativos!',
-          description: textoCorpo,
-        });
-
-        new Notification('JPL Conecta 🏗️ — Lembrete de Tarefas', {
-          body: textoCorpo,
-          icon: '/favicon.ico',
-        });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Notificações Bloqueadas',
-          description: 'Clique no ícone de cadeado na barra do navegador e permita as Notificações.',
-        });
-      }
-    } catch (e) {
-      console.warn('Erro ao solicitar permissão de notificações:', e);
-    }
-  };
-
   // -------------------------------------------------------------
   // CLASSIFICAÇÃO DAS TAREFAS POR DATA E PRAZO
   // -------------------------------------------------------------
@@ -766,80 +674,111 @@ export const Tarefas: React.FC = () => {
     return filteredTasks.filter(t => t.isCompleted);
   }, [filteredTasks]);
 
-  // Alertas Automáticos derivados de outros módulos (Aba 4)
-  const autoAlerts = useMemo(() => {
-    const alerts: Array<{
-      id: string;
-      type: 'servico' | 'nota' | 'orcamento';
-      title: string;
-      subtitle: string;
-      project_id?: string;
-      projectName?: string;
-      date?: string;
-      severity: 'warning' | 'info' | 'critical';
-    }> = [];
-
-    const today = new Date();
-    activeServices.forEach(srv => {
-      if (filters.project_id && srv.project_id !== filters.project_id) return;
-
-      const pName = srv.project_id ? projectsMap.get(srv.project_id)?.name : 'Geral';
-      const cName = srv.collaborator_id ? collaboratorsMap.get(srv.collaborator_id)?.name : 'Empreiteiro';
-
-      if (srv.end_date) {
-        const endDate = new Date(srv.end_date);
-        const diffDays = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffDays <= 3) {
-          alerts.push({
-            id: `srv-${srv.id}`,
-            type: 'servico',
-            title: `Vistoriar Entrega de Empreitada: ${srv.description}`,
-            subtitle: `${cName} • ${pName} • Prazo até ${srv.end_date}`,
-            project_id: srv.project_id || undefined,
-            projectName: pName,
-            date: srv.end_date,
-            severity: diffDays < 0 ? 'critical' : 'warning',
-          });
-        }
-      }
-    });
-
-    if (pendingAiCount > 0) {
-      alerts.push({
-        id: 'ai-notes-pending',
-        type: 'nota',
-        title: `${pendingAiCount} nota(s) fiscal(is) aguardando revisão na IA`,
-        subtitle: 'Confirme categorias, itens e fornecedores para manter os orçamentos conciliados.',
-        severity: 'info',
-      });
-    }
-
-    activeOrcamentoEtapas.forEach(etp => {
-      if (filters.project_id && etp.project_id !== filters.project_id) return;
-      const pName = projectsMap.get(etp.project_id)?.name || 'Obra';
-      alerts.push({
-        id: `etp-${etp.id}`,
-        type: 'orcamento',
-        title: `Etapa em Execução: ${etp.ordem}. ${etp.nome}`,
-        subtitle: `${pName} • Cronograma ativo no canteiro`,
-        project_id: etp.project_id,
-        projectName: pName,
-        severity: 'info',
-      });
-    });
-
-    return alerts;
-  }, [activeServices, pendingAiCount, activeOrcamentoEtapas, filters.project_id, projectsMap, collaboratorsMap]);
-
   // Contadores para as Abas
   const counts = useMemo(() => ({
     today: todayAndTomorrowTasks.length,
     upcoming: upcomingTasks.length,
     purchases: purchaseTasks.filter(t => !t.isCompleted).length,
-    alerts: autoAlerts.length,
     completed: completedTasks.length,
-  }), [todayAndTomorrowTasks, upcomingTasks, purchaseTasks, autoAlerts, completedTasks]);
+  }), [todayAndTomorrowTasks, upcomingTasks, purchaseTasks, completedTasks]);
+
+  // Notificação Automática de tarefas com prazo para hoje ou amanhã
+  const sendTaskNotification = useCallback((pendentesHoje: EnrichedTask[], pendentesAmanha: EnrichedTask[]) => {
+    if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') {
+      return;
+    }
+    if (pendentesHoje.length === 0 && pendentesAmanha.length === 0) {
+      return;
+    }
+
+    let corpo = '';
+    if (pendentesHoje.length > 0 && pendentesAmanha.length > 0) {
+      corpo = `Você tem ${pendentesHoje.length} tarefa(s) para HOJE e ${pendentesAmanha.length} para AMANHÃ.`;
+    } else if (pendentesHoje.length > 0) {
+      corpo = `Atenção: ${pendentesHoje.length} tarefa(s) com prazo para HOJE.`;
+    } else {
+      corpo = `Atenção: ${pendentesAmanha.length} tarefa(s) com prazo para AMANHÃ.`;
+    }
+
+    try {
+      const notif = new Notification('JPL Conecta 🏗️ — Lembrete de Tarefas', {
+        body: corpo,
+        icon: '/favicon.ico',
+      });
+      notif.onclick = () => {
+        window.focus();
+      };
+    } catch (err) {
+      console.warn('Erro ao disparar notificação automática:', err);
+    }
+  }, []);
+
+  // Disparo automático ao carregar ou atualizar tarefas
+  useEffect(() => {
+    if (todayAndTomorrowTasks.length === 0) return;
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+
+    const pendentesHoje = todayAndTomorrowTasks.filter(t => t.isTodayTask || t.isDelayed);
+    const pendentesAmanha = todayAndTomorrowTasks.filter(t => t.isTomorrowTask);
+
+    if (pendentesHoje.length === 0 && pendentesAmanha.length === 0) return;
+
+    const storageKey = `jpl_task_notif_${todayStr}`;
+    const alreadyNotified = sessionStorage.getItem(storageKey);
+
+    if (!alreadyNotified) {
+      if (Notification.permission === 'granted') {
+        sendTaskNotification(pendentesHoje, pendentesAmanha);
+        sessionStorage.setItem(storageKey, 'true');
+      } else if (Notification.permission === 'default') {
+        Notification.requestPermission().then((perm) => {
+          if (perm === 'granted') {
+            setHasNotificationPermission(true);
+            sendTaskNotification(pendentesHoje, pendentesAmanha);
+            sessionStorage.setItem(storageKey, 'true');
+          }
+        });
+      }
+    }
+  }, [todayAndTomorrowTasks, todayStr, sendTaskNotification]);
+
+  const requestNotificationPermission = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      toast({
+        variant: 'destructive',
+        title: 'Notificações não suportadas',
+        description: 'Seu navegador não possui suporte a notificações nativas.',
+      });
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        setHasNotificationPermission(true);
+
+        const pendentesHoje = todayAndTomorrowTasks.filter(t => t.isTodayTask || t.isDelayed);
+        const pendentesAmanha = todayAndTomorrowTasks.filter(t => t.isTomorrowTask);
+
+        if (pendentesHoje.length > 0 || pendentesAmanha.length > 0) {
+          sendTaskNotification(pendentesHoje, pendentesAmanha);
+        } else {
+          new Notification('JPL Conecta 🏗️ — Lembrete de Tarefas', {
+            body: 'Todas as tarefas de hoje e amanhã estão concluídas ou em dia!',
+            icon: '/favicon.ico',
+          });
+        }
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Notificações Bloqueadas',
+          description: 'Clique no ícone de cadeado na barra do navegador e permita as Notificações.',
+        });
+      }
+    } catch (e) {
+      console.warn('Erro ao solicitar permissão de notificações:', e);
+    }
+  };
 
   // Tarefas da Aba Ativa (ordenadas por prazo)
   const activeTabTasks = useMemo(() => {
@@ -1083,20 +1022,6 @@ export const Tarefas: React.FC = () => {
     },
   });
 
-  const convertAlertToTask = (alert: { id: string; title: string; project_id?: string; date?: string }) => {
-    const targetDate = alert.date || todayStr;
-    createQuickTaskMutation.mutate({
-      raw: alert.title,
-      title: alert.title,
-      project_id: alert.project_id || fallbackProjId,
-      responsavel_execucao_id: null,
-      data_fim_prevista: targetDate,
-      isTomorrow: targetDate === tomorrowStr,
-      isToday: targetDate === todayStr,
-      isPurchase: false,
-    });
-  };
-
   const handleCopyWhatsApp = async () => {
     const success = await copyTextToClipboard(formattedWhatsAppText);
     if (success) {
@@ -1230,6 +1155,30 @@ export const Tarefas: React.FC = () => {
       />
 
       {/* ========================================================= */}
+      {/* 2.1 BANNER AUTOMÁTICO DE NOTIFICAÇÃO (HOJE & AMANHÃ)       */}
+      {/* ========================================================= */}
+      {counts.today > 0 && (
+        <div className="bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200 animate-in fade-in-50">
+          <div className="flex items-center gap-2 min-w-0">
+            <BellIcon className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span className="truncate">
+              <strong>Lembrete automático:</strong> Você tem{' '}
+              <strong>{counts.today} pendência(s)</strong> no prazo de hoje ou amanhã no canteiro.
+            </span>
+          </div>
+          {activeTab !== 'today' && (
+            <button
+              type="button"
+              onClick={() => handleTabChange('today')}
+              className="font-bold underline hover:text-amber-700 dark:hover:text-white cursor-pointer shrink-0 text-xs"
+            >
+              Ver tarefas →
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================= */}
       {/* 3. BARRA DE ABAS, BUSCA, FILTROS E NOVA TAREFA            */}
       {/* ========================================================= */}
       <div className="space-y-0">
@@ -1283,23 +1232,6 @@ export const Tarefas: React.FC = () => {
               {counts.purchases > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 text-[10px]">
                   {counts.purchases}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTabChange('alerts')}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-                activeTab === 'alerts'
-                  ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
-                  : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
-              }`}
-            >
-              <span>⚠️ Alertas Automáticos</span>
-              {counts.alerts > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 text-[10px]">
-                  {counts.alerts}
                 </span>
               )}
             </button>
@@ -1415,171 +1347,93 @@ export const Tarefas: React.FC = () => {
         )}
 
         {/* ========================================================= */}
-        {/* 4. ÁREA PRINCIPAL: TABELA + PAINEL DE DETALHE             */}
+        {/* 4. ÁREA PRINCIPAL: SPLIT VIEW (TABELA + PAINEL DE DETALHE) */}
         {/* ========================================================= */}
-        {activeTab === 'alerts' ? (
-          /* ABA ALERTAS: LISTA PRÓPRIA, SEM TABELA E SEM PAINEL */
-          <div className="p-4 bg-white dark:bg-[#111827] rounded-b-xl border-x border-b border-slate-200/80 dark:border-gray-800 shadow-xs space-y-3">
-            {autoAlerts.length === 0 ? (
-              <div className="py-16 text-center bg-slate-50/50 dark:bg-brand-dark-900/50 border border-dashed border-slate-200 dark:border-gray-800 rounded-2xl p-6">
-                <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-3">
-                  <CheckCircle2Icon className="h-6 w-6" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-800 dark:text-white">
-                  Nenhum alerta pendente nos outros módulos!
-                </h3>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
-                  Todos os contratos de serviços, notas e etapas estão dentro dos prazos operacionais.
-                </p>
-              </div>
-            ) : (
-              autoAlerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className="p-3.5 rounded-xl border bg-slate-50/70 dark:bg-[#1F2937]/50 border-slate-200/80 dark:border-gray-800 flex items-start justify-between gap-3 shadow-xs"
-                >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div
-                      className={`p-2 rounded-lg shrink-0 mt-0.5 ${
-                        alert.severity === 'critical'
-                          ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'
-                          : alert.severity === 'warning'
-                          ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
-                          : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400'
-                      }`}
-                    >
-                      <AlertTriangleIcon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-xs font-bold text-slate-800 dark:text-white block">
-                        {alert.title}
-                      </span>
-                      <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5">
-                        {alert.subtitle}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {alert.type === 'nota' ? (
-                      <Button
-                        size="sm"
-                        onClick={() => navigate('/notas')}
-                        className="h-7 text-xs bg-indigo-600 text-white cursor-pointer"
-                      >
-                        Ir p/ Notas
-                      </Button>
-                    ) : alert.type === 'servico' ? (
-                      <Button
-                        size="sm"
-                        onClick={() => convertAlertToTask(alert)}
-                        className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer font-bold"
-                        title="Transformar este alerta em uma tarefa oficial no canteiro"
-                      >
-                        + Criar Tarefa
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => navigate('/orcamentos')}
-                        className="h-7 text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-gray-200 cursor-pointer"
-                      >
-                        Ver Orçamento
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        ) : (
-          /* DEMAIS ABAS: SPLIT VIEW (TABELA À ESQUERDA + PAINEL À DIREITA) */
+        <div
+          className={`overflow-hidden rounded-b-xl border-x border-b border-slate-200/80 dark:border-gray-800 bg-white dark:bg-[#111827] shadow-xs flex flex-col lg:flex-row ${
+            selectedTask && isDesktop ? 'items-stretch' : ''
+          }`}
+        >
+          {/* LADO ESQUERDO: TABELA RETRÁTIL */}
           <div
-            className={`overflow-hidden rounded-b-xl border-x border-b border-slate-200/80 dark:border-gray-800 bg-white dark:bg-[#111827] shadow-xs flex flex-col lg:flex-row ${
-              selectedTask && isDesktop ? 'items-stretch' : ''
+            className={`${
+              selectedTask && isDesktop
+                ? 'w-full lg:w-[48%] xl:w-[46%] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800'
+                : 'w-full lg:w-[58%] xl:w-[60%]'
             }`}
           >
-            {/* LADO ESQUERDO: TABELA RETRÁTIL */}
-            <div
-              className={`${
-                selectedTask && isDesktop
-                  ? 'w-full lg:w-[48%] xl:w-[46%] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800'
-                  : 'w-full lg:w-[58%] xl:w-[60%]'
-              }`}
-            >
-              <TarefasTable
-                tasks={activeTabTasks}
-                selectedTaskId={selectedTask?.id || null}
-                onSelectTask={handleSelectTask}
-                onToggleStatus={(task) =>
-                  toggleTaskStatusMutation.mutate({
-                    taskId: task.id,
-                    newStatus: task.isCompleted ? 'Planejada' : 'Concluída',
-                  })
-                }
-                onRescheduleTomorrow={(task) =>
-                  rescheduleTaskMutation.mutate({ taskId: task.id, newDate: tomorrowStr })
-                }
-                isDetailOpen={!!selectedTask && isDesktop}
-                emptyMessage={
-                  activeTab === 'purchases'
-                    ? 'Nenhum material pendente de compra!'
-                    : activeTab === 'completed'
-                    ? 'Nenhuma tarefa concluída nesta visualização!'
-                    : 'Tudo em dia nesta visão!'
-                }
-                emptySubtitle={
-                  activeTab === 'purchases'
-                    ? 'Adicione itens de compra com o botão "+ Nova Tarefa" ou pelo Copiloto.'
-                    : 'Nenhuma pendência encontrada para os filtros selecionados.'
-                }
-              />
-            </div>
-
-            {/* LADO DIREITO (DESKTOP): PAINEL DE DETALHE OU PAUTA WHATSAPP */}
-            {isDesktop && (
-              <div
-                className={`w-full ${
-                  selectedTask ? 'lg:w-[52%] xl:w-[54%]' : 'lg:w-[42%] xl:w-[40%]'
-                } shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col animate-in fade-in-0 duration-150 p-3 sm:p-4`}
-              >
-                {selectedTask ? (
-                  <TaskDetailPanel
-                    task={selectedTask}
-                    onClose={() => setSelectedTask(null)}
-                    onEdit={handleOpenEditDrawer}
-                    onDelete={(task) => setTaskToDelete(task)}
-                    onToggleStatus={(task) =>
-                      toggleTaskStatusMutation.mutate({
-                        taskId: task.id,
-                        newStatus: task.isCompleted ? 'Planejada' : 'Concluída',
-                      })
-                    }
-                    onRescheduleTomorrow={(task) =>
-                      rescheduleTaskMutation.mutate({ taskId: task.id, newDate: tomorrowStr })
-                    }
-                    onPrevTask={handlePrevTask}
-                    onNextTask={handleNextTask}
-                    hasPrev={hasPrevTask}
-                    hasNext={hasNextTask}
-                    currentIndex={selectedTaskIndex}
-                    totalCount={activeTabTasks.length}
-                  />
-                ) : (
-                  <PautaWhatsAppPanel
-                    previewDateMode={previewDateMode}
-                    setPreviewDateMode={setPreviewDateMode}
-                    dailyProgress={dailyProgress}
-                    formattedWhatsAppText={formattedWhatsAppText}
-                    handleDirectGroupSend={handleDirectGroupSend}
-                    handleCopyWhatsApp={handleCopyWhatsApp}
-                    isCopiedSuccess={isCopiedSuccess}
-                  />
-                )}
-              </div>
-            )}
+            <TarefasTable
+              tasks={activeTabTasks}
+              selectedTaskId={selectedTask?.id || null}
+              onSelectTask={handleSelectTask}
+              onToggleStatus={(task) =>
+                toggleTaskStatusMutation.mutate({
+                  taskId: task.id,
+                  newStatus: task.isCompleted ? 'Planejada' : 'Concluída',
+                })
+              }
+              onRescheduleTomorrow={(task) =>
+                rescheduleTaskMutation.mutate({ taskId: task.id, newDate: tomorrowStr })
+              }
+              isDetailOpen={!!selectedTask && isDesktop}
+              emptyMessage={
+                activeTab === 'purchases'
+                  ? 'Nenhum material pendente de compra!'
+                  : activeTab === 'completed'
+                  ? 'Nenhuma tarefa concluída nesta visualização!'
+                  : 'Tudo em dia nesta visão!'
+              }
+              emptySubtitle={
+                activeTab === 'purchases'
+                  ? 'Adicione itens de compra com o botão "+ Nova Tarefa" ou pelo Copiloto.'
+                  : 'Nenhuma pendência encontrada para os filtros selecionados.'
+              }
+            />
           </div>
-        )}
+
+          {/* LADO DIREITO (DESKTOP): PAINEL DE DETALHE OU PAUTA WHATSAPP */}
+          {isDesktop && (
+            <div
+              className={`w-full ${
+                selectedTask ? 'lg:w-[52%] xl:w-[54%]' : 'lg:w-[42%] xl:w-[40%]'
+              } shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col animate-in fade-in-0 duration-150 p-3 sm:p-4`}
+            >
+              {selectedTask ? (
+                <TaskDetailPanel
+                  task={selectedTask}
+                  onClose={() => setSelectedTask(null)}
+                  onEdit={handleOpenEditDrawer}
+                  onDelete={(task) => setTaskToDelete(task)}
+                  onToggleStatus={(task) =>
+                    toggleTaskStatusMutation.mutate({
+                      taskId: task.id,
+                      newStatus: task.isCompleted ? 'Planejada' : 'Concluída',
+                    })
+                  }
+                  onRescheduleTomorrow={(task) =>
+                    rescheduleTaskMutation.mutate({ taskId: task.id, newDate: tomorrowStr })
+                  }
+                  onPrevTask={handlePrevTask}
+                  onNextTask={handleNextTask}
+                  hasPrev={hasPrevTask}
+                  hasNext={hasNextTask}
+                  currentIndex={selectedTaskIndex}
+                  totalCount={activeTabTasks.length}
+                />
+              ) : (
+                <PautaWhatsAppPanel
+                  previewDateMode={previewDateMode}
+                  setPreviewDateMode={setPreviewDateMode}
+                  dailyProgress={dailyProgress}
+                  formattedWhatsAppText={formattedWhatsAppText}
+                  handleDirectGroupSend={handleDirectGroupSend}
+                  handleCopyWhatsApp={handleCopyWhatsApp}
+                  isCopiedSuccess={isCopiedSuccess}
+                />
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ========================================================= */}
