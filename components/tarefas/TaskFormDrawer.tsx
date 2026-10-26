@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -13,7 +13,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../contexts/ToastContext';
 import { formatApiError } from '../../lib/handleError';
-import { Task, Project, Collaborator } from '../../types';
+import { Task, Project, Collaborator, TaskPriority } from '../../types';
 import { 
   ChevronDownIcon, ChevronUpIcon, ClipboardListIcon, 
   ShoppingBagIcon, BuildingIcon, UserIcon, ClockIcon 
@@ -42,6 +42,8 @@ export const TaskFormDrawer: React.FC<TaskFormDrawerProps> = ({
 
   const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [isPurchase, setIsPurchase] = useState(false);
+  const [hasManualPriority, setHasManualPriority] = useState<boolean>(false);
+  const prevEndDateRef = useRef<string | null>(null);
 
   const defaultValues: TaskFormValues = useMemo(() => {
     if (taskToEdit) {
@@ -60,13 +62,14 @@ export const TaskFormDrawer: React.FC<TaskFormDrawerProps> = ({
         custo_real: taskToEdit.custo_real || 0,
       };
     }
+    // 0.2 Tarefa nova abre sem obra selecionada (project_id vazio)
     return {
-      title: '', description: '', project_id: projects[0]?.id || '', status: 'Planejada',
+      title: '', description: '', project_id: '', status: 'Planejada',
       prioridade: 'Média', materiais_previstos: [], equipamentos_utilizados: [],
       observacoes: '', data_inicio_prevista: null, data_fim_prevista: null,
       responsavel_execucao_id: null, custo_real: 0,
     };
-  }, [taskToEdit, projects]);
+  }, [taskToEdit]);
 
   const {
     register, handleSubmit, reset, control, watch, setValue,
@@ -76,30 +79,73 @@ export const TaskFormDrawer: React.FC<TaskFormDrawerProps> = ({
   const { fields: materialFields, append: appendMaterial, remove: removeMaterial } = useFieldArray({ control, name: 'materiais_previstos' });
   const { fields: equipmentFields, append: appendEquipment, remove: removeEquipment } = useFieldArray({ control, name: 'equipamentos_utilizados' });
   const watchedPriority = watch('prioridade');
+  const watchedEndDate = watch('data_fim_prevista');
+
+  // 0.3 Prioridade automática pelo prazo: até 3 dias Alta, até 7 dias Média, acima Baixa
+  useEffect(() => {
+    if (!isOpen) return;
+    if (watchedEndDate !== prevEndDateRef.current) {
+      prevEndDateRef.current = watchedEndDate || null;
+      if (!hasManualPriority && watchedEndDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const end = new Date(`${watchedEndDate}T00:00:00`);
+        const diffTime = end.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        let newPriority: TaskPriority = 'Baixa';
+        if (diffDays <= 3) {
+          newPriority = 'Alta';
+        } else if (diffDays <= 7) {
+          newPriority = 'Média';
+        } else {
+          newPriority = 'Baixa';
+        }
+        setValue('prioridade', newPriority, { shouldDirty: true });
+      }
+    }
+  }, [watchedEndDate, hasManualPriority, isOpen, setValue]);
 
   useEffect(() => {
     if (isOpen) {
       reset(defaultValues);
       setShowMoreDetails(false);
+      setHasManualPriority(isEditMode);
+      prevEndDateRef.current = defaultValues.data_fim_prevista || null;
       const detectedPurchase = taskToEdit
         ? (taskToEdit.observacoes || '').includes('[COMPRA]') || (taskToEdit.description || '').toLowerCase().includes('[compra]')
         : false;
       setIsPurchase(detectedPurchase);
     }
-  }, [isOpen, defaultValues, reset, taskToEdit]);
+  }, [isOpen, defaultValues, reset, taskToEdit, isEditMode]);
 
   const mutation = useMutation({
     mutationFn: async (data: TaskFormValues) => {
       if (!user || !profile) throw new Error('Usuário não autenticado.');
 
       let obs = data.observacoes || '';
-      if (isPurchase && !obs.includes('[COMPRA]')) {
-        obs = obs ? `[COMPRA] ${obs}` : '[COMPRA]';
-      }
-
       let desc = data.description || '';
-      if (isPurchase && !desc.toLowerCase().includes('[compra]')) {
-        desc = desc ? `[COMPRA] ${desc}` : '[COMPRA] Item para cotação e compra rápida';
+
+      // 0.1 Tipo Compra/Tarefa nos dois sentidos
+      if (isPurchase) {
+        if (!obs.includes('[COMPRA]')) {
+          obs = obs ? `[COMPRA] ${obs}` : '[COMPRA]';
+        }
+        if (!desc.toLowerCase().includes('[compra]')) {
+          desc = desc ? `[COMPRA] ${desc}` : '[COMPRA] Item para cotação e compra rápida';
+        }
+      } else {
+        // Ao salvar como Tarefa, remover [COMPRA] de observacoes e de description
+        const cleanDesc = desc.trim();
+        if (
+          cleanDesc === '[COMPRA] Item para cotação e compra rápida' ||
+          cleanDesc === '[COMPRA]'
+        ) {
+          desc = '';
+        } else {
+          desc = desc.replace(/\[COMPRA\]\s*/gi, '').trim();
+        }
+        obs = obs.replace(/\[COMPRA\]\s*/gi, '').trim();
       }
 
       const payload = {
@@ -199,12 +245,16 @@ export const TaskFormDrawer: React.FC<TaskFormDrawerProps> = ({
                 <select
                   {...register('project_id')}
                   disabled={isLoadingPrerequisites}
-                  className="w-full h-9 rounded-lg border border-slate-300 dark:border-gray-800 bg-white dark:bg-brand-dark-950 px-3 text-xs text-slate-800 dark:text-white"
+                  className={`w-full h-9 rounded-lg border bg-white dark:bg-brand-dark-950 px-3 text-xs text-slate-800 dark:text-white transition-colors ${
+                    errors.project_id
+                      ? 'border-rose-500 focus:ring-1 focus:ring-rose-500'
+                      : 'border-slate-300 dark:border-gray-800'
+                  }`}
                 >
                   <option value="">Selecione a obra...</option>
                   {projects.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
                 </select>
-                {errors.project_id && <p className="text-[11px] text-rose-500">{errors.project_id.message}</p>}
+                {errors.project_id && <p className="text-[11px] text-rose-500 font-medium">{errors.project_id.message}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -241,7 +291,10 @@ export const TaskFormDrawer: React.FC<TaskFormDrawerProps> = ({
                     <button
                       key={p}
                       type="button"
-                      onClick={() => setValue('prioridade', p, { shouldDirty: true })}
+                      onClick={() => {
+                        setHasManualPriority(true);
+                        setValue('prioridade', p, { shouldDirty: true });
+                      }}
                       className={`h-9 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                         watchedPriority === p
                           ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
