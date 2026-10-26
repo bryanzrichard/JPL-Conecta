@@ -19,6 +19,23 @@ export const formatDateBR = (dateString: string | Date | null | undefined): stri
     return date.toLocaleDateString('pt-BR');
 };
 
+// Helper to format dates as DD/MM in pt-BR
+export const formatDateDM = (dateString: string | Date | null | undefined): string => {
+    if (!dateString) return '-';
+    if (dateString instanceof Date) {
+        if (isNaN(dateString.getTime())) return '-';
+        const d = String(dateString.getDate()).padStart(2, '0');
+        const m = String(dateString.getMonth() + 1).padStart(2, '0');
+        return `${d}/${m}`;
+    }
+    const clean = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const parts = clean.split('-');
+    if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}`;
+    }
+    return dateString;
+};
+
 // Helper to format dates as YYYY-MM-DD in local timezone (never using toISOString)
 export const formatDateYMD = (dateInput: Date | string): string => {
     if (typeof dateInput === 'string') {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
@@ -8,28 +8,42 @@ import { useMediaQuery } from '../hooks/use-media-query';
 import { Task, Project, Collaborator, Service } from '../types';
 import { Button } from '../components/ui/Button';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
-import CreateTaskModal from '../components/home/CreateTaskModal';
+import { ResponsiveModal, ResponsiveModalContent } from '../components/ui/ResponsiveModal';
+import TarefasTable from '../components/tarefas/TarefasTable';
+import TaskDetailPanel from '../components/tarefas/TaskDetailPanel';
+import PautaWhatsAppPanel from '../components/tarefas/PautaWhatsAppPanel';
+import TaskFormDrawer from '../components/tarefas/TaskFormDrawer';
+import FiltrosTarefas from '../components/tarefas/FiltrosTarefas';
+import { EnrichedTask, TarefasFilters } from '../components/tarefas/types';
 import {
-  PlusIcon, CheckIcon, XIcon, ClipboardListIcon,
-  CalendarIcon, ConstructionIcon, UserIcon, BuildingIcon,
+  PlusIcon, XIcon, ClipboardListIcon,
+  CalendarIcon, ConstructionIcon, UserIcon,
   Trash2Icon, EditIcon, FilterIcon, SparklesIcon,
   ShoppingBagIcon, CopyIcon, SendIcon, MicIcon, MicOffIcon,
-  AlertTriangleIcon, CheckCircle2Icon, BotIcon, MessageSquareIcon,
-  BellIcon, ClockIcon
+  AlertTriangleIcon, CheckCircle2Icon, BotIcon, ClockIcon, BellIcon
 } from '../lib/icons';
-import { parseQuickTask, toISODate, checkSpeechRecognitionSupport, ParsedTaskResult } from '../lib/taskParser';
+import { parseQuickTask, toISODate, ParsedTaskResult } from '../lib/taskParser';
 import {
   generateWhatsAppSchedule,
   copyTextToClipboard,
   openOfficialGroupLink,
   TaskForWhatsApp
 } from '../lib/whatsappGenerator';
-import { executeCopilotActions, buildActionReviewItems, CopilotAction, ChatMessage, ActionCardResult } from '../lib/copilotExecutor';
+import { executeCopilotActions, buildActionReviewItems, CopilotAction, ChatMessage } from '../lib/copilotExecutor';
 import CopilotReviewCard from '../components/tarefas/CopilotReviewCard';
 import { formatApiError } from '../lib/handleError';
+import { formatDateBR } from '../lib/utils';
 
 // Abas da Central de Tarefas: Hoje & Amanhã, Programadas Futuras, Compras, Alertas, Concluídas
 type TarefasTab = 'today' | 'upcoming' | 'purchases' | 'alerts' | 'completed';
+
+const initialFilters: TarefasFilters = {
+  project_id: null,
+  responsavel_id: null,
+  prioridade: 'all',
+  start_date: null,
+  end_date: null,
+};
 
 export const Tarefas: React.FC = () => {
   const { user, profile } = useAuth();
@@ -43,8 +57,15 @@ export const Tarefas: React.FC = () => {
   // ESTADOS DA TELA
   // -------------------------------------------------------------
   const [activeTab, setActiveTab] = useState<TarefasTab>('today');
-  const [selectedProjectFilter, setSelectedProjectFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+
+  // Filtros em Gaveta
+  const [filters, setFilters] = useState<TarefasFilters>(initialFilters);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState<boolean>(false);
+
+  // Split View & Seleção de Tarefa
+  const [selectedTask, setSelectedTask] = useState<EnrichedTask | null>(null);
+  const [isMobileDetailDrawerOpen, setIsMobileDetailDrawerOpen] = useState<boolean>(false);
 
   // Quick Command Input State & Gravador com IA (Gemini Flash)
   const [quickInputText, setQuickInputText] = useState<string>('');
@@ -53,7 +74,7 @@ export const Tarefas: React.FC = () => {
   const [isProcessingAudioIA, setIsProcessingAudioIA] = useState<boolean>(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const timerIntervalRef = useRef<any>(null);
+  const timerIntervalRef = useRef<NodeJS.Timeout | number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Estados do Chat Copiloto JPL (Estilo WhatsApp)
@@ -73,8 +94,8 @@ export const Tarefas: React.FC = () => {
   const [isCopiedSuccess, setIsCopiedSuccess] = useState<boolean>(false);
   const [isMobileWhatsappPreviewOpen, setIsMobileWhatsappPreviewOpen] = useState<boolean>(false);
 
-  // Modais de Criação Detalhada e Exclusão
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  // Modais de Criação / Edição em Gaveta e Exclusão
+  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState<boolean>(false);
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
 
@@ -85,13 +106,13 @@ export const Tarefas: React.FC = () => {
     queryKey: ['projects', profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('projects')
         .select('*')
         .eq('company_id', profile.company_id)
         .order('name');
       if (error) throw error;
-      return data || [];
+      return (data || []) as Project[];
     },
     enabled: !!profile?.company_id,
   });
@@ -100,13 +121,13 @@ export const Tarefas: React.FC = () => {
     queryKey: ['collaborators', profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('collaborators')
         .select('*')
         .eq('company_id', profile.company_id)
         .order('name');
       if (error) throw error;
-      return data || [];
+      return (data || []) as Collaborator[];
     },
     enabled: !!profile?.company_id,
   });
@@ -121,7 +142,7 @@ export const Tarefas: React.FC = () => {
     queryKey: ['tasks', profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('tasks')
         .select(`
           id,
@@ -155,28 +176,26 @@ export const Tarefas: React.FC = () => {
   // -------------------------------------------------------------
   // 3. AUTO-FEED: GATILHOS AUTOMÁTICOS DE OUTROS MÓDULOS
   // -------------------------------------------------------------
-  // Contratos de Serviços ativos próximos do vencimento
   const { data: activeServices = [] } = useQuery<Service[]>({
     queryKey: ['active_services_for_tasks', profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('servicos')
         .select('*')
         .eq('company_id', profile.company_id)
         .eq('status', 'Em Andamento');
       if (error) return [];
-      return data || [];
+      return (data || []) as Service[];
     },
     enabled: !!profile?.company_id,
   });
 
-  // Notas com IA pendente
   const { data: pendingAiCount = 0 } = useQuery<number>({
     queryKey: ['pending_ai_jobs_for_tasks', user?.id],
     queryFn: async () => {
       if (!user?.id) return 0;
-      const { count, error } = await (supabase as any)
+      const { count, error } = await supabase
         .from('ai_process_jobs')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
@@ -187,18 +206,17 @@ export const Tarefas: React.FC = () => {
     enabled: !!user?.id,
   });
 
-  // Etapas de Orçamento em Execução
-  const { data: activeOrcamentoEtapas = [] } = useQuery<any[]>({
+  const { data: activeOrcamentoEtapas = [] } = useQuery<{ id: string; nome: string; project_id: string; status: string; ordem: number }[]>({
     queryKey: ['active_orcamento_etapas_for_tasks', profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('orcamento_etapas')
         .select('id, nome, project_id, status, ordem')
         .eq('company_id', profile.company_id)
         .eq('status', 'Em Execução');
       if (error) return [];
-      return data || [];
+      return (data || []) as { id: string; nome: string; project_id: string; status: string; ordem: number }[];
     },
     enabled: !!profile?.company_id,
   });
@@ -206,7 +224,7 @@ export const Tarefas: React.FC = () => {
   // -------------------------------------------------------------
   // PARSER EM TEMPO REAL DO QUICK INPUT
   // -------------------------------------------------------------
-  const fallbackProjId = selectedProjectFilter !== 'all' ? selectedProjectFilter : (projects[0]?.id || null);
+  const fallbackProjId = filters.project_id || (projects[0]?.id || null);
   const parsedPreview: ParsedTaskResult = useMemo(() => {
     if (!quickInputText.trim()) {
       return {
@@ -227,18 +245,13 @@ export const Tarefas: React.FC = () => {
   // -------------------------------------------------------------
   // GRAVADOR DE ÁUDIO COM IA (MEDIARECORDER & GEMINI FLASH)
   // -------------------------------------------------------------
-  const isMediaRecordingSupported = typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
-
-  // Cleanup de streams e timers ao desmontar o componente
   useEffect(() => {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         try {
           mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
-        } catch (e) {
-          // Silencia
-        }
+        } catch (_) {}
       }
     };
   }, []);
@@ -293,7 +306,7 @@ export const Tarefas: React.FC = () => {
       timerIntervalRef.current = setInterval(() => {
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('Falha ao abrir microfone:', err);
       toast({
         variant: 'destructive',
@@ -315,9 +328,7 @@ export const Tarefas: React.FC = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
         mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
-      } catch (e) {
-        // Silencia
-      }
+      } catch (_) {}
       mediaRecorderRef.current.stop();
     }
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
@@ -365,12 +376,6 @@ export const Tarefas: React.FC = () => {
 
       if (error || !data?.result) {
         let errorDetail = error?.message || 'Falha ao processar com o Gemini Flash';
-        try {
-          if ((error as any)?.context) {
-            const body = await (error as any).context.json();
-            if (body?.error) errorDetail = body.error;
-          }
-        } catch (_) {}
         throw new Error(errorDetail);
       }
 
@@ -402,12 +407,13 @@ export const Tarefas: React.FC = () => {
         };
         setChatMessages((prev) => [...prev, iaMsg]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('Erro ao processar mensagem no Copiloto:', err);
+      const msgText = err instanceof Error ? err.message : 'Erro na Edge Function';
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'ia',
-        text: `⚠️ Não consegui concluir a ação: ${err?.message || 'Erro na Edge Function'}. Verifique o deploy de "processar-comando-voz" ou a API_KEY no Supabase.`,
+        text: `⚠️ Não consegui concluir a ação: ${msgText}. Verifique o deploy de "processar-comando-voz" ou a API_KEY no Supabase.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setChatMessages((prev) => [...prev, errorMsg]);
@@ -448,15 +454,16 @@ export const Tarefas: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
 
       toast({
-        title: '✨ Ações confirmadas e executadas!',
-        description: 'Os dados foram atualizados no sistema.',
+        title: '✅ Ações executadas!',
+        description: `${acoes.length} ação(ões) gravada(s) no sistema com sucesso.`,
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Falha ao executar ações';
+      console.warn('Erro ao executar ações do Copiloto:', err);
+      const msgText = err instanceof Error ? err.message : 'Erro ao gravar';
       toast({
         variant: 'destructive',
-        title: 'Erro na execução',
-        description: msg,
+        title: 'Erro ao executar ações',
+        description: msgText,
       });
     } finally {
       setIsProcessingAudioIA(false);
@@ -464,27 +471,19 @@ export const Tarefas: React.FC = () => {
   };
 
   const handleCancelCopilotActions = (messageId: string) => {
-    setChatMessages((prev) => {
-      const updated = prev.map((msg) =>
+    setChatMessages((prev) =>
+      prev.map((msg) =>
         msg.id === messageId && msg.review
           ? {
               ...msg,
-              review: { ...msg.review, status: 'cancelled' as const },
+              review: { ...msg.review, status: 'cancelled' },
             }
           : msg
-      );
-      const cancelNotice: ChatMessage = {
-        id: Date.now().toString(),
-        sender: 'ia',
-        text: 'Ações canceladas.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      return [...updated, cancelNotice];
-    });
-
+      )
+    );
     toast({
       title: 'Ações canceladas',
-      description: 'Nenhum dado foi gravado no banco de dados.',
+      description: 'Nenhum registro foi alterado no banco.',
     });
   };
 
@@ -494,7 +493,7 @@ export const Tarefas: React.FC = () => {
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
-      text: '🎙️ [Mensagem de Áudio enviada]',
+      text: '🎤 Mensagem de voz gravada...',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     setChatMessages((prev) => [...prev, userMsg]);
@@ -535,12 +534,6 @@ export const Tarefas: React.FC = () => {
 
       if (error || !data?.result) {
         let errorDetail = error?.message || 'Falha ao processar com Gemini Flash';
-        try {
-          if ((error as any)?.context) {
-            const body = await (error as any).context.json();
-            if (body?.error) errorDetail = body.error;
-          }
-        } catch (_) {}
         throw new Error(errorDetail);
       }
 
@@ -576,12 +569,13 @@ export const Tarefas: React.FC = () => {
         };
         setChatMessages((prev) => [...prev, iaMsg]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('Erro ao processar áudio no Copiloto:', err);
+      const msgText = err instanceof Error ? err.message : 'Erro na Edge Function';
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'ia',
-        text: `⚠️ Não consegui transcrever o áudio: ${err?.message || 'Erro na Edge Function'}. Verifique o deploy de "processar-comando-voz" ou a API_KEY no Supabase.`,
+        text: `⚠️ Não consegui transcrever o áudio: ${msgText}. Verifique o deploy de "processar-comando-voz" ou a API_KEY no Supabase.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setChatMessages((prev) => [...prev, errorMsg]);
@@ -655,18 +649,17 @@ export const Tarefas: React.FC = () => {
   // -------------------------------------------------------------
   // CLASSIFICAÇÃO DAS TAREFAS POR DATA E PRAZO
   // -------------------------------------------------------------
-  const enrichedTasks = useMemo(() => {
+  const enrichedTasks = useMemo<EnrichedTask[]>(() => {
     return allTasks.map(t => {
       const p = projectsMap.get(t.project_id);
       const c = t.responsavel_execucao_id ? collaboratorsMap.get(t.responsavel_execucao_id) : null;
       const isPurchase = (t.observacoes || '').includes('[COMPRA]') || (t.description || '').toLowerCase().includes('[compra]');
       const isCompleted = t.status === 'Concluída';
-      const isDelayed = !isCompleted && t.data_fim_prevista && t.data_fim_prevista < todayStr;
+      const isDelayed = !isCompleted && !!t.data_fim_prevista && t.data_fim_prevista < todayStr;
       const isTodayTask = t.data_fim_prevista === todayStr;
       const isTomorrowTask = t.data_fim_prevista === tomorrowStr;
       const isUpcomingTask = !isCompleted && !!t.data_fim_prevista && t.data_fim_prevista > tomorrowStr;
 
-      // Cálculo de quantos dias faltam (ou passaram)
       let daysDiff: number | null = null;
       if (t.data_fim_prevista) {
         const targetD = new Date(t.data_fim_prevista + 'T00:00:00');
@@ -689,10 +682,34 @@ export const Tarefas: React.FC = () => {
     });
   }, [allTasks, projectsMap, collaboratorsMap, todayStr, tomorrowStr]);
 
-  // Filtragem por Obra e Busca
+  // Atualizar selectedTask se enrichedTasks mudar (após mutações)
+  useEffect(() => {
+    if (selectedTask) {
+      const updated = enrichedTasks.find(t => t.id === selectedTask.id);
+      if (updated) {
+        setSelectedTask(updated);
+      }
+    }
+  }, [enrichedTasks]);
+
+  // Contagem de filtros ativos
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filters.project_id) count++;
+    if (filters.responsavel_id) count++;
+    if (filters.prioridade !== 'all') count++;
+    if (filters.start_date || filters.end_date) count++;
+    return count;
+  }, [filters]);
+
+  // Filtragem por Obra, Responsável, Prioridade, Período e Busca
   const filteredTasks = useMemo(() => {
-    return enrichedTasks.filter(t => {
-      if (selectedProjectFilter !== 'all' && t.project_id !== selectedProjectFilter) return false;
+    return enrichedTasks.filter((t) => {
+      if (filters.project_id && t.project_id !== filters.project_id) return false;
+      if (filters.responsavel_id && t.responsavel_execucao_id !== filters.responsavel_id) return false;
+      if (filters.prioridade !== 'all' && t.prioridade !== filters.prioridade) return false;
+      if (filters.start_date && t.data_fim_prevista && t.data_fim_prevista < filters.start_date) return false;
+      if (filters.end_date && t.data_fim_prevista && t.data_fim_prevista > filters.end_date) return false;
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
         const matchTitle = (t.title || '').toLowerCase().includes(term);
@@ -702,7 +719,7 @@ export const Tarefas: React.FC = () => {
       }
       return true;
     });
-  }, [enrichedTasks, selectedProjectFilter, searchTerm]);
+  }, [enrichedTasks, filters, searchTerm]);
 
   // Aba 1: Hoje & Amanhã (inclui Atrasadas e tarefas sem data)
   const todayAndTomorrowTasks = useMemo(() => {
@@ -739,10 +756,9 @@ export const Tarefas: React.FC = () => {
       severity: 'warning' | 'info' | 'critical';
     }> = [];
 
-    // 1. Serviços com prazo próximo ou vencido
     const today = new Date();
     activeServices.forEach(srv => {
-      if (selectedProjectFilter !== 'all' && srv.project_id !== selectedProjectFilter) return;
+      if (filters.project_id && srv.project_id !== filters.project_id) return;
 
       const pName = srv.project_id ? projectsMap.get(srv.project_id)?.name : 'Geral';
       const cName = srv.collaborator_id ? collaboratorsMap.get(srv.collaborator_id)?.name : 'Empreiteiro';
@@ -766,7 +782,6 @@ export const Tarefas: React.FC = () => {
       }
     });
 
-    // 2. Notas com IA pendente
     if (pendingAiCount > 0) {
       alerts.push({
         id: 'ai-notes-pending',
@@ -777,9 +792,8 @@ export const Tarefas: React.FC = () => {
       });
     }
 
-    // 3. Etapas de orçamento em execução no canteiro
     activeOrcamentoEtapas.forEach(etp => {
-      if (selectedProjectFilter !== 'all' && etp.project_id !== selectedProjectFilter) return;
+      if (filters.project_id && etp.project_id !== filters.project_id) return;
       const pName = projectsMap.get(etp.project_id)?.name || 'Obra';
       alerts.push({
         id: `etp-${etp.id}`,
@@ -793,7 +807,7 @@ export const Tarefas: React.FC = () => {
     });
 
     return alerts;
-  }, [activeServices, pendingAiCount, activeOrcamentoEtapas, selectedProjectFilter, projectsMap, collaboratorsMap]);
+  }, [activeServices, pendingAiCount, activeOrcamentoEtapas, filters.project_id, projectsMap, collaboratorsMap]);
 
   // Contadores para as Abas
   const counts = useMemo(() => ({
@@ -803,6 +817,76 @@ export const Tarefas: React.FC = () => {
     alerts: autoAlerts.length,
     completed: completedTasks.length,
   }), [todayAndTomorrowTasks, upcomingTasks, purchaseTasks, autoAlerts, completedTasks]);
+
+  // Tarefas da Aba Ativa (ordenadas por prazo)
+  const activeTabTasks = useMemo(() => {
+    let list: EnrichedTask[] = [];
+    if (activeTab === 'today') list = todayAndTomorrowTasks;
+    else if (activeTab === 'upcoming') list = upcomingTasks;
+    else if (activeTab === 'purchases') list = purchaseTasks;
+    else if (activeTab === 'completed') list = completedTasks;
+
+    return [...list].sort((a, b) => {
+      if (a.data_fim_prevista && b.data_fim_prevista) {
+        return a.data_fim_prevista.localeCompare(b.data_fim_prevista);
+      }
+      if (a.data_fim_prevista && !b.data_fim_prevista) return -1;
+      if (!a.data_fim_prevista && b.data_fim_prevista) return 1;
+      return (b.created_at || '').localeCompare(a.created_at || '');
+    });
+  }, [activeTab, todayAndTomorrowTasks, upcomingTasks, purchaseTasks, completedTasks]);
+
+  // Navegação Sequencial no Painel de Detalhes
+  const selectedTaskIndex = useMemo(() => {
+    if (!selectedTask) return -1;
+    return activeTabTasks.findIndex(t => t.id === selectedTask.id);
+  }, [selectedTask, activeTabTasks]);
+
+  const hasPrevTask = selectedTaskIndex > 0;
+  const hasNextTask = selectedTaskIndex >= 0 && selectedTaskIndex < activeTabTasks.length - 1;
+
+  const handlePrevTask = useCallback(() => {
+    if (hasPrevTask) {
+      setSelectedTask(activeTabTasks[selectedTaskIndex - 1]);
+    }
+  }, [hasPrevTask, selectedTaskIndex, activeTabTasks]);
+
+  const handleNextTask = useCallback(() => {
+    if (hasNextTask) {
+      setSelectedTask(activeTabTasks[selectedTaskIndex + 1]);
+    }
+  }, [hasNextTask, selectedTaskIndex, activeTabTasks]);
+
+  // Atalhos de Teclado no Split View (↑ / ↓ para navegar, Esc para fechar)
+  useEffect(() => {
+    if (!selectedTask || !isDesktop) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      if (['input', 'textarea', 'select'].includes(activeTag)) return;
+
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        handlePrevTask();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        handleNextTask();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setSelectedTask(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedTask, isDesktop, handlePrevTask, handleNextTask]);
+
+  // Acompanhar linha selecionada com scroll automático
+  useEffect(() => {
+    if (!selectedTask) return;
+    const el = document.getElementById(`task-row-${selectedTask.id}`);
+    if (el) {
+      el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+    }
+  }, [selectedTask?.id]);
 
   // -------------------------------------------------------------
   // GERAÇÃO DA PAUTA DO WHATSAPP (LIVE PREVIEW)
@@ -836,7 +920,7 @@ export const Tarefas: React.FC = () => {
     return d;
   }, [previewDateMode]);
 
-  const selectedProjName = selectedProjectFilter !== 'all' ? projectsMap.get(selectedProjectFilter)?.name : undefined;
+  const selectedProjName = filters.project_id ? projectsMap.get(filters.project_id)?.name : undefined;
 
   const formattedWhatsAppText = useMemo(() => {
     return generateWhatsAppSchedule({
@@ -847,7 +931,6 @@ export const Tarefas: React.FC = () => {
     });
   }, [whatsappTasks, targetDateObj, previewDateMode, selectedProjName]);
 
-  // Progresso diário
   const dailyProgress = useMemo(() => {
     if (whatsappTasks.length === 0) return 0;
     const completedCount = whatsappTasks.filter(t => t.status === 'Concluída').length;
@@ -857,8 +940,6 @@ export const Tarefas: React.FC = () => {
   // -------------------------------------------------------------
   // MUTATIONS (CRIAR, TOGGLE, REAGENDAR, EXCLUIR)
   // -------------------------------------------------------------
-
-  // 1. Criar Tarefa Ultrarrápida pela Barra
   const createQuickTaskMutation = useMutation({
     mutationFn: async (parsed: ParsedTaskResult) => {
       if (!profile?.company_id) throw new Error('Empresa não identificada');
@@ -867,21 +948,24 @@ export const Tarefas: React.FC = () => {
       const targetProjectId = parsed.project_id || projects[0]?.id;
       if (!targetProjectId) throw new Error('Cadastre pelo menos uma obra para vincular a tarefa');
 
-      const insertPayload: any = {
+      const insertPayload = {
         company_id: profile.company_id,
         project_id: targetProjectId,
         title: parsed.title.trim(),
         description: parsed.isPurchase ? '[COMPRA] Item para cotação e compra rápida' : '',
-        status: 'Planejada',
-        prioridade: parsed.isPurchase ? 'Alta' : 'Média',
+        status: 'Planejada' as const,
+        prioridade: parsed.isPurchase ? ('Alta' as const) : ('Média' as const),
         responsavel_execucao_id: parsed.responsavel_execucao_id || null,
         data_inicio_prevista: parsed.data_fim_prevista,
         data_fim_prevista: parsed.data_fim_prevista,
         observacoes: parsed.isPurchase ? '[COMPRA]' : null,
-        created_by: user?.id,
+        materiais_previstos: null,
+        equipamentos_utilizados: null,
+        custo_real: 0,
+        created_by: user?.id || '',
       };
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('tasks')
         .insert(insertPayload)
         .select()
@@ -907,11 +991,10 @@ export const Tarefas: React.FC = () => {
     },
   });
 
-  // 2. Toggle Status (Concluída <-> Planejada)
   const toggleTaskStatusMutation = useMutation({
     mutationFn: async ({ taskId, newStatus }: { taskId: string; newStatus: 'Concluída' | 'Planejada' }) => {
       if (!profile?.company_id) return;
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('tasks')
         .update({ status: newStatus })
         .eq('id', taskId)
@@ -930,11 +1013,10 @@ export const Tarefas: React.FC = () => {
     },
   });
 
-  // 3. Reagendar Data Rápida (Hoje / Amanhã)
   const rescheduleTaskMutation = useMutation({
     mutationFn: async ({ taskId, newDate }: { taskId: string; newDate: string }) => {
       if (!profile?.company_id) return;
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('tasks')
         .update({
           data_inicio_prevista: newDate,
@@ -951,11 +1033,10 @@ export const Tarefas: React.FC = () => {
     },
   });
 
-  // 4. Excluir Tarefa
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
       if (!profile?.company_id) return;
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('tasks')
         .delete()
         .eq('id', taskId)
@@ -965,6 +1046,9 @@ export const Tarefas: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       setTaskToDelete(null);
+      if (selectedTask?.id === taskToDelete?.id) {
+        setSelectedTask(null);
+      }
       toast({ title: 'Excluído', description: 'Pendência removida do sistema.' });
     },
     onError: (err) => {
@@ -976,8 +1060,7 @@ export const Tarefas: React.FC = () => {
     },
   });
 
-  // 5. Transformar Alerta Automático em Tarefa Real
-  const convertAlertToTask = (alert: any) => {
+  const convertAlertToTask = (alert: { id: string; title: string; project_id?: string; date?: string }) => {
     const targetDate = alert.date || todayStr;
     createQuickTaskMutation.mutate({
       raw: alert.title,
@@ -991,14 +1074,6 @@ export const Tarefas: React.FC = () => {
     });
   };
 
-  // Submeter formulário rápido
-  const handleQuickSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!quickInputText.trim()) return;
-    createQuickTaskMutation.mutate(parsedPreview);
-  };
-
-  // Handlers de Envio para WhatsApp
   const handleCopyWhatsApp = async () => {
     const success = await copyTextToClipboard(formattedWhatsAppText);
     if (success) {
@@ -1024,243 +1099,21 @@ export const Tarefas: React.FC = () => {
     openOfficialGroupLink();
   };
 
-  // -------------------------------------------------------------
-  // RENDERIZAÇÃO DE CARDS AGRUPADOS POR OBRA
-  // -------------------------------------------------------------
-  const renderTasksGroupedByProject = (taskList: typeof enrichedTasks, isPurchasesView = false) => {
-    if (taskList.length === 0) {
-      return (
-        <div className="py-16 text-center bg-white dark:bg-[#111827] border border-dashed border-slate-200 dark:border-gray-800 rounded-2xl p-6">
-          <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-3">
-            <CheckCircle2Icon className="h-6 w-6" />
-          </div>
-          <h3 className="text-sm font-bold text-slate-800 dark:text-white">
-            {isPurchasesView ? 'Nenhum material pendente de compra!' : 'Tudo em dia nesta visão!'}
-          </h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
-            {isPurchasesView
-              ? 'Digite itens como "Comprar 20 sacos de cimento" na barra acima para alimentar a lista de compras.'
-              : 'Use a barra rápida acima para programar o canteiro ou consulte as outras abas.'}
-          </p>
-        </div>
-      );
+  const handleSelectTask = (task: EnrichedTask) => {
+    setSelectedTask(task);
+    if (!isDesktop) {
+      setIsMobileDetailDrawerOpen(true);
     }
+  };
 
-    // Agrupar por Obra
-    const groups = new Map<string, typeof taskList>();
-    taskList.forEach(t => {
-      const pId = t.project_id || 'unassigned';
-      const arr = groups.get(pId) || [];
-      arr.push(t);
-      groups.set(pId, arr);
-    });
+  const handleOpenEditDrawer = (task: Task) => {
+    setTaskToEdit(task);
+    setIsFormDrawerOpen(true);
+  };
 
-    return (
-      <div className="space-y-4">
-        {Array.from(groups.entries()).map(([pId, pTasks]) => {
-          const pName = projectsMap.get(pId)?.name || 'Geral / Sem Obra Vinculada';
-          const completedInGroup = pTasks.filter(t => t.isCompleted).length;
-
-          return (
-            <div
-              key={pId}
-              className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl overflow-hidden shadow-xs"
-            >
-              {/* Cabeçalho da Obra */}
-              <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-900/40 border-b border-slate-100 dark:border-gray-800/80 flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-6 h-6 rounded-md bg-indigo-100 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                    <ConstructionIcon className="h-3.5 w-3.5" />
-                  </div>
-                  <h3 className="text-xs font-bold text-slate-800 dark:text-white truncate">
-                    {pName}
-                  </h3>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-gray-300">
-                    {completedInGroup}/{pTasks.length} concluídas
-                  </span>
-                </div>
-
-                {/* Atalho para adicionar rápido nesta obra */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuickInputText(`${pName}: `);
-                    if (inputRef.current) inputRef.current.focus();
-                  }}
-                  className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                >
-                  + Adicionar nesta obra
-                </button>
-              </div>
-
-              {/* Lista de Tarefas do Grupo */}
-              <div className="divide-y divide-slate-100 dark:divide-gray-800/60">
-                {pTasks.map(task => {
-                  const isDone = task.isCompleted;
-
-                  return (
-                    <div
-                      key={task.id}
-                      className={`group p-3 sm:px-4 transition-all flex items-start sm:items-center justify-between gap-3 ${
-                        isDone
-                          ? 'bg-slate-50/40 dark:bg-slate-900/20 opacity-60'
-                          : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/30'
-                      }`}
-                    >
-                      {/* Checkbox e Título */}
-                      <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                        <button
-                          type="button"
-                          onClick={() => toggleTaskStatusMutation.mutate({
-                            taskId: task.id,
-                            newStatus: isDone ? 'Planejada' : 'Concluída',
-                          })}
-                          className={`mt-0.5 sm:mt-0 w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                            isDone
-                              ? 'bg-emerald-500 border-emerald-500 text-white shadow-xs'
-                              : 'border-slate-300 dark:border-gray-600 bg-white dark:bg-slate-800 hover:border-indigo-500'
-                          }`}
-                          title={isDone ? 'Marcar como pendente' : 'Marcar como concluída'}
-                        >
-                          {isDone && <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />}
-                        </button>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span
-                              className={`text-xs font-semibold ${
-                                isDone
-                                  ? 'line-through text-slate-400 dark:text-gray-500'
-                                  : 'text-slate-800 dark:text-white'
-                              }`}
-                            >
-                              {task.title}
-                            </span>
-
-                            {/* Badge de Compra de Material */}
-                            {task.isPurchase && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300">
-                                <ShoppingBagIcon className="h-2.5 w-2.5" /> Compra
-                              </span>
-                            )}
-
-                            {/* Badge de Responsável */}
-                            {task.collaboratorName && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300">
-                                <UserIcon className="h-2.5 w-2.5" /> {task.collaboratorName}
-                              </span>
-                            )}
-
-                            {/* Badge de Prazo Inteligente */}
-                            {task.isDelayed ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300">
-                                ⚠️ Atrasada ({task.data_fim_prevista ? new Date(task.data_fim_prevista + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : ''})
-                              </span>
-                            ) : task.isTodayTask ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                🚨 HOJE
-                              </span>
-                            ) : task.isTomorrowTask ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300">
-                                ⏰ AMANHÃ
-                              </span>
-                            ) : task.isUpcomingTask ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300">
-                                🗓️ {task.daysDiff !== null ? `Em ${task.daysDiff} dias` : ''} ({task.data_fim_prevista ? new Date(task.data_fim_prevista + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : ''})
-                              </span>
-                            ) : null}
-                          </div>
-
-                          {task.description && (
-                            <p className="text-[11px] text-slate-400 dark:text-gray-400 truncate mt-0.5">
-                              {task.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Ações Rápidas no Hover */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        {/* Seletor Rápido de Calendário */}
-                        {!isDone && (
-                          <div className="relative inline-flex items-center">
-                            <input
-                              type="date"
-                              value={task.data_fim_prevista || ''}
-                              onChange={(e) => {
-                                const newDate = e.target.value;
-                                if (newDate) {
-                                  rescheduleTaskMutation.mutate({ taskId: task.id, newDate });
-                                }
-                              }}
-                              className="w-7 h-7 opacity-0 absolute inset-0 cursor-pointer z-10"
-                              title="Alterar data no calendário"
-                            />
-                            <div
-                              className="p-1 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer flex items-center"
-                              title="Escolher data no calendário"
-                            >
-                              <CalendarIcon className="h-3.5 w-3.5" />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Botão Reagendar para Hoje */}
-                        {!task.isTodayTask && !isDone && (
-                          <button
-                            type="button"
-                            onClick={() => rescheduleTaskMutation.mutate({ taskId: task.id, newDate: todayStr })}
-                            className="hidden sm:inline-flex px-1.5 py-1 text-[10px] font-semibold text-slate-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer transition-colors"
-                            title="Mover prazo para Hoje"
-                          >
-                            P/ Hoje
-                          </button>
-                        )}
-
-                        {/* Botão Reagendar para Amanhã */}
-                        {!task.isTomorrowTask && !isDone && (
-                          <button
-                            type="button"
-                            onClick={() => rescheduleTaskMutation.mutate({ taskId: task.id, newDate: tomorrowStr })}
-                            className="hidden sm:inline-flex px-1.5 py-1 text-[10px] font-semibold text-slate-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer transition-colors"
-                            title="Mover prazo para Amanhã"
-                          >
-                            P/ Amanhã
-                          </button>
-                        )}
-
-                        {/* Editar */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTaskToEdit(task);
-                            setIsCreateModalOpen(true);
-                          }}
-                          className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                          title="Editar tarefa completa"
-                        >
-                          <EditIcon className="h-3.5 w-3.5" />
-                        </button>
-
-                        {/* Excluir */}
-                        <button
-                          type="button"
-                          onClick={() => setTaskToDelete(task)}
-                          className="p-1 rounded text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
-                          title="Excluir tarefa"
-                        >
-                          <Trash2Icon className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
+  const handleTabChange = (tab: TarefasTab) => {
+    setActiveTab(tab);
+    setSelectedTask(null);
   };
 
   return (
@@ -1288,23 +1141,6 @@ export const Tarefas: React.FC = () => {
 
         {/* Botões do Topo */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Seletor Rápido de Obra */}
-          <div className="flex items-center gap-1.5 bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-lg px-2.5 py-1 text-xs shadow-2xs">
-            <BuildingIcon className="h-3.5 w-3.5 text-slate-400" />
-            <select
-              value={selectedProjectFilter}
-              onChange={(e) => setSelectedProjectFilter(e.target.value)}
-              className="bg-transparent text-slate-700 dark:text-gray-200 font-semibold focus:outline-none cursor-pointer text-xs"
-            >
-              <option value="all">Todas as Obras ({projects.length})</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Botão de Notificações / Lembretes */}
           <button
             type="button"
@@ -1325,7 +1161,7 @@ export const Tarefas: React.FC = () => {
             )}
           </button>
 
-          {/* Botão Oficial do Grupo WhatsApp da Construtora */}
+          {/* Botão Oficial do Grupo WhatsApp */}
           <button
             type="button"
             onClick={openOfficialGroupLink}
@@ -1336,25 +1172,12 @@ export const Tarefas: React.FC = () => {
             <span>Grupo WhatsApp</span>
           </button>
 
-          {/* Botão Nova Tarefa Completa */}
-          <Button
-            size="sm"
-            onClick={() => {
-              setTaskToEdit(null);
-              setIsCreateModalOpen(true);
-            }}
-            className="h-8 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-gray-200 border border-slate-200 dark:border-gray-700 cursor-pointer"
-          >
-            <PlusIcon className="h-3.5 w-3.5 mr-1" />
-            <span>+ Detalhado</span>
-          </Button>
-
           {/* Botão Ver Pauta no Mobile */}
           <div className="lg:hidden">
             <Button
               size="sm"
               onClick={() => setIsMobileWhatsappPreviewOpen(true)}
-              className="h-8 text-xs bg-indigo-600 text-white"
+              className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
             >
               <CopyIcon className="h-3.5 w-3.5 mr-1" />
               <span>Ver Pauta</span>
@@ -1367,7 +1190,6 @@ export const Tarefas: React.FC = () => {
       {/* 2. COPILOTO JPL — CHAT & VOZ WHATSAPP-STYLE COM GEMINI IA  */}
       {/* ========================================================= */}
       <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">
-        {/* Cabeçalho do Copiloto */}
         <div className="p-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0">
@@ -1396,10 +1218,8 @@ export const Tarefas: React.FC = () => {
           </button>
         </div>
 
-        {/* Corpo do Chat (Estilo WhatsApp) */}
         {isChatExpanded && (
           <div className="flex flex-col">
-            {/* Área de Mensagens com Fundo WhatsApp */}
             <div className="p-3.5 bg-[#EFEAE2]/60 dark:bg-[#0D1418] max-h-[320px] min-h-[120px] overflow-y-auto custom-scrollbar space-y-3">
               {chatMessages.length === 0 && !isProcessingAudioIA && !isRecordingAudio && (
                 <div className="py-6 text-center text-xs text-slate-400 dark:text-gray-500">
@@ -1422,7 +1242,6 @@ export const Tarefas: React.FC = () => {
                     >
                       <p className="whitespace-pre-wrap font-sans">{msg.text}</p>
 
-                      {/* Card de Revisão antes de Gravar na Ação do Usuário */}
                       {msg.review && (
                         <CopilotReviewCard
                           review={msg.review}
@@ -1432,7 +1251,6 @@ export const Tarefas: React.FC = () => {
                         />
                       )}
 
-                      {/* Cards Interativos de Ações Executadas pela IA */}
                       {msg.cards && msg.cards.length > 0 && (
                         <div className="mt-2.5 space-y-2 pt-2 border-t border-slate-100 dark:border-gray-700/60">
                           {msg.cards.map((card, idx) => (
@@ -1473,7 +1291,6 @@ export const Tarefas: React.FC = () => {
                 );
               })}
 
-              {/* Indicador de "Digitando / Processando IA" */}
               {isProcessingAudioIA && (
                 <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white dark:bg-[#1F2C34] border border-slate-200/80 dark:border-gray-700/60 max-w-[240px] text-xs text-slate-600 dark:text-gray-300 animate-pulse shadow-2xs">
                   <SparklesIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400 animate-spin" />
@@ -1484,7 +1301,6 @@ export const Tarefas: React.FC = () => {
               <div ref={chatBottomRef} />
             </div>
 
-            {/* Barra de Gravação de Áudio Ativa (MediaRecorder com timer) */}
             {isRecordingAudio && (
               <div className="px-3.5 py-2.5 bg-rose-500/10 border-t border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -1521,9 +1337,7 @@ export const Tarefas: React.FC = () => {
               </div>
             )}
 
-            {/* Barra de Entrada estilo WhatsApp */}
             <div className="p-2.5 bg-slate-50 dark:bg-[#111827] border-t border-slate-200/80 dark:border-gray-800 flex items-center gap-2">
-              {/* Botão de Microfone */}
               <button
                 type="button"
                 onClick={isRecordingAudio ? stopAudioRecording : startAudioRecording}
@@ -1537,7 +1351,6 @@ export const Tarefas: React.FC = () => {
                 {isRecordingAudio ? <MicOffIcon className="h-4 w-4" /> : <MicIcon className="h-4 w-4" />}
               </button>
 
-              {/* Campo de Texto Estilo WhatsApp */}
               <input
                 type="text"
                 value={chatInputText}
@@ -1553,7 +1366,6 @@ export const Tarefas: React.FC = () => {
                 className="flex-1 h-10 px-3 text-xs sm:text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-gray-700 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all disabled:opacity-50"
               />
 
-              {/* Botão de Enviar (Aviãozinho) */}
               <button
                 type="button"
                 onClick={() => handleSendCopilotTextMessage()}
@@ -1569,328 +1381,443 @@ export const Tarefas: React.FC = () => {
       </div>
 
       {/* ========================================================= */}
-      {/* 3. BARRA DE ABAS & BUSCA                                  */}
+      {/* 3. BARRA DE ABAS, BUSCA, FILTROS E NOVA TAREFA            */}
       {/* ========================================================= */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-        {/* Abas */}
-        <div className="inline-flex rounded-xl bg-slate-100 dark:bg-[#111827] p-1 border border-slate-200/80 dark:border-gray-800 text-xs font-semibold overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab('today')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-              activeTab === 'today'
-                ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
-                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
-            }`}
-          >
-            <span>📅 Hoje & Amanhã</span>
-            {counts.today > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-[10px]">
-                {counts.today}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('upcoming')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-              activeTab === 'upcoming'
-                ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
-                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
-            }`}
-          >
-            <span>🗓️ Programadas</span>
-            {counts.upcoming > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 text-[10px]">
-                {counts.upcoming}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('purchases')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-              activeTab === 'purchases'
-                ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
-                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
-            }`}
-          >
-            <span>🛒 Lista de Compras</span>
-            {counts.purchases > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 text-[10px]">
-                {counts.purchases}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('alerts')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-              activeTab === 'alerts'
-                ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
-                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
-            }`}
-          >
-            <span>⚠️ Alertas Automáticos</span>
-            {counts.alerts > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 text-[10px]">
-                {counts.alerts}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('completed')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-              activeTab === 'completed'
-                ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
-                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
-            }`}
-          >
-            <span>✅ Concluídas</span>
-            {counts.completed > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 dark:bg-gray-800 dark:text-gray-300 text-[10px]">
-                {counts.completed}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Campo de Busca Rápida */}
-        <div className="relative w-full sm:w-64">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Filtrar pendências..."
-            className="w-full h-8 pl-8 pr-3 text-xs bg-white dark:bg-[#111827] border border-slate-200 dark:border-gray-800 rounded-lg text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-          <FilterIcon className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-          {searchTerm && (
+      <div className="space-y-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-t-xl px-4 py-3 shadow-xs">
+          {/* Abas */}
+          <div className="inline-flex rounded-xl bg-slate-100 dark:bg-brand-dark-900 p-1 border border-slate-200/80 dark:border-gray-800 text-xs font-semibold overflow-x-auto">
             <button
               type="button"
-              onClick={() => setSearchTerm('')}
-              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+              onClick={() => handleTabChange('today')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'today'
+                  ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
+              }`}
             >
-              <XIcon className="h-3 w-3" />
+              <span>📅 Hoje & Amanhã</span>
+              {counts.today > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-[10px]">
+                  {counts.today}
+                </span>
+              )}
             </button>
-          )}
-        </div>
-      </div>
 
-      {/* ========================================================= */}
-      {/* 4. ÁREA PRINCIPAL: SPLIT VIEW (DESKTOP)                   */}
-      {/* ========================================================= */}
-      <div className="flex flex-col lg:flex-row items-start gap-4">
-        {/* ------------------------------------------------------- */}
-        {/* LADO ESQUERDO: LISTAS DE PENDÊNCIAS E CARDS (58%)       */}
-        {/* ------------------------------------------------------- */}
-        <div className="w-full lg:w-[58%] xl:w-[60%] shrink-0 space-y-4">
-          {isLoadingTasks ? (
-            <div className="py-20 text-center text-slate-400 text-xs">
-              Carregando pendências e programação do canteiro...
+            <button
+              type="button"
+              onClick={() => handleTabChange('upcoming')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'upcoming'
+                  ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
+              }`}
+            >
+              <span>🗓️ Programadas</span>
+              {counts.upcoming > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 text-[10px]">
+                  {counts.upcoming}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange('purchases')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'purchases'
+                  ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
+              }`}
+            >
+              <span>🛒 Lista de Compras</span>
+              {counts.purchases > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 text-[10px]">
+                  {counts.purchases}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange('alerts')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'alerts'
+                  ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
+              }`}
+            >
+              <span>⚠️ Alertas Automáticos</span>
+              {counts.alerts > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 text-[10px]">
+                  {counts.alerts}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange('completed')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'completed'
+                  ? 'bg-white dark:bg-[#1F2937] text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-gray-400 hover:text-slate-900'
+              }`}
+            >
+              <span>✅ Concluídas</span>
+              {counts.completed > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 dark:bg-gray-800 dark:text-gray-300 text-[10px]">
+                  {counts.completed}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Direita: Busca, Filtros e Nova Tarefa */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative w-48 sm:w-56">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Filtrar pendências..."
+                className="w-full h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-brand-dark-800/80 border border-slate-200 dark:border-gray-700 rounded-lg text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <FilterIcon className="absolute left-2.5 top-2.5 h-3 w-3 text-slate-400" />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                >
+                  <XIcon className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
-          ) : activeTab === 'today' ? (
-            renderTasksGroupedByProject(todayAndTomorrowTasks, false)
-          ) : activeTab === 'upcoming' ? (
-            upcomingTasks.length === 0 ? (
-              <div className="py-16 text-center bg-white dark:bg-[#111827] border border-dashed border-slate-200 dark:border-gray-800 rounded-2xl p-6">
-                <div className="w-12 h-12 mx-auto rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-3">
-                  <ClockIcon className="h-6 w-6" />
+
+            {/* Botão Filtros */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFilterDrawerOpen(true)}
+              className="h-8 px-3 text-xs font-semibold border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-brand-dark-800 text-slate-700 dark:text-gray-300 gap-1.5 cursor-pointer"
+            >
+              <FilterIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Filtros</span>
+              {activeFiltersCount > 0 && (
+                <span className="ml-1 flex items-center justify-center h-4.5 min-w-[18px] px-1 text-[10px] font-bold rounded-full bg-emerald-600 text-white">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </Button>
+
+            {/* Botão Nova Tarefa */}
+            <Button
+              size="sm"
+              onClick={() => {
+                setTaskToEdit(null);
+                setIsFormDrawerOpen(true);
+              }}
+              className="h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs cursor-pointer"
+            >
+              <PlusIcon className="h-3.5 w-3.5" />
+              <span>+ Nova Tarefa</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Faixa de Filtros Ativos (se houver) */}
+        {activeFiltersCount > 0 && (
+          <div className="flex items-center justify-between gap-3 bg-emerald-50/60 dark:bg-emerald-950/20 border-x border-b border-emerald-200/80 dark:border-emerald-900/40 px-4 py-2 text-xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                <FilterIcon className="h-3.5 w-3.5" /> Filtros ativos ({activeFiltersCount}):
+              </span>
+              {filters.project_id && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                  Obra: {projectsMap.get(filters.project_id)?.name || 'Obra'}
+                </span>
+              )}
+              {filters.responsavel_id && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                  Responsável: {collaboratorsMap.get(filters.responsavel_id)?.name || 'Responsável'}
+                </span>
+              )}
+              {filters.prioridade !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                  Prioridade: {filters.prioridade}
+                </span>
+              )}
+              {(filters.start_date || filters.end_date) && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-medium text-xs">
+                  Período: {filters.start_date ? formatDateBR(filters.start_date) : 'Início'} até {filters.end_date ? formatDateBR(filters.end_date) : 'Hoje'}
+                </span>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setFilters(initialFilters)}
+              className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline h-7 px-2 font-semibold cursor-pointer"
+            >
+              Limpar todos
+            </Button>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* 4. ÁREA PRINCIPAL: TABELA + PAINEL DE DETALHE             */}
+        {/* ========================================================= */}
+        {activeTab === 'alerts' ? (
+          /* ABA ALERTAS: LISTA PRÓPRIA, SEM TABELA E SEM PAINEL */
+          <div className="p-4 bg-white dark:bg-[#111827] rounded-b-xl border-x border-b border-slate-200/80 dark:border-gray-800 shadow-xs space-y-3">
+            {autoAlerts.length === 0 ? (
+              <div className="py-16 text-center bg-slate-50/50 dark:bg-brand-dark-900/50 border border-dashed border-slate-200 dark:border-gray-800 rounded-2xl p-6">
+                <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-3">
+                  <CheckCircle2Icon className="h-6 w-6" />
                 </div>
                 <h3 className="text-sm font-bold text-slate-800 dark:text-white">
-                  Nenhuma pendência futura programada
+                  Nenhum alerta pendente nos outros módulos!
                 </h3>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
-                  Agende pendências para datas futuras (ex: dia 30/10). Quando chegar a véspera, ela entrará automaticamente na pauta do canteiro!
+                  Todos os contratos de serviços, notas e etapas estão dentro dos prazos operacionais.
                 </p>
               </div>
             ) : (
-              renderTasksGroupedByProject(upcomingTasks, false)
-            )
-          ) : activeTab === 'purchases' ? (
-            renderTasksGroupedByProject(purchaseTasks, true)
-          ) : activeTab === 'alerts' ? (
-            /* ABA 3: ALERTAS AUTOMÁTICOS DERIVADOS DE OUTROS MÓDULOS */
-            <div className="space-y-3">
-              {autoAlerts.length === 0 ? (
-                <div className="py-16 text-center bg-white dark:bg-[#111827] border border-dashed border-slate-200 dark:border-gray-800 rounded-2xl p-6">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-3">
-                    <CheckCircle2Icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-white">
-                    Nenhum alerta pendente nos outros módulos!
-                  </h3>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
-                    Todos os contratos de serviços, notas e etapas estão dentro dos prazos operacionais.
-                  </p>
-                </div>
-              ) : (
-                autoAlerts.map(alert => (
-                  <div
-                    key={alert.id}
-                    className="p-3.5 rounded-xl border bg-white dark:bg-[#111827] border-slate-200/80 dark:border-gray-800 flex items-start justify-between gap-3 shadow-xs"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${
+              autoAlerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className="p-3.5 rounded-xl border bg-slate-50/70 dark:bg-[#1F2937]/50 border-slate-200/80 dark:border-gray-800 flex items-start justify-between gap-3 shadow-xs"
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div
+                      className={`p-2 rounded-lg shrink-0 mt-0.5 ${
                         alert.severity === 'critical'
                           ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'
                           : alert.severity === 'warning'
                           ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
                           : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400'
-                      }`}>
-                        <AlertTriangleIcon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="text-xs font-bold text-slate-800 dark:text-white block">
-                          {alert.title}
-                        </span>
-                        <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5">
-                          {alert.subtitle}
-                        </p>
-                      </div>
+                      }`}
+                    >
+                      <AlertTriangleIcon className="h-4 w-4" />
                     </div>
-
-                    {/* Botão de Ação do Alerta */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {alert.type === 'nota' ? (
-                        <Button
-                          size="sm"
-                          onClick={() => navigate('/notas')}
-                          className="h-7 text-xs bg-indigo-600 text-white cursor-pointer"
-                        >
-                          Ir p/ Notas
-                        </Button>
-                      ) : alert.type === 'servico' ? (
-                        <Button
-                          size="sm"
-                          onClick={() => convertAlertToTask(alert)}
-                          className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer font-bold"
-                          title="Transformar este alerta em uma tarefa oficial no canteiro"
-                        >
-                          + Criar Tarefa
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => navigate('/orcamentos')}
-                          className="h-7 text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-gray-200 cursor-pointer"
-                        >
-                          Ver Orçamento
-                        </Button>
-                      )}
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-slate-800 dark:text-white block">
+                        {alert.title}
+                      </span>
+                      <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5">
+                        {alert.subtitle}
+                      </p>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          ) : (
-            /* ABA 4: CONCLUÍDAS */
-            renderTasksGroupedByProject(completedTasks, false)
-          )}
-        </div>
 
-        {/* ------------------------------------------------------- */}
-        {/* LADO DIREITO: LIVE PREVIEW WHATSAPP (40% - 42%)         */}
-        {/* ------------------------------------------------------- */}
-        <div className="hidden lg:flex w-full lg:w-[42%] xl:w-[40%] flex-col space-y-3 sticky top-4">
-          <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">
-            {/* Cabeçalho do Card WhatsApp */}
-            <div className="p-3.5 bg-emerald-600 dark:bg-emerald-700 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <SendIcon className="h-4 w-4" />
-                <h3 className="text-xs font-bold">Pauta Diária para o WhatsApp</h3>
-              </div>
-
-              {/* Alternador de Data: Hoje vs Amanhã */}
-              <div className="inline-flex rounded-lg bg-emerald-700/80 p-0.5 text-[11px] font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setPreviewDateMode('today')}
-                  className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
-                    previewDateMode === 'today'
-                      ? 'bg-white text-emerald-800 font-bold shadow-xs'
-                      : 'text-emerald-100 hover:text-white'
-                  }`}
-                >
-                  Hoje
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewDateMode('tomorrow')}
-                  className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
-                    previewDateMode === 'tomorrow'
-                      ? 'bg-white text-emerald-800 font-bold shadow-xs'
-                      : 'text-emerald-100 hover:text-white'
-                  }`}
-                >
-                  Amanhã
-                </button>
-              </div>
-            </div>
-
-            {/* Barra de Progresso Diário */}
-            <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900/40 border-b border-slate-100 dark:border-gray-800 flex items-center justify-between text-xs">
-              <span className="text-[11px] font-medium text-slate-500 dark:text-gray-400">
-                Progresso ({previewDateMode === 'today' ? 'Hoje' : 'Amanhã'}):
-              </span>
-              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                {dailyProgress}% concluído
-              </span>
-            </div>
-
-            {/* Balão de Mensagem Estilo WhatsApp (Live Preview) */}
-            <div className="p-3.5 bg-[#EFEAE2]/60 dark:bg-[#0D1418] max-h-[300px] overflow-y-auto custom-scrollbar">
-              <div className="bg-white dark:bg-[#1F2C34] border border-slate-200/60 dark:border-gray-700/50 rounded-xl p-3 shadow-xs text-xs font-mono text-slate-800 dark:text-[#E9EDEF] whitespace-pre-wrap leading-relaxed select-all">
-                {formattedWhatsAppText}
-              </div>
-            </div>
-
-            {/* Botões de Ação da Pauta */}
-            <div className="p-3 bg-white dark:bg-[#111827] border-t border-slate-100 dark:border-gray-800 space-y-2">
-              {/* Botão de Destaque 1 Clique */}
-              <button
-                type="button"
-                onClick={handleDirectGroupSend}
-                className="w-full h-10 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
-                title="Copia a pauta e abre o grupo do WhatsApp da JPL"
-              >
-                <SendIcon className="h-4 w-4" />
-                <span>{isCopiedSuccess ? '✅ Copiado! Abrindo Grupo...' : '🟢 Enviar no Grupo JPL (1 Clique)'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleCopyWhatsApp}
-                className="w-full h-8 rounded-lg font-semibold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-              >
-                <CopyIcon className="h-3.5 w-3.5 text-slate-500" />
-                <span>Apenas Copiar</span>
-              </button>
-            </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {alert.type === 'nota' ? (
+                      <Button
+                        size="sm"
+                        onClick={() => navigate('/notas')}
+                        className="h-7 text-xs bg-indigo-600 text-white cursor-pointer"
+                      >
+                        Ir p/ Notas
+                      </Button>
+                    ) : alert.type === 'servico' ? (
+                      <Button
+                        size="sm"
+                        onClick={() => convertAlertToTask(alert)}
+                        className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer font-bold"
+                        title="Transformar este alerta em uma tarefa oficial no canteiro"
+                      >
+                        + Criar Tarefa
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => navigate('/orcamentos')}
+                        className="h-7 text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-gray-200 cursor-pointer"
+                      >
+                        Ver Orçamento
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-        </div>
+        ) : (
+          /* DEMAIS ABAS: SPLIT VIEW (TABELA À ESQUERDA + PAINEL À DIREITA) */
+          <div
+            className={`overflow-hidden rounded-b-xl border-x border-b border-slate-200/80 dark:border-gray-800 bg-white dark:bg-[#111827] shadow-xs flex flex-col lg:flex-row ${
+              selectedTask && isDesktop ? 'items-stretch' : ''
+            }`}
+          >
+            {/* LADO ESQUERDO: TABELA RETRÁTIL */}
+            <div
+              className={`${
+                selectedTask && isDesktop
+                  ? 'w-full lg:w-[48%] xl:w-[46%] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800'
+                  : 'w-full lg:w-[58%] xl:w-[60%]'
+              }`}
+            >
+              <TarefasTable
+                tasks={activeTabTasks}
+                selectedTaskId={selectedTask?.id || null}
+                onSelectTask={handleSelectTask}
+                onToggleStatus={(task) =>
+                  toggleTaskStatusMutation.mutate({
+                    taskId: task.id,
+                    newStatus: task.isCompleted ? 'Planejada' : 'Concluída',
+                  })
+                }
+                onRescheduleTomorrow={(task) =>
+                  rescheduleTaskMutation.mutate({ taskId: task.id, newDate: tomorrowStr })
+                }
+                isDetailOpen={!!selectedTask && isDesktop}
+                emptyMessage={
+                  activeTab === 'purchases'
+                    ? 'Nenhum material pendente de compra!'
+                    : activeTab === 'completed'
+                    ? 'Nenhuma tarefa concluída nesta visualização!'
+                    : 'Tudo em dia nesta visão!'
+                }
+                emptySubtitle={
+                  activeTab === 'purchases'
+                    ? 'Adicione itens de compra com o botão "+ Nova Tarefa" ou pelo Copiloto.'
+                    : 'Nenhuma pendência encontrada para os filtros selecionados.'
+                }
+              />
+            </div>
+
+            {/* LADO DIREITO (DESKTOP): PAINEL DE DETALHE OU PAUTA WHATSAPP */}
+            {isDesktop && (
+              <div
+                className={`w-full ${
+                  selectedTask ? 'lg:w-[52%] xl:w-[54%]' : 'lg:w-[42%] xl:w-[40%]'
+                } shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col animate-in fade-in-0 duration-150 p-3 sm:p-4`}
+              >
+                {selectedTask ? (
+                  <TaskDetailPanel
+                    task={selectedTask}
+                    onClose={() => setSelectedTask(null)}
+                    onEdit={handleOpenEditDrawer}
+                    onDelete={(task) => setTaskToDelete(task)}
+                    onToggleStatus={(task) =>
+                      toggleTaskStatusMutation.mutate({
+                        taskId: task.id,
+                        newStatus: task.isCompleted ? 'Planejada' : 'Concluída',
+                      })
+                    }
+                    onRescheduleTomorrow={(task) =>
+                      rescheduleTaskMutation.mutate({ taskId: task.id, newDate: tomorrowStr })
+                    }
+                    onPrevTask={handlePrevTask}
+                    onNextTask={handleNextTask}
+                    hasPrev={hasPrevTask}
+                    hasNext={hasNextTask}
+                    currentIndex={selectedTaskIndex}
+                    totalCount={activeTabTasks.length}
+                  />
+                ) : (
+                  <PautaWhatsAppPanel
+                    previewDateMode={previewDateMode}
+                    setPreviewDateMode={setPreviewDateMode}
+                    dailyProgress={dailyProgress}
+                    formattedWhatsAppText={formattedWhatsAppText}
+                    handleDirectGroupSend={handleDirectGroupSend}
+                    handleCopyWhatsApp={handleCopyWhatsApp}
+                    isCopiedSuccess={isCopiedSuccess}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ========================================================= */}
-      {/* 5. MODAL DE EDIÇÃO / CRIAÇÃO DETALHADA                    */}
+      {/* 5. GAVETAS & MODAIS                                       */}
       {/* ========================================================= */}
-      {isCreateModalOpen && (
-        <CreateTaskModal
-          isOpen={isCreateModalOpen}
-          onClose={() => {
-            setIsCreateModalOpen(false);
-            setTaskToEdit(null);
-          }}
-          taskToEdit={taskToEdit}
-          projects={projects}
-          collaborators={collaborators}
-          isLoadingPrerequisites={isLoadingProjects || isLoadingCollaborators}
-        />
+      {/* Drawer de Formulário de Tarefa (Criar / Editar) */}
+      <TaskFormDrawer
+        isOpen={isFormDrawerOpen}
+        onClose={() => {
+          setIsFormDrawerOpen(false);
+          setTaskToEdit(null);
+        }}
+        taskToEdit={taskToEdit}
+        projects={projects}
+        collaborators={collaborators}
+        isLoadingPrerequisites={isLoadingProjects || isLoadingCollaborators}
+      />
+
+      {/* Drawer de Filtros */}
+      <FiltrosTarefas
+        isOpen={isFilterDrawerOpen}
+        onClose={() => setIsFilterDrawerOpen(false)}
+        filters={filters}
+        onApplyFilters={(newFilters) => setFilters(newFilters)}
+        projects={projects}
+        collaborators={collaborators}
+      />
+
+      {/* Painel de Detalhes no Celular (Gaveta / Bottom Sheet) */}
+      {!isDesktop && selectedTask && (
+        <ResponsiveModal
+          open={isMobileDetailDrawerOpen}
+          onOpenChange={setIsMobileDetailDrawerOpen}
+          displayMode="drawer"
+        >
+          <ResponsiveModalContent size="md">
+            <TaskDetailPanel
+              task={selectedTask}
+              onClose={() => setIsMobileDetailDrawerOpen(false)}
+              onEdit={(task) => {
+                setIsMobileDetailDrawerOpen(false);
+                handleOpenEditDrawer(task);
+              }}
+              onDelete={(task) => {
+                setIsMobileDetailDrawerOpen(false);
+                setTaskToDelete(task);
+              }}
+              onToggleStatus={(task) =>
+                toggleTaskStatusMutation.mutate({
+                  taskId: task.id,
+                  newStatus: task.isCompleted ? 'Planejada' : 'Concluída',
+                })
+              }
+              onRescheduleTomorrow={(task) =>
+                rescheduleTaskMutation.mutate({ taskId: task.id, newDate: tomorrowStr })
+              }
+              onPrevTask={handlePrevTask}
+              onNextTask={handleNextTask}
+              hasPrev={hasPrevTask}
+              hasNext={hasNextTask}
+              currentIndex={selectedTaskIndex}
+              totalCount={activeTabTasks.length}
+            />
+          </ResponsiveModalContent>
+        </ResponsiveModal>
+      )}
+
+      {/* Pauta do WhatsApp no Celular (Gaveta / Bottom Sheet) */}
+      {!isDesktop && (
+        <ResponsiveModal
+          open={isMobileWhatsappPreviewOpen}
+          onOpenChange={setIsMobileWhatsappPreviewOpen}
+          displayMode="drawer"
+        >
+          <ResponsiveModalContent size="md">
+            <PautaWhatsAppPanel
+              previewDateMode={previewDateMode}
+              setPreviewDateMode={setPreviewDateMode}
+              dailyProgress={dailyProgress}
+              formattedWhatsAppText={formattedWhatsAppText}
+              handleDirectGroupSend={handleDirectGroupSend}
+              handleCopyWhatsApp={handleCopyWhatsApp}
+              isCopiedSuccess={isCopiedSuccess}
+              onClose={() => setIsMobileWhatsappPreviewOpen(false)}
+            />
+          </ResponsiveModalContent>
+        </ResponsiveModal>
       )}
 
       {/* Modal de Confirmação de Exclusão */}
@@ -1902,90 +1829,6 @@ export const Tarefas: React.FC = () => {
         description={`Tem certeza que deseja excluir "${taskToDelete?.title}"?`}
         isLoading={deleteTaskMutation.isPending}
       />
-
-      {/* ========================================================= */}
-      {/* 6. MODAL RESPONSIVO: PAUTA WHATSAPP NO CELULAR / MOBILE   */}
-      {/* ========================================================= */}
-      {isMobileWhatsappPreviewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-in fade-in-50">
-          <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-gray-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            {/* Cabeçalho */}
-            <div className="p-3.5 bg-emerald-600 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <SendIcon className="h-4 w-4" />
-                <h3 className="text-xs font-bold">Pauta para WhatsApp</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsMobileWhatsappPreviewOpen(false)}
-                className="p-1 rounded-lg hover:bg-white/20 text-white cursor-pointer"
-              >
-                <XIcon className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Alternador de Data e Progresso */}
-            <div className="px-3.5 py-2 bg-slate-50 dark:bg-slate-900/40 border-b border-slate-100 dark:border-gray-800 flex items-center justify-between text-xs">
-              <div className="inline-flex rounded-lg bg-slate-200 dark:bg-slate-800 p-0.5 text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setPreviewDateMode('today')}
-                  className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                    previewDateMode === 'today'
-                      ? 'bg-white dark:bg-gray-700 text-slate-900 dark:text-white font-bold shadow-xs'
-                      : 'text-slate-600 dark:text-gray-400'
-                  }`}
-                >
-                  Hoje
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewDateMode('tomorrow')}
-                  className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                    previewDateMode === 'tomorrow'
-                      ? 'bg-white dark:bg-gray-700 text-slate-900 dark:text-white font-bold shadow-xs'
-                      : 'text-slate-600 dark:text-gray-400'
-                  }`}
-                >
-                  Amanhã
-                </button>
-              </div>
-
-              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                {dailyProgress}% concluído
-              </span>
-            </div>
-
-            {/* Balão de Mensagem */}
-            <div className="p-3.5 bg-[#EFEAE2]/60 dark:bg-[#0D1418] overflow-y-auto flex-1 text-xs font-mono text-slate-800 dark:text-[#E9EDEF] whitespace-pre-wrap select-all">
-              <div className="bg-white dark:bg-[#1F2C34] border border-slate-200/60 dark:border-gray-700/50 rounded-xl p-3 shadow-xs leading-relaxed">
-                {formattedWhatsAppText}
-              </div>
-            </div>
-
-            {/* Botões de Ação */}
-            <div className="p-3 bg-white dark:bg-[#111827] border-t border-slate-100 dark:border-gray-800 space-y-2">
-              <button
-                type="button"
-                onClick={handleDirectGroupSend}
-                className="w-full h-10 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
-              >
-                <SendIcon className="h-4 w-4" />
-                <span>{isCopiedSuccess ? '✅ Copiado! Abrindo Grupo...' : '🟢 Enviar no Grupo JPL (1 Clique)'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleCopyWhatsApp}
-                className="w-full h-8 rounded-lg font-semibold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <CopyIcon className="h-3.5 w-3.5" />
-                <span>Apenas Copiar</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
