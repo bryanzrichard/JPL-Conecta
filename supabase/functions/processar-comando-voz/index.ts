@@ -113,8 +113,24 @@ Ações Suportadas:
      "responsavel_nome": string ou null,
      "data_prevista": string (YYYY-MM-DD),
      "is_compra": boolean,
+     "itens": [ { "nome": string, "quantidade": number ou null, "unidade": string ou null } ] (somente quando is_compra for true; senão lista vazia),
      "observacoes": string
    }
+
+   REGRAS PARA COMPRAS (is_compra = true):
+   - Cada material pedido vira UM item em "itens". Nunca coloque a lista de materiais no "titulo".
+   - Todos os materiais pedidos na mesma fala para a MESMA obra formam UMA única ação CRIAR_TAREFA com vários itens. Se a fala citar obras diferentes, gere uma ação por obra.
+   - "titulo": curto e genérico, sem quantidades. Use "Compra de materiais", ou "Compra de materiais para <finalidade>" se o usuário disser a finalidade (ex: "para a laje").
+   - "quantidade": só o número (ex: 10). Se o usuário não disser quantidade, use null.
+   - "unidade": a unidade dita pelo usuário, no singular e minúscula (saco, kg, m, m², m³, barra, lata, galão, litro, caixa, rolo, peça, unidade, milheiro, tonelada). Se não disser, use null, exceto nos casos óbvios: cimento, argamassa e cal sem unidade = "saco"; ferro ou vergalhão sem unidade = "barra".
+   - "nome": o material com a primeira letra maiúscula, sem a quantidade e sem a unidade. Mantenha as especificações que o usuário falou (bitola, tipo, cor, medida). Não invente marca, tipo ou especificação que não foi dita.
+   - Bitola de ferro ou vergalhão dita só como número ("ferro 8", "ferro 10", "ferro 3/8") vira "Ferro 8 mm", "Ferro 10 mm", "Ferro 3/8\"". O número da bitola NUNCA é a quantidade.
+   - Exemplo: "quero que você compre 10 ferros 8, 5 ferros 10 e 10 sacos de cimento pro Mingone" vira UMA ação CRIAR_TAREFA:
+     { "titulo": "Compra de materiais", "obra_nome": "Mingone", "is_compra": true, "itens": [
+       { "nome": "Ferro 8 mm", "quantidade": 10, "unidade": "barra" },
+       { "nome": "Ferro 10 mm", "quantidade": 5, "unidade": "barra" },
+       { "nome": "Cimento", "quantidade": 10, "unidade": "saco" } ] }
+   - Exemplo: "1 kg de prego 17 por 21 e 2 metros de areia média" vira itens { "nome": "Prego 17x21", "quantidade": 1, "unidade": "kg" } e { "nome": "Areia média", "quantidade": 2, "unidade": "m³" } (areia e brita em "metros" são m³).
 
 4. "CONCLUIR_TAREFA":
    Use SEMPRE que o usuário disser que já fez, já comprou, já realizou, já terminou, ou pedir para "dar como concluído", "dar baixa" ou "marcar como feito" uma pendência ou compra existente.
@@ -122,6 +138,7 @@ Ações Suportadas:
    - "Eu já fiz a compra da tinta da Maza" -> Procura na lista de pendências a tarefa correspondente à tinta da Maza e gera CONCLUIR_TAREFA.
    - "Já entrei em contato pra fazer o orçamento que era pro dia 29, pode dar como concluído" -> Gera CONCLUIR_TAREFA para o orçamento.
    - "O Lázaro já comprou o Vedapren" -> Gera CONCLUIR_TAREFA para a compra do Vedapren.
+   ATENÇÃO: se a compra tiver vários itens na lista "Tarefas e Compras Pendentes no Sistema" (campo "itens") e o usuário disser que comprou só ALGUNS deles, NÃO use CONCLUIR_TAREFA; use MARCAR_ITENS_COMPRADOS (ação 7). Use CONCLUIR_TAREFA para uma compra só quando o usuário disser que comprou tudo ou não citar itens.
    IMPORTANTE: Se a fala do usuário contiver múltiplos pedidos de conclusão, gere UMA AÇÃO "CONCLUIR_TAREFA" PARA CADA UMA DELAS!
    Campos: {
      "tarefa_id": string (UUID correspondente encontrado na lista "Tarefas e Compras Pendentes no Sistema") ou null,
@@ -135,6 +152,17 @@ Ações Suportadas:
 
 6. "CONVERSA_GERAL":
    Para perguntas gerais ou recados operacionais sem ação prática no banco de dados.
+
+7. "MARCAR_ITENS_COMPRADOS":
+   Use quando o usuário disser que já comprou um ou mais itens de uma compra que aparece na lista de pendências com o campo "itens".
+   Ex: "Já comprei o cimento e o ferro 8 do Mingone" -> MARCAR_ITENS_COMPRADOS na compra do Mingone que tem esses itens.
+   Campos: {
+     "tarefa_id": string (UUID da compra na lista de pendências) ou null,
+     "tarefa_titulo": string,
+     "obra_nome": string ou null,
+     "itens_comprados": [ string ] (nomes dos itens exatamente como aparecem no campo "itens" da compra)
+   }
+   Se os itens citados estiverem em compras diferentes, gere uma ação por compra.
 
 Instruções para datas:
 - Se falar "amanhã", calcule a data correta (+1 dia a partir de ${todayStr}).
@@ -150,7 +178,7 @@ Retorne ESTRITAMENTE um JSON estruturado com o seguinte formato:
   "resumo_ia": "mensagem amigável conversacional estilo WhatsApp confirmando detalhadamente cada ação realizada (ex: informando quais tarefas foram concluídas, compras registradas ou serviços criados)",
   "acoes": [
     {
-      "tipo": "CADASTRAR_COLABORADOR" | "CRIAR_SERVICO" | "CRIAR_TAREFA" | "CONCLUIR_TAREFA" | "QUITAR_SERVICO" | "CONVERSA_GERAL",
+      "tipo": "CADASTRAR_COLABORADOR" | "CRIAR_SERVICO" | "CRIAR_TAREFA" | "CONCLUIR_TAREFA" | "QUITAR_SERVICO" | "MARCAR_ITENS_COMPRADOS" | "CONVERSA_GERAL",
       "dados": { ... }
     }
   ]
