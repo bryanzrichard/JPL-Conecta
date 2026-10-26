@@ -102,6 +102,10 @@ export interface ResolvedCopilotActionDados extends CopilotActionDados {
   servico_saldo_atual?: number;
   servico_status_resultante?: 'Concluído' | 'Em Andamento';
 
+  // Comando combinado: colaborador a ser cadastrado no mesmo lote
+  colaborador_pendente_cadastro?: string | null;
+  responsavel_pendente_cadastro?: string | null;
+
   // Validação prévia
   nao_executar?: boolean;
   motivo_recusa?: string;
@@ -205,6 +209,32 @@ export function findCollaboratorByName(nameQuery: string | undefined | null, col
 }
 
 /**
+ * 3. Comando combinado: Busca colaborador pendente de cadastro no mesmo lote
+ */
+export function findPendingCollabByName(
+  nameQuery: string | undefined | null,
+  pendingCollabs: { nome: string; role?: string }[]
+): { nome: string; role?: string } | null {
+  if (!nameQuery) return null;
+  const qNorm = normalizeText(nameQuery);
+  if (!qNorm) return null;
+
+  const exactMatch = pendingCollabs.find((c) => normalizeText(c.nome) === qNorm);
+  if (exactMatch) return exactMatch;
+
+  const candidates = pendingCollabs.filter((c) => {
+    const cNorm = normalizeText(c.nome);
+    return cNorm.includes(qNorm) || qNorm.includes(cNorm);
+  });
+
+  if (candidates.length === 1) {
+    return candidates[0];
+  }
+
+  return null;
+}
+
+/**
  * Consulta única dos serviços abertos com soma dos adiantamentos
  */
 export async function fetchOpenServices(companyId: string): Promise<OpenServiceItem[]> {
@@ -252,6 +282,14 @@ export function resolveCopilotActions(
   openTasks: OpenTaskItem[],
   openServices: OpenServiceItem[]
 ): ResolvedCopilotAction[] {
+  // Coletar novos colaboradores que serão cadastrados no mesmo lote (comando combinado)
+  const pendingCollabs = acoes
+    .filter((a) => a.tipo === 'CADASTRAR_COLABORADOR' && !!a.dados.nome?.trim())
+    .map((a) => ({
+      nome: a.dados.nome!.trim(),
+      role: a.dados.role,
+    }));
+
   return acoes.map((acao) => {
     const dados = { ...acao.dados };
 
@@ -291,6 +329,8 @@ export function resolveCopilotActions(
 
       let resolvedCollabId: string | null = null;
       let resolvedCollabNome: string | null = null;
+      let collabPendenteCadastro: string | null = null;
+
       if (dados.colaborador_id && collaborators.some((c) => c.id === dados.colaborador_id)) {
         const found = collaborators.find((c) => c.id === dados.colaborador_id);
         resolvedCollabId = dados.colaborador_id;
@@ -300,6 +340,13 @@ export function resolveCopilotActions(
         if (found) {
           resolvedCollabId = found.id;
           resolvedCollabNome = found.name;
+        } else {
+          // 3. Comando combinado: checa se está no mesmo lote para cadastrar
+          const pendingMatch = findPendingCollabByName(dados.colaborador_nome, pendingCollabs);
+          if (pendingMatch) {
+            collabPendenteCadastro = pendingMatch.nome;
+            resolvedCollabNome = pendingMatch.nome;
+          }
         }
       }
 
@@ -309,18 +356,21 @@ export function resolveCopilotActions(
       let naoExecutar = false;
       let motivoRecusa: string | undefined = undefined;
 
+      // 2. CRIAR_SERVICO:
+      // - Colaborador não encontrado NÃO recusa: grava com collaborator_id null
+      // - Obra não encontrada continua recusando ("Não será executado")
+      // - Valor inválido e adiantamento maior que o total continuam recusando
       if (valorAdiantamento > valorTotal) {
         naoExecutar = true;
         motivoRecusa = `Adiantamento (${formatBRL(valorAdiantamento)}) excede o valor total (${formatBRL(valorTotal)}).`;
       } else if (valorTotal <= 0) {
         naoExecutar = true;
         motivoRecusa = 'Valor do serviço inválido ou não informado.';
-      } else if (dados.colaborador_nome && !resolvedCollabId) {
+      } else if (!resolvedObraId) {
         naoExecutar = true;
-        motivoRecusa = `Colaborador não identificado (IA ouviu: "${dados.colaborador_nome}").`;
-      } else if (dados.obra_nome && !resolvedObraId) {
-        naoExecutar = true;
-        motivoRecusa = `Obra não localizada (IA ouviu: "${dados.obra_nome}").`;
+        motivoRecusa = dados.obra_nome
+          ? `Obra não localizada (IA ouviu: "${dados.obra_nome}").`
+          : 'Obra obrigatória não informada.';
       }
 
       return {
@@ -331,6 +381,7 @@ export function resolveCopilotActions(
           obra_nome_resolvido: resolvedObraNome,
           colaborador_id: resolvedCollabId,
           colaborador_nome_resolvido: resolvedCollabNome,
+          colaborador_pendente_cadastro: collabPendenteCadastro,
           responsavel_id: null,
           tarefa_id: null,
           servico_id: null,
@@ -360,6 +411,8 @@ export function resolveCopilotActions(
 
       let resolvedRespId: string | null = null;
       let resolvedRespNome: string | null = null;
+      let respPendenteCadastro: string | null = null;
+
       if (dados.responsavel_id && collaborators.some((c) => c.id === dados.responsavel_id)) {
         const found = collaborators.find((c) => c.id === dados.responsavel_id);
         resolvedRespId = dados.responsavel_id;
@@ -369,6 +422,13 @@ export function resolveCopilotActions(
         if (found) {
           resolvedRespId = found.id;
           resolvedRespNome = found.name;
+        } else {
+          // 3. Comando combinado: checa se está no mesmo lote para cadastrar
+          const pendingMatch = findPendingCollabByName(dados.responsavel_nome, pendingCollabs);
+          if (pendingMatch) {
+            respPendenteCadastro = pendingMatch.nome;
+            resolvedRespNome = pendingMatch.nome;
+          }
         }
       }
 
@@ -376,15 +436,12 @@ export function resolveCopilotActions(
       let naoExecutar = false;
       let motivoRecusa: string | undefined = undefined;
 
+      // 1. CRIAR_TAREFA:
+      // Obra ou responsável não encontrados NÃO recusam o item. Grava com project_id ou responsavel_execucao_id null.
+      // Recusar SOMENTE se faltar o título.
       if (!titulo) {
         naoExecutar = true;
         motivoRecusa = 'Título da tarefa não informado.';
-      } else if (dados.responsavel_nome && !resolvedRespId) {
-        naoExecutar = true;
-        motivoRecusa = `Responsável não identificado (IA ouviu: "${dados.responsavel_nome}").`;
-      } else if (dados.obra_nome && !resolvedObraId) {
-        naoExecutar = true;
-        motivoRecusa = `Obra não localizada (IA ouviu: "${dados.obra_nome}").`;
       }
 
       return {
@@ -396,6 +453,7 @@ export function resolveCopilotActions(
           obra_nome_resolvido: resolvedObraNome,
           responsavel_id: resolvedRespId,
           responsavel_nome_resolvido: resolvedRespNome,
+          responsavel_pendente_cadastro: respPendenteCadastro,
           colaborador_id: null,
           tarefa_id: null,
           servico_id: null,
@@ -572,11 +630,18 @@ export function buildActionReviewItems(
       const saldo = Math.max(0, valorTotal - valorAdiantamento);
 
       const obraLabel = d.obra_nome_resolvido
-        || (d.obra_nome ? `Não identificada (IA ouviu: "${d.obra_nome}")` : 'Não informada');
+        || (d.obra_nome ? `Obra não localizada (IA ouviu: "${d.obra_nome}")` : 'Não informada');
 
-      const responsavelLabel = d.colaborador_nome_resolvido
-        ? `Prestador: ${d.colaborador_nome_resolvido}`
-        : (d.colaborador_nome ? `Não identificado (IA ouviu: "${d.colaborador_nome}")` : 'Prestador: Não informado');
+      let responsavelLabel: string;
+      if (d.colaborador_pendente_cadastro) {
+        responsavelLabel = `Novo colaborador: ${d.colaborador_pendente_cadastro} (será cadastrado nesta confirmação)`;
+      } else if (d.colaborador_nome_resolvido) {
+        responsavelLabel = `Prestador: ${d.colaborador_nome_resolvido}`;
+      } else if (d.colaborador_nome) {
+        responsavelLabel = `Prestador não identificado (IA ouviu: "${d.colaborador_nome}")`;
+      } else {
+        responsavelLabel = 'Prestador: Não informado';
+      }
 
       return {
         id,
@@ -598,11 +663,18 @@ export function buildActionReviewItems(
       const isPurchase = d.is_compra || (d.observacoes || '').includes('[COMPRA]');
 
       const obraLabel = d.obra_nome_resolvido
-        || (d.obra_nome ? `Não identificada (IA ouviu: "${d.obra_nome}")` : 'Não informada');
+        || (d.obra_nome ? `Obra não identificada (IA ouviu: "${d.obra_nome}")` : 'Não informada');
 
-      const responsavelLabel = d.responsavel_nome_resolvido
-        ? `Responsável: ${d.responsavel_nome_resolvido}`
-        : (d.responsavel_nome ? `Não identificado (IA ouviu: "${d.responsavel_nome}")` : 'Responsável: Não informado');
+      let responsavelLabel: string;
+      if (d.responsavel_pendente_cadastro) {
+        responsavelLabel = `Novo colaborador: ${d.responsavel_pendente_cadastro} (será cadastrado nesta confirmação)`;
+      } else if (d.responsavel_nome_resolvido) {
+        responsavelLabel = `Responsável: ${d.responsavel_nome_resolvido}`;
+      } else if (d.responsavel_nome) {
+        responsavelLabel = `Responsável não identificado (IA ouviu: "${d.responsavel_nome}")`;
+      } else {
+        responsavelLabel = 'Responsável: Não informado';
+      }
 
       return {
         id,
@@ -701,14 +773,25 @@ export async function executeCopilotActions({
   const results: ActionCardResult[] = [];
   const todayStr = toISODate(new Date());
 
-  for (const acao of acoes) {
+  // 3. Comando combinado: executar primeiro todos os CADASTRAR_COLABORADOR do lote,
+  // guardar os IDs criados e usá-los nas ações seguintes que citam esse nome.
+  const sortedAcoes = [...acoes].sort((a, b) => {
+    if (a.tipo === 'CADASTRAR_COLABORADOR' && b.tipo !== 'CADASTRAR_COLABORADOR') return -1;
+    if (a.tipo !== 'CADASTRAR_COLABORADOR' && b.tipo === 'CADASTRAR_COLABORADOR') return 1;
+    return 0;
+  });
+
+  const createdCollabsMap = new Map<string, { id: string; name: string }>();
+  const failedCollabsNames = new Set<string>();
+
+  for (const acao of sortedAcoes) {
     try {
       if (acao.dados.nao_executar) {
         results.push({
           tipo: 'erro',
           badge: '⚠️ Não Executado',
           titulo: acao.dados.tarefa_titulo_resolvido || acao.dados.servico_descricao_resolvida || acao.dados.titulo || acao.dados.descricao || acao.dados.nome || 'Ação cancelada',
-          subtitulo: acao.dados.motivo_recusa || 'Item marcado para não execução devido a pendências na identificação.',
+          subtitulo: acao.dados.motivo_recusa || 'Item marcado para não execução.',
           detalhes: 'Nenhuma alteração foi realizada no banco de dados.',
           sucesso: false,
         });
@@ -735,8 +818,12 @@ export async function executeCopilotActions({
           .select()
           .single();
 
-        if (error) throw error;
-        if (!collab) throw new Error('Não foi possível cadastrar o colaborador.');
+        if (error || !collab) {
+          failedCollabsNames.add(normalizeText(nome));
+          throw (error || new Error('Não foi possível cadastrar o colaborador.'));
+        }
+
+        createdCollabsMap.set(normalizeText(collab.name), { id: collab.id, name: collab.name });
 
         results.push({
           tipo: 'colaborador',
@@ -754,14 +841,32 @@ export async function executeCopilotActions({
         const valorTotal = Number(acao.dados.valor_total) || 0;
         const valorAdiantamento = Number(acao.dados.valor_adiantamento) || 0;
 
-        // IDs já resolvidos com verificação de segurança no cache local
         const targetProjId = acao.dados.obra_id && projects.some((p) => p.id === acao.dados.obra_id)
           ? acao.dados.obra_id
           : null;
 
-        const targetCollabId = acao.dados.colaborador_id && collaborators.some((c) => c.id === acao.dados.colaborador_id)
-          ? acao.dados.colaborador_id
-          : null;
+        let targetCollabId: string | null = null;
+        let targetCollabName: string | undefined = undefined;
+        let collabFalhou = false;
+
+        if (acao.dados.colaborador_id && collaborators.some((c) => c.id === acao.dados.colaborador_id)) {
+          targetCollabId = acao.dados.colaborador_id;
+          targetCollabName = acao.dados.colaborador_nome_resolvido || undefined;
+        } else if (acao.dados.colaborador_pendente_cadastro || acao.dados.colaborador_nome) {
+          const nomeBusca = acao.dados.colaborador_pendente_cadastro || acao.dados.colaborador_nome!;
+          const norm = normalizeText(nomeBusca);
+          let foundCreated = createdCollabsMap.get(norm);
+          if (!foundCreated) {
+            const matches = Array.from(createdCollabsMap.entries()).filter(([k]) => k.includes(norm) || norm.includes(k));
+            if (matches.length === 1) foundCreated = matches[0][1];
+          }
+          if (foundCreated) {
+            targetCollabId = foundCreated.id;
+            targetCollabName = foundCreated.name;
+          } else if (failedCollabsNames.has(norm)) {
+            collabFalhou = true;
+          }
+        }
 
         const { data: servico, error: sErr } = await supabase
           .from('servicos')
@@ -801,12 +906,19 @@ export async function executeCopilotActions({
           : 'Obra não identificada';
         const saldo = Math.max(0, valorTotal - valorAdiantamento);
 
+        let detalhesInfo = `Saldo Restante a Pagar: ${formatBRL(saldo)}`;
+        if (collabFalhou) {
+          detalhesInfo += ` • ⚠️ Cadastro de "${acao.dados.colaborador_nome}" falhou (serviço registrado sem colaborador)`;
+        } else if (!targetCollabId && acao.dados.colaborador_nome) {
+          detalhesInfo += ` • ⚠️ Prestador "${acao.dados.colaborador_nome}" não cadastrado (serviço registrado sem colaborador)`;
+        }
+
         results.push({
           tipo: 'servico',
           badge: '🏗️ Contrato de Serviço Criado',
           titulo: `${descricao} (${pName})`,
-          subtitulo: `Valor Total: ${formatBRL(valorTotal)} • Adiantamento: ${formatBRL(valorAdiantamento)} (Pago ✅)`,
-          detalhes: `Saldo Restante a Pagar: ${formatBRL(saldo)}`,
+          subtitulo: `Valor Total: ${formatBRL(valorTotal)} • Adiantamento: ${formatBRL(valorAdiantamento)} (Pago ✅)${targetCollabName ? ` • Prestador: ${targetCollabName}` : ''}`,
+          detalhes: detalhesInfo,
           sucesso: true,
         });
       }
@@ -820,9 +932,28 @@ export async function executeCopilotActions({
           ? acao.dados.obra_id
           : null;
 
-        const targetCollabId = acao.dados.responsavel_id && collaborators.some((c) => c.id === acao.dados.responsavel_id)
-          ? acao.dados.responsavel_id
-          : null;
+        let targetCollabId: string | null = null;
+        let targetCollabName: string | undefined = undefined;
+        let respFalhou = false;
+
+        if (acao.dados.responsavel_id && collaborators.some((c) => c.id === acao.dados.responsavel_id)) {
+          targetCollabId = acao.dados.responsavel_id;
+          targetCollabName = acao.dados.responsavel_nome_resolvido || undefined;
+        } else if (acao.dados.responsavel_pendente_cadastro || acao.dados.responsavel_nome) {
+          const nomeBusca = acao.dados.responsavel_pendente_cadastro || acao.dados.responsavel_nome!;
+          const norm = normalizeText(nomeBusca);
+          let foundCreated = createdCollabsMap.get(norm);
+          if (!foundCreated) {
+            const matches = Array.from(createdCollabsMap.entries()).filter(([k]) => k.includes(norm) || norm.includes(k));
+            if (matches.length === 1) foundCreated = matches[0][1];
+          }
+          if (foundCreated) {
+            targetCollabId = foundCreated.id;
+            targetCollabName = foundCreated.name;
+          } else if (failedCollabsNames.has(norm)) {
+            respFalhou = true;
+          }
+        }
 
         const isPurchase = acao.dados.is_compra || (acao.dados.observacoes || '').includes('[COMPRA]');
         const dataPrev = acao.dados.data_prevista || todayStr;
@@ -847,17 +978,21 @@ export async function executeCopilotActions({
         if (tErr) throw tErr;
 
         const pName = targetProjId
-          ? projects.find((p) => p.id === targetProjId)?.name || 'Obra não identificada'
-          : 'Obra não identificada';
-        const respName = targetCollabId
-          ? collaborators.find((c) => c.id === targetCollabId)?.name
-          : undefined;
+          ? projects.find((p) => p.id === targetProjId)?.name || 'Sem obra vinculada'
+          : (acao.dados.obra_nome ? `Obra "${acao.dados.obra_nome}" não identificada (gravada sem obra)` : 'Sem obra vinculada');
+
+        let avisosExtras = '';
+        if (respFalhou) {
+          avisosExtras = ` • ⚠️ Cadastro de "${acao.dados.responsavel_nome}" falhou (tarefa gravada sem responsável)`;
+        } else if (!targetCollabId && acao.dados.responsavel_nome) {
+          avisosExtras = ` • ⚠️ Responsável "${acao.dados.responsavel_nome}" não identificado (gravada sem responsável)`;
+        }
 
         results.push({
           tipo: isPurchase ? 'compra' : 'tarefa',
           badge: isPurchase ? '🛒 Lista de Compras' : '📋 Pendência de Canteiro',
           titulo: titulo,
-          subtitulo: `Obra: ${pName}${respName ? ` • Resp: ${respName}` : ''}`,
+          subtitulo: `Obra: ${pName}${targetCollabName ? ` • Resp: ${targetCollabName}` : ''}${avisosExtras}`,
           detalhes: `Data: ${dataPrev}`,
           sucesso: true,
         });
