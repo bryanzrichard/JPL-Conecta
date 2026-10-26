@@ -1307,6 +1307,127 @@ export const Tarefas: React.FC = () => {
           </div>
         </div>
 
+        {/* Barra de Filtros Rápidos (Obra & Data) */}
+        <div className="bg-slate-50/80 dark:bg-[#111827] border-x border-b border-slate-200/80 dark:border-gray-800 px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3 flex-wrap min-w-0">
+            {/* 1. Filtro Rápido de Obra */}
+            <div className="flex items-center gap-1.5">
+              <ConstructionIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="font-semibold text-slate-600 dark:text-gray-300 text-[11px] uppercase tracking-wider">
+                Obra:
+              </span>
+              <select
+                value={filters.project_id || ''}
+                onChange={(e) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    project_id: e.target.value ? e.target.value : null,
+                  }))
+                }
+                className="h-7 px-2.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-gray-700 rounded-lg text-slate-800 dark:text-gray-100 font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer max-w-[210px] truncate"
+              >
+                <option value="">Todas as Obras ({projects.length})</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="hidden sm:block h-4 w-px bg-slate-200 dark:bg-gray-700" />
+
+            {/* 2. Filtro Rápido de Data */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <CalendarIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="font-semibold text-slate-600 dark:text-gray-300 text-[11px] uppercase tracking-wider">
+                Prazo:
+              </span>
+
+              {/* Atalhos Rápidos */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilters((prev) => ({ ...prev, start_date: null, end_date: null }))
+                  }
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                    !filters.start_date && !filters.end_date
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold border border-emerald-300/50'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-gray-400 hover:bg-slate-100 border border-slate-200 dark:border-gray-700'
+                  }`}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilters((prev) => ({ ...prev, start_date: todayStr, end_date: todayStr }))
+                  }
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                    filters.start_date === todayStr && filters.end_date === todayStr
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold border border-emerald-300/50'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-gray-400 hover:bg-slate-100 border border-slate-200 dark:border-gray-700'
+                  }`}
+                >
+                  Hoje
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilters((prev) => ({ ...prev, start_date: tomorrowStr, end_date: tomorrowStr }))
+                  }
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                    filters.start_date === tomorrowStr && filters.end_date === tomorrowStr
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold border border-emerald-300/50'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-gray-400 hover:bg-slate-100 border border-slate-200 dark:border-gray-700'
+                  }`}
+                >
+                  Amanhã
+                </button>
+              </div>
+
+              {/* Seletor Específico de Data */}
+              <div className="flex items-center gap-1.5 ml-1">
+                <span className="text-slate-400 text-[11px]">ou até:</span>
+                <input
+                  type="date"
+                  value={filters.end_date || ''}
+                  onChange={(e) => {
+                    const val = e.target.value || null;
+                    setFilters((prev) => ({
+                      ...prev,
+                      start_date: null,
+                      end_date: val,
+                    }));
+                  }}
+                  className="h-7 px-2 text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-gray-700 rounded-lg text-slate-800 dark:text-gray-100 font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                  title="Filtrar tarefas até esta data limite"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Botão Limpar Filtros Rápidos (quando algum ativo) */}
+          {(filters.project_id || filters.start_date || filters.end_date) && (
+            <button
+              type="button"
+              onClick={() =>
+                setFilters((prev) => ({
+                  ...prev,
+                  project_id: null,
+                  start_date: null,
+                  end_date: null,
+                }))
+              }
+              className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-semibold cursor-pointer shrink-0 flex items-center gap-1"
+            >
+              <XIcon className="h-3 w-3" />
+              <span>Limpar filtros rápidos</span>
+            </button>
+          )}
+        </div>
+
         {/* Faixa de Filtros Ativos (se houver) */}
         {activeFiltersCount > 0 && (
           <div className="flex items-center justify-between gap-3 bg-emerald-50/60 dark:bg-emerald-950/20 border-x border-b border-emerald-200/80 dark:border-emerald-900/40 px-4 py-2 text-xs">
