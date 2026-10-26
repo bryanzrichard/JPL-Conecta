@@ -248,3 +248,75 @@ export function parseListaColada(texto: string): CompraItem[] {
 
   return results;
 }
+
+export interface LocalizarItensResult {
+  itensAtualizados: CompraItem[];
+  encontrados: CompraItem[];
+  naoLocalizados: string[];
+  pendentesApos: number;
+  todosComprados: boolean;
+}
+
+/**
+ * Localiza itens da compra para marcação por voz:
+ * 1. Igualdade sem acento e sem maiúsculas primeiro
+ * 2. "Contém" com candidato único depois
+ * Itens não encontrados retornam em naoLocalizados.
+ */
+export function localizarItens(
+  itensAtuais: CompraItem[],
+  nomesComprados: string[]
+): LocalizarItensResult {
+  const norm = (s: string) =>
+    s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+  const atualizados: CompraItem[] = itensAtuais.map((item) => ({ ...item }));
+  const encontrados: CompraItem[] = [];
+  const naoLocalizados: string[] = [];
+  const matchedIndices = new Set<number>();
+
+  for (const rawNome of nomesComprados) {
+    const nomeLimpo = rawNome.trim();
+    if (!nomeLimpo) continue;
+    const buscaNorm = norm(nomeLimpo);
+
+    // 1. Igualdade exata sem acento e sem maiúsculas
+    let targetIdx = atualizados.findIndex(
+      (item, idx) => !matchedIndices.has(idx) && norm(item.nome) === buscaNorm
+    );
+
+    // 2. Se não achou por igualdade exata, busca "contém" com candidato único
+    if (targetIdx === -1) {
+      const candidates = atualizados
+        .map((item, idx) => ({ item, idx }))
+        .filter(
+          ({ item, idx }) =>
+            !matchedIndices.has(idx) &&
+            (norm(item.nome).includes(buscaNorm) || buscaNorm.includes(norm(item.nome)))
+        );
+
+      if (candidates.length === 1) {
+        targetIdx = candidates[0].idx;
+      }
+    }
+
+    if (targetIdx !== -1) {
+      matchedIndices.add(targetIdx);
+      atualizados[targetIdx].comprado = true;
+      encontrados.push(atualizados[targetIdx]);
+    } else {
+      naoLocalizados.push(nomeLimpo);
+    }
+  }
+
+  const pendentesApos = atualizados.filter((i) => !i.comprado).length;
+  const todosComprados = atualizados.length > 0 && pendentesApos === 0;
+
+  return {
+    itensAtualizados: atualizados,
+    encontrados,
+    naoLocalizados,
+    pendentesApos,
+    todosComprados,
+  };
+}

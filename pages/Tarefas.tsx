@@ -42,6 +42,7 @@ import {
 import { CopilotPanel } from '../components/tarefas/CopilotPanel';
 import { formatApiError } from '../lib/handleError';
 import { formatDateBR } from '../lib/utils';
+import { parseCompraItens } from '../lib/compraItens';
 
 // Abas da Central de Tarefas: Hoje & Amanhã, Programadas Futuras, Compras, Concluídas
 type TarefasTab = 'today' | 'upcoming' | 'purchases' | 'completed';
@@ -326,14 +327,23 @@ export const Tarefas: React.FC = () => {
           collaboratorsList: collaborators.map((c) => ({ id: c.id, name: c.name })),
           pendingTasksList: allTasks
             .filter((t) => t.status !== 'Concluída')
-            .map((t) => ({
-              id: t.id,
-              title: t.title,
-              obra: projectsMap.get(t.project_id)?.name || 'Geral',
-              responsavel: t.responsavel_execucao_id ? collaboratorsMap.get(t.responsavel_execucao_id)?.name : null,
-              data_prevista: t.data_fim_prevista,
-              isPurchase: (t.observacoes || '').includes('[COMPRA]') || (t.description || '').toLowerCase().includes('[compra]'),
-            })),
+            .map((t) => {
+              const isPurchase = (t.observacoes || '').includes('[COMPRA]') || (t.description || '').toLowerCase().includes('[compra]');
+              const itens = isPurchase
+                ? parseCompraItens(t.materiais_previstos)
+                    .filter((i) => !i.comprado)
+                    .map((i) => ({ nome: i.nome, quantidade: i.quantidade, unidade: i.unidade }))
+                : undefined;
+              return {
+                id: t.id,
+                title: t.title,
+                obra: projectsMap.get(t.project_id)?.name || 'Geral',
+                responsavel: t.responsavel_execucao_id ? collaboratorsMap.get(t.responsavel_execucao_id)?.name : null,
+                data_prevista: t.data_fim_prevista,
+                isPurchase,
+                ...(itens && itens.length > 0 ? { itens } : {}),
+              };
+            }),
         },
       });
 
@@ -488,14 +498,23 @@ export const Tarefas: React.FC = () => {
           collaboratorsList: collaborators.map((c) => ({ id: c.id, name: c.name })),
           pendingTasksList: allTasks
             .filter((t) => t.status !== 'Concluída')
-            .map((t) => ({
-              id: t.id,
-              title: t.title,
-              obra: projectsMap.get(t.project_id)?.name || 'Geral',
-              responsavel: t.responsavel_execucao_id ? collaboratorsMap.get(t.responsavel_execucao_id)?.name : null,
-              data_prevista: t.data_fim_prevista,
-              isPurchase: (t.observacoes || '').includes('[COMPRA]') || (t.description || '').toLowerCase().includes('[compra]'),
-            })),
+            .map((t) => {
+              const isPurchase = (t.observacoes || '').includes('[COMPRA]') || (t.description || '').toLowerCase().includes('[compra]');
+              const itens = isPurchase
+                ? parseCompraItens(t.materiais_previstos)
+                    .filter((i) => !i.comprado)
+                    .map((i) => ({ nome: i.nome, quantidade: i.quantidade, unidade: i.unidade }))
+                : undefined;
+              return {
+                id: t.id,
+                title: t.title,
+                obra: projectsMap.get(t.project_id)?.name || 'Geral',
+                responsavel: t.responsavel_execucao_id ? collaboratorsMap.get(t.responsavel_execucao_id)?.name : null,
+                data_prevista: t.data_fim_prevista,
+                isPurchase,
+                ...(itens && itens.length > 0 ? { itens } : {}),
+              };
+            }),
         },
       });
 

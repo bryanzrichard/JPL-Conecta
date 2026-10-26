@@ -3,6 +3,7 @@ import {
   formatCompraItem,
   formatCompraItemTexto,
   parseListaColada,
+  localizarItens,
   CompraItem,
 } from './compraItens';
 
@@ -86,4 +87,37 @@ console.assert(bulletList.length === 3, `Lista com marcadores esperava 3 itens, 
 console.assert(bulletList[0].nome === 'Cimento' && bulletList[1].nome === 'Prego 17x21' && bulletList[2].nome === 'Fita crepe', 'Marcadores de lista');
 
 console.log('✔ parseListaColada passou em todos os testes!');
+
+// -------------------------------------------------------------
+// Teste 4: localizarItens
+// -------------------------------------------------------------
+const baseCompra: CompraItem[] = [
+  { nome: 'Cimento', quantidade: 10, unidade: 'saco', comprado: false },
+  { nome: 'Ferro 8 mm', quantidade: 10, unidade: 'barra', comprado: false },
+  { nome: 'Ferro 10 mm', quantidade: 5, unidade: 'barra', comprado: false },
+];
+
+// Marcar Cimento (1 item)
+const res1 = localizarItens(baseCompra, ['Cimento']);
+console.assert(res1.encontrados.length === 1 && res1.encontrados[0].nome === 'Cimento', 'Localizar Cimento falhou');
+console.assert(res1.pendentesApos === 2, `Esperado 2 pendentes, obteve ${res1.pendentesApos}`);
+console.assert(res1.todosComprados === false, 'Não deveria estar todos comprados');
+
+// Marcar Ferro 8 mm e Ferro 10 mm sobre a lista resultante
+const res2 = localizarItens(res1.itensAtualizados, ['Ferro 8 mm', 'Ferro 10 mm']);
+console.assert(res2.encontrados.length === 2, 'Localizar 2 ferros falhou');
+console.assert(res2.pendentesApos === 0, `Esperado 0 pendentes, obteve ${res2.pendentesApos}`);
+console.assert(res2.todosComprados === true, 'Deveria estar todos comprados');
+
+// Item não localizado
+const res3 = localizarItens(baseCompra, ['Tinta Suvinil']);
+console.assert(res3.encontrados.length === 0, 'Não deveria encontrar Tinta');
+console.assert(res3.naoLocalizados.length === 1 && res3.naoLocalizados[0] === 'Tinta Suvinil', 'Deveria listar Tinta em naoLocalizados');
+
+// Termo ambíguo ("Ferro" tem 2 candidatos)
+const resAmbiguo = localizarItens(baseCompra, ['Ferro']);
+console.assert(resAmbiguo.encontrados.length === 0, 'Termo ambíguo não deve marcar nenhum');
+console.assert(resAmbiguo.naoLocalizados.includes('Ferro'), 'Termo ambíguo deve ficar em naoLocalizados');
+
+console.log('✔ localizarItens passou em todos os testes!');
 console.log('=== TODOS OS TESTES PASSARAM COM SUCESSO! ===');

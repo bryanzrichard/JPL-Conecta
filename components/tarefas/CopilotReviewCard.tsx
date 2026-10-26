@@ -76,6 +76,7 @@ export const CopilotReviewCard: React.FC<CopilotReviewCardProps> = ({
                   {item.tipo === 'CRIAR_TAREFA' && (
                     item.badge.includes('Compras') ? <ShoppingBagIcon className="h-3.5 w-3.5" /> : <ClipboardListIcon className="h-3.5 w-3.5" />
                   )}
+                  {item.tipo === 'MARCAR_ITENS_COMPRADOS' && <ShoppingBagIcon className="h-3.5 w-3.5" />}
                   {item.tipo === 'CADASTRAR_COLABORADOR' && <UserIcon className="h-3.5 w-3.5" />}
                   {item.tipo === 'CONCLUIR_TAREFA' && <CheckCircle2Icon className="h-3.5 w-3.5" />}
                   {item.tipo === 'QUITAR_SERVICO' && <DollarSignIcon className="h-3.5 w-3.5" />}
@@ -90,6 +91,30 @@ export const CopilotReviewCard: React.FC<CopilotReviewCardProps> = ({
               </div>
 
               <p className="font-bold text-slate-800 dark:text-white text-xs">{item.titulo}</p>
+              {item.subtitulo && (
+                <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium">{item.subtitulo}</p>
+              )}
+
+              {item.itensLista && item.itensLista.length > 0 && (
+                <div className="p-2 rounded-lg bg-white/80 dark:bg-brand-dark-900/60 border border-slate-200/80 dark:border-gray-800 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider block">
+                    Itens:
+                  </span>
+                  <ul className="space-y-0.5 text-[11px] text-slate-700 dark:text-gray-300">
+                    {item.itensLista.map((txt, idx) => (
+                      <li key={idx} className="flex items-center gap-1.5">
+                        <span className="h-1 w-1 rounded-full bg-amber-500 shrink-0" />
+                        <span>{txt}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {item.itensExcedentes && item.itensExcedentes > 0 ? (
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-gray-500 block pt-0.5">
+                      +{item.itensExcedentes} {item.itensExcedentes === 1 ? 'item' : 'itens'}
+                    </span>
+                  ) : null}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-0.5 text-[11px] text-slate-600 dark:text-gray-300 pt-0.5">
                 <div className="flex items-center gap-1">

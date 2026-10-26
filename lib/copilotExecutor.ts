@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { Project, Collaborator } from '../types';
 import { toISODate } from './taskParser';
+import { parseCompraItens, formatCompraItem, localizarItens, CompraItem } from './compraItens';
 
 export interface CopilotActionDados {
   // Colaborador
@@ -28,6 +29,8 @@ export interface CopilotActionDados {
   responsavel_nome?: string;
   data_prevista?: string;
   is_compra?: boolean;
+  itens?: unknown;
+  itens_comprados?: string[];
 
   // Quitação / Pagamento de Serviço
   servico_id?: string | null;
@@ -35,8 +38,17 @@ export interface CopilotActionDados {
   valor_pago?: number;
 }
 
+export type CopilotActionType = 
+  | 'CADASTRAR_COLABORADOR' 
+  | 'CRIAR_SERVICO' 
+  | 'CRIAR_TAREFA' 
+  | 'CONCLUIR_TAREFA' 
+  | 'MARCAR_ITENS_COMPRADOS'
+  | 'QUITAR_SERVICO' 
+  | 'CONVERSA_GERAL';
+
 export interface CopilotAction {
-  tipo: 'CADASTRAR_COLABORADOR' | 'CRIAR_SERVICO' | 'CRIAR_TAREFA' | 'CONCLUIR_TAREFA' | 'QUITAR_SERVICO' | 'CONVERSA_GERAL';
+  tipo: CopilotActionType;
   dados: CopilotActionDados;
 }
 
@@ -60,6 +72,9 @@ export interface OpenTaskItem {
   title: string;
   project_id?: string | null;
   status?: string;
+  materiais_previstos?: unknown;
+  observacoes?: string | null;
+  description?: string;
 }
 
 export interface OpenServiceItem {
@@ -106,6 +121,16 @@ export interface ResolvedCopilotActionDados extends CopilotActionDados {
   colaborador_pendente_cadastro?: string | null;
   responsavel_pendente_cadastro?: string | null;
 
+  // Compras com itens
+  itens_resolvidos?: CompraItem[];
+  itens_comprados_resolvidos?: {
+    encontrados: CompraItem[];
+    naoLocalizados: string[];
+    pendentesApos: number;
+    todosComprados: boolean;
+    itensAtualizados: CompraItem[];
+  };
+
   // Validação prévia
   nao_executar?: boolean;
   motivo_recusa?: string;
@@ -121,11 +146,14 @@ export interface ActionReviewItem {
   tipo: CopilotAction['tipo'];
   badge: string;
   titulo: string;
+  subtitulo?: string;
   obraLabel: string;
   responsavelLabel?: string;
   valoresLabel?: string;
   dataLabel?: string;
   detalhes?: string;
+  itensLista?: string[];
+  itensExcedentes?: number;
   naoSeraExecutado?: boolean;
   motivoNaoExecutar?: string;
 }
@@ -444,6 +472,19 @@ export function resolveCopilotActions(
         motivoRecusa = 'Título da tarefa não informado.';
       }
 
+      let resolvedItens: CompraItem[] | undefined = undefined;
+      const isPurchase = dados.is_compra || (dados.observacoes || '').includes('[COMPRA]');
+      if (isPurchase && dados.itens) {
+        const parsed = parseCompraItens(dados.itens);
+        if (parsed.length > 0) {
+          resolvedItens = parsed.map((i) => ({
+            ...i,
+            quantidade: typeof i.quantidade === 'number' && !isNaN(i.quantidade) ? i.quantidade : null,
+            comprado: false,
+          }));
+        }
+      }
+
       return {
         tipo: acao.tipo,
         dados: {
@@ -457,6 +498,7 @@ export function resolveCopilotActions(
           colaborador_id: null,
           tarefa_id: null,
           servico_id: null,
+          itens_resolvidos: resolvedItens,
           nao_executar: naoExecutar,
           motivo_recusa: motivoRecusa,
         },
@@ -505,6 +547,107 @@ export function resolveCopilotActions(
           colaborador_id: null,
           responsavel_id: null,
           servico_id: null,
+          nao_executar: naoExecutar,
+          motivo_recusa: motivoRecusa,
+        },
+      };
+    }
+
+    if (acao.tipo === 'MARCAR_ITENS_COMPRADOS') {
+      const tarefaId = dados.tarefa_id;
+      const termoBusca = dados.titulo?.trim() || dados.tarefa_titulo?.trim() || '';
+
+      let targetTask: OpenTaskItem | null = null;
+
+      if (tarefaId) {
+        targetTask = openTasks.find((t) => t.id === tarefaId) || null;
+      }
+
+      if (!targetTask && termoBusca) {
+        let pool = openTasks;
+        if (dados.obra_nome?.trim()) {
+          const obraNorm = normalizeText(dados.obra_nome);
+          const matchedProj = projects.find((p) => {
+            const pNorm = normalizeText(p.name);
+            return pNorm === obraNorm || pNorm.includes(obraNorm) || obraNorm.includes(pNorm);
+          });
+          if (matchedProj) {
+            const obraTasks = openTasks.filter((t) => t.project_id === matchedProj.id);
+            if (obraTasks.length > 0) {
+              pool = obraTasks;
+            }
+          }
+        }
+
+        const termoNorm = normalizeText(termoBusca);
+        const exactMatch = pool.find((t) => normalizeText(t.title) === termoNorm);
+        if (exactMatch) {
+          targetTask = exactMatch;
+        } else {
+          const candidates = pool.filter((t) => {
+            const tNorm = normalizeText(t.title);
+            return tNorm.includes(termoNorm) || termoNorm.includes(tNorm);
+          });
+          if (candidates.length === 1) {
+            targetTask = candidates[0];
+          } else if (candidates.length === 0 && pool !== openTasks) {
+            const fallbackExact = openTasks.find((t) => normalizeText(t.title) === termoNorm);
+            if (fallbackExact) {
+              targetTask = fallbackExact;
+            } else {
+              const fallbackCandidates = openTasks.filter((t) => {
+                const tNorm = normalizeText(t.title);
+                return tNorm.includes(termoNorm) || termoNorm.includes(tNorm);
+              });
+              if (fallbackCandidates.length === 1) {
+                targetTask = fallbackCandidates[0];
+              }
+            }
+          }
+        }
+      }
+
+      let naoExecutar = !targetTask;
+      let motivoRecusa = naoExecutar ? 'Compra não localizada.' : undefined;
+
+      let itensResolvidosObj: {
+        encontrados: CompraItem[];
+        naoLocalizados: string[];
+        pendentesApos: number;
+        todosComprados: boolean;
+        itensAtualizados: CompraItem[];
+      } | undefined = undefined;
+
+      if (targetTask) {
+        const itensAtuais = parseCompraItens(targetTask.materiais_previstos);
+        if (itensAtuais.length === 0) {
+          naoExecutar = true;
+          motivoRecusa = 'A compra não possui itens estruturados (criada como texto livre). Conclua a tarefa inteira.';
+        } else {
+          const matchResult = localizarItens(itensAtuais, dados.itens_comprados || []);
+          if (matchResult.encontrados.length === 0) {
+            naoExecutar = true;
+            motivoRecusa = 'Nenhum dos itens informados foi localizado na compra.';
+          } else {
+            itensResolvidosObj = matchResult;
+          }
+        }
+      }
+
+      const obraFound = targetTask?.project_id ? projects.find((p) => p.id === targetTask!.project_id) : null;
+
+      return {
+        tipo: acao.tipo,
+        dados: {
+          ...dados,
+          tarefa_id: targetTask ? targetTask.id : null,
+          tarefa_titulo_resolvido: targetTask ? targetTask.title : null,
+          obra_id: targetTask?.project_id || null,
+          obra_nome_resolvido: obraFound?.name || dados.obra_nome || null,
+          colaborador_id: null,
+          responsavel_id: null,
+          servico_id: null,
+          itens_comprados_resolvidos: itensResolvidosObj,
           nao_executar: naoExecutar,
           motivo_recusa: motivoRecusa,
         },
@@ -676,14 +819,76 @@ export function buildActionReviewItems(
         responsavelLabel = 'Responsável: Não informado';
       }
 
+      let itensLista: string[] | undefined = undefined;
+      let itensExcedentes: number | undefined = undefined;
+      if (isPurchase && d.itens_resolvidos && d.itens_resolvidos.length > 0) {
+        const total = d.itens_resolvidos.length;
+        const limit = 8;
+        itensLista = d.itens_resolvidos.slice(0, limit).map((i) => formatCompraItem(i));
+        if (total > limit) {
+          itensExcedentes = total - limit;
+        }
+      }
+
+      const badge = isPurchase
+        ? (d.itens_resolvidos && d.itens_resolvidos.length > 0 ? '🛒 Nova Lista de Compras' : '🛒 Lista de Compras')
+        : '📋 Criar Tarefa';
+
       return {
         id,
         tipo: acao.tipo,
-        badge: isPurchase ? '🛒 Lista de Compras' : '📋 Criar Tarefa',
+        badge,
         titulo,
         obraLabel,
         responsavelLabel,
         dataLabel: `Data: ${d.data_prevista || todayStr}`,
+        itensLista,
+        itensExcedentes,
+        naoSeraExecutado: !!d.nao_executar,
+        motivoNaoExecutar: d.motivo_recusa,
+      };
+    }
+
+    if (acao.tipo === 'MARCAR_ITENS_COMPRADOS') {
+      const achou = !!d.tarefa_id && !!d.tarefa_titulo_resolvido;
+      const match = d.itens_comprados_resolvidos;
+      const count = match ? match.encontrados.length : (d.itens_comprados?.length || 0);
+      const obraText = d.obra_nome_resolvido ? ` na ${d.obra_nome_resolvido}` : '';
+      const titulo = achou
+        ? `Marcar ${count} ${count === 1 ? 'item como comprado' : 'itens como comprados'}${obraText}`
+        : (d.titulo?.trim() || d.tarefa_titulo?.trim() || 'Marcar itens como comprados');
+      const subtitulo = achou ? d.tarefa_titulo_resolvido! : undefined;
+
+      let itensLista: string[] | undefined = undefined;
+      let itensExcedentes: number | undefined = undefined;
+      let detalhes = achou ? 'Itens serão marcados como comprados' : 'Nenhuma compra correspondente encontrada';
+
+      if (match && match.encontrados.length > 0) {
+        const total = match.encontrados.length;
+        const limit = 8;
+        itensLista = match.encontrados.slice(0, limit).map((i) => formatCompraItem(i));
+        if (total > limit) {
+          itensExcedentes = total - limit;
+        }
+        if (match.todosComprados) {
+          detalhes = 'Esta compra será concluída';
+        } else {
+          detalhes = `Restarão ${match.pendentesApos} ${match.pendentesApos === 1 ? 'item pendente' : 'itens pendentes'}`;
+        }
+      } else if (achou && (!match || match.itensAtualizados.length === 0)) {
+        detalhes = 'Esta compra não possui itens estruturados. Conclua a tarefa inteira.';
+      }
+
+      return {
+        id,
+        tipo: acao.tipo,
+        badge: '✅ Marcar Itens Comprados',
+        titulo,
+        subtitulo,
+        obraLabel: d.obra_nome_resolvido || 'Obra vinculada',
+        detalhes,
+        itensLista,
+        itensExcedentes,
         naoSeraExecutado: !!d.nao_executar,
         motivoNaoExecutar: d.motivo_recusa,
       };
@@ -958,6 +1163,12 @@ export async function executeCopilotActions({
         const isPurchase = acao.dados.is_compra || (acao.dados.observacoes || '').includes('[COMPRA]');
         const dataPrev = acao.dados.data_prevista || todayStr;
 
+        const itensToSave = isPurchase
+          ? (acao.dados.itens_resolvidos && acao.dados.itens_resolvidos.length > 0
+              ? acao.dados.itens_resolvidos
+              : (acao.dados.itens ? parseCompraItens(acao.dados.itens) : null))
+          : null;
+
         const { error: tErr } = await supabase.from('tasks').insert({
           company_id: companyId,
           created_by: userId,
@@ -970,7 +1181,7 @@ export async function executeCopilotActions({
           status: 'Planejada',
           prioridade: isPurchase ? 'Alta' : 'Média',
           observacoes: isPurchase ? '[COMPRA]' : null,
-          materiais_previstos: null,
+          materiais_previstos: (itensToSave && itensToSave.length > 0) ? itensToSave : null,
           equipamentos_utilizados: null,
           custo_real: null,
         });
@@ -988,12 +1199,19 @@ export async function executeCopilotActions({
           avisosExtras = ` • ⚠️ Responsável "${acao.dados.responsavel_nome}" não identificado (gravada sem responsável)`;
         }
 
+        const numItens = itensToSave ? itensToSave.length : 0;
+        let detalhesTexto = `Data: ${dataPrev}`;
+        if (isPurchase && numItens > 0) {
+          const itensMsg = `Compra registrada com ${numItens} ${numItens === 1 ? 'item' : 'itens'}`;
+          detalhesTexto = `${itensMsg} • ${detalhesTexto}`;
+        }
+
         results.push({
           tipo: isPurchase ? 'compra' : 'tarefa',
           badge: isPurchase ? '🛒 Lista de Compras' : '📋 Pendência de Canteiro',
           titulo: titulo,
           subtitulo: `Obra: ${pName}${targetCollabName ? ` • Resp: ${targetCollabName}` : ''}${avisosExtras}`,
-          detalhes: `Data: ${dataPrev}`,
+          detalhes: detalhesTexto,
           sucesso: true,
         });
       }
@@ -1014,7 +1232,7 @@ export async function executeCopilotActions({
 
         const { data: directTask, error: fErr } = await supabase
           .from('tasks')
-          .select('id, title')
+          .select('id, title, materiais_previstos')
           .eq('id', targetTaskId)
           .eq('company_id', companyId)
           .neq('status', 'Concluída')
@@ -1031,9 +1249,17 @@ export async function executeCopilotActions({
           continue;
         }
 
+        const itensAtuais = parseCompraItens(directTask.materiais_previstos);
+        const updatePayload: { status: 'Concluída'; materiais_previstos?: CompraItem[] } = {
+          status: 'Concluída',
+        };
+        if (itensAtuais.length > 0) {
+          updatePayload.materiais_previstos = itensAtuais.map((item) => ({ ...item, comprado: true }));
+        }
+
         const { error: updErr } = await supabase
           .from('tasks')
-          .update({ status: 'Concluída' })
+          .update(updatePayload)
           .eq('id', directTask.id);
 
         if (updErr) throw updErr;
@@ -1043,7 +1269,94 @@ export async function executeCopilotActions({
           badge: '✅ Concluída com Sucesso',
           titulo: directTask.title,
           subtitulo: 'Marcada como Concluída no canteiro',
-          detalhes: 'Status atualizado pelo Copiloto JPL',
+          detalhes: itensAtuais.length > 0
+            ? `Status atualizado • Todos os ${itensAtuais.length} itens marcados como comprados`
+            : 'Status atualizado pelo Copiloto JPL',
+          sucesso: true,
+        });
+      }
+
+      // 5. MARCAR ITENS COMPRADOS
+      else if (acao.tipo === 'MARCAR_ITENS_COMPRADOS') {
+        const targetTaskId = acao.dados.tarefa_id;
+        if (!targetTaskId) {
+          results.push({
+            tipo: 'tarefa',
+            badge: '⚠️ Compra não localizada',
+            titulo: acao.dados.titulo || acao.dados.tarefa_titulo || 'Compra não identificada',
+            subtitulo: 'Nenhuma compra em aberto correspondente encontrada para atualizar itens.',
+            sucesso: false,
+          });
+          continue;
+        }
+
+        const { data: directTask, error: fErr } = await supabase
+          .from('tasks')
+          .select('id, title, status, materiais_previstos')
+          .eq('id', targetTaskId)
+          .eq('company_id', companyId)
+          .neq('status', 'Concluída')
+          .maybeSingle();
+
+        if (fErr || !directTask) {
+          results.push({
+            tipo: 'tarefa',
+            badge: '⚠️ Compra não localizada',
+            titulo: acao.dados.tarefa_titulo_resolvido || 'Compra',
+            subtitulo: 'A compra já pode ter sido concluída ou não pertence à empresa.',
+            sucesso: false,
+          });
+          continue;
+        }
+
+        const itensAtuais = parseCompraItens(directTask.materiais_previstos);
+        if (itensAtuais.length === 0) {
+          results.push({
+            tipo: 'tarefa',
+            badge: '⚠️ Sem itens estruturados',
+            titulo: directTask.title,
+            subtitulo: 'Esta compra não possui itens cadastrados individualmente. Conclua a tarefa inteira.',
+            sucesso: false,
+          });
+          continue;
+        }
+
+        const nomesComprados = acao.dados.itens_comprados || [];
+        const matchResult = localizarItens(itensAtuais, nomesComprados);
+
+        if (matchResult.encontrados.length === 0) {
+          results.push({
+            tipo: 'tarefa',
+            badge: '⚠️ Nenhum item localizado',
+            titulo: directTask.title,
+            subtitulo: `Nenhum dos itens informados (${nomesComprados.join(', ')}) foi encontrado na compra.`,
+            sucesso: false,
+          });
+          continue;
+        }
+
+        const novoStatus = matchResult.todosComprados ? 'Concluída' : (directTask.status || 'Planejada');
+
+        const { error: updErr } = await supabase
+          .from('tasks')
+          .update({
+            materiais_previstos: matchResult.itensAtualizados,
+            status: novoStatus,
+          })
+          .eq('id', directTask.id);
+
+        if (updErr) throw updErr;
+
+        const qtdEncontrados = matchResult.encontrados.length;
+        const msgItens = `${qtdEncontrados} ${qtdEncontrados === 1 ? 'item marcado como comprado' : 'itens marcados como comprados'}`;
+        const concluidaSufixo = matchResult.todosComprados ? ' • Compra concluída' : ` • ${matchResult.pendentesApos} ${matchResult.pendentesApos === 1 ? 'pendente' : 'pendentes'}`;
+
+        results.push({
+          tipo: 'compra',
+          badge: matchResult.todosComprados ? '✅ Compra Concluída' : '🛒 Itens Comprados',
+          titulo: directTask.title,
+          subtitulo: `${msgItens}${concluidaSufixo}`,
+          detalhes: `Itens: ${matchResult.encontrados.map((i) => i.nome).join(', ')}`,
           sucesso: true,
         });
       }
