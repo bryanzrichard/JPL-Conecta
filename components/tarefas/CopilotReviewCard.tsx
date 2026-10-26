@@ -51,21 +51,42 @@ export const CopilotReviewCard: React.FC<CopilotReviewCardProps> = ({
 
       <div className="space-y-2">
         {review.items.map((item) => {
-          const isObraUnknown = item.obraLabel === 'Obra não identificada';
+          const isObraUnknown = item.obraLabel.includes('Não identificada') || item.obraLabel.includes('Não localizada');
+          const isRespUnknown = item.responsavelLabel?.includes('Não identificado');
+          const isBlocked = !!item.naoSeraExecutado;
+
           return (
             <div
               key={item.id}
-              className="p-2.5 rounded-xl border border-slate-200/90 dark:border-gray-700/80 bg-slate-50/70 dark:bg-slate-900/40 text-xs space-y-1"
+              className={`p-2.5 rounded-xl border text-xs space-y-1 transition-all ${
+                isBlocked
+                  ? 'border-amber-300/90 dark:border-amber-700/70 bg-amber-50/40 dark:bg-amber-950/20'
+                  : 'border-slate-200/90 dark:border-gray-700/80 bg-slate-50/70 dark:bg-slate-900/40'
+              }`}
             >
-              <div className="flex items-center gap-1.5 font-bold text-[11px] text-emerald-700 dark:text-emerald-300">
-                {item.tipo === 'CRIAR_SERVICO' && <ConstructionIcon className="h-3.5 w-3.5" />}
-                {item.tipo === 'CRIAR_TAREFA' && (
-                  item.badge.includes('Compras') ? <ShoppingBagIcon className="h-3.5 w-3.5" /> : <ClipboardListIcon className="h-3.5 w-3.5" />
+              <div className="flex items-center justify-between gap-1.5">
+                <div
+                  className={`flex items-center gap-1.5 font-bold text-[11px] ${
+                    isBlocked
+                      ? 'text-amber-700 dark:text-amber-300'
+                      : 'text-emerald-700 dark:text-emerald-300'
+                  }`}
+                >
+                  {item.tipo === 'CRIAR_SERVICO' && <ConstructionIcon className="h-3.5 w-3.5" />}
+                  {item.tipo === 'CRIAR_TAREFA' && (
+                    item.badge.includes('Compras') ? <ShoppingBagIcon className="h-3.5 w-3.5" /> : <ClipboardListIcon className="h-3.5 w-3.5" />
+                  )}
+                  {item.tipo === 'CADASTRAR_COLABORADOR' && <UserIcon className="h-3.5 w-3.5" />}
+                  {item.tipo === 'CONCLUIR_TAREFA' && <CheckCircle2Icon className="h-3.5 w-3.5" />}
+                  {item.tipo === 'QUITAR_SERVICO' && <DollarSignIcon className="h-3.5 w-3.5" />}
+                  <span>{item.badge}</span>
+                </div>
+
+                {isBlocked && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60 shrink-0">
+                    ⚠️ Não será executado
+                  </span>
                 )}
-                {item.tipo === 'CADASTRAR_COLABORADOR' && <UserIcon className="h-3.5 w-3.5" />}
-                {item.tipo === 'CONCLUIR_TAREFA' && <CheckCircle2Icon className="h-3.5 w-3.5" />}
-                {item.tipo === 'QUITAR_SERVICO' && <DollarSignIcon className="h-3.5 w-3.5" />}
-                <span>{item.badge}</span>
               </div>
 
               <p className="font-bold text-slate-800 dark:text-white text-xs">{item.titulo}</p>
@@ -81,7 +102,9 @@ export const CopilotReviewCard: React.FC<CopilotReviewCardProps> = ({
                 {item.responsavelLabel && (
                   <div className="flex items-center gap-1">
                     <UserIcon className="h-3 w-3 shrink-0 opacity-70" />
-                    <span>{item.responsavelLabel}</span>
+                    <span className={isRespUnknown ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}>
+                      {item.responsavelLabel}
+                    </span>
                   </div>
                 )}
 
@@ -102,6 +125,12 @@ export const CopilotReviewCard: React.FC<CopilotReviewCardProps> = ({
                 {item.detalhes && (
                   <div className="col-span-full text-[10px] text-slate-500 dark:text-gray-400">
                     {item.detalhes}
+                  </div>
+                )}
+
+                {isBlocked && item.motivoNaoExecutar && (
+                  <div className="col-span-full mt-1 p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-[11px] font-semibold text-rose-700 dark:text-rose-300">
+                    Motivo: {item.motivoNaoExecutar}
                   </div>
                 )}
               </div>

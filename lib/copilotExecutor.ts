@@ -55,6 +55,63 @@ export interface ActionCardResult {
   sucesso: boolean;
 }
 
+export interface OpenTaskItem {
+  id: string;
+  title: string;
+  project_id?: string | null;
+  status?: string;
+}
+
+export interface OpenServiceItem {
+  id: string;
+  description: string;
+  project_id: string | null;
+  collaborator_id: string | null;
+  total_value: number;
+  total_pago: number;
+  saldo: number;
+  status: string;
+}
+
+export interface ServicoWithAdiantamentosRow {
+  id: string;
+  description: string;
+  project_id: string | null;
+  collaborator_id: string | null;
+  total_value: number;
+  status: string;
+  adiantamentos: { value: number | null }[] | null;
+}
+
+export interface ResolvedCopilotActionDados extends CopilotActionDados {
+  // IDs resolvidos
+  obra_id: string | null;
+  colaborador_id: string | null;
+  responsavel_id: string | null;
+  tarefa_id: string | null;
+  servico_id: string | null;
+
+  // Resoluções visuais para o card
+  obra_nome_resolvido?: string | null;
+  colaborador_nome_resolvido?: string | null;
+  responsavel_nome_resolvido?: string | null;
+  tarefa_titulo_resolvido?: string | null;
+  servico_descricao_resolvida?: string | null;
+  servico_total_value?: number;
+  servico_total_pago?: number;
+  servico_saldo_atual?: number;
+  servico_status_resultante?: 'Concluído' | 'Em Andamento';
+
+  // Validação prévia
+  nao_executar?: boolean;
+  motivo_recusa?: string;
+}
+
+export interface ResolvedCopilotAction {
+  tipo: CopilotAction['tipo'];
+  dados: ResolvedCopilotActionDados;
+}
+
 export interface ActionReviewItem {
   id: string;
   tipo: CopilotAction['tipo'];
@@ -65,10 +122,12 @@ export interface ActionReviewItem {
   valoresLabel?: string;
   dataLabel?: string;
   detalhes?: string;
+  naoSeraExecutado?: boolean;
+  motivoNaoExecutar?: string;
 }
 
 export interface PendingReviewData {
-  acoes: CopilotAction[];
+  acoes: ResolvedCopilotAction[];
   items: ActionReviewItem[];
   status: 'pending' | 'confirmed' | 'cancelled';
 }
@@ -96,9 +155,9 @@ export function normalizeText(str: string): string {
 }
 
 /**
- * 2.2: Busca obra por nome:
+ * Busca de obra por nome:
  * 1º igualdade exata sem acento e sem maiúsculas
- * 2º só depois "contém". Se mais de um candidato casar no "contém", não escolher (retornar null).
+ * 2º só depois "contém" (se mais de um candidato casar, retorna null).
  */
 export function findProjectByName(nameQuery: string | undefined | null, projects: Project[]): Project | null {
   if (!nameQuery) return null;
@@ -121,9 +180,9 @@ export function findProjectByName(nameQuery: string | undefined | null, projects
 }
 
 /**
- * 2.2: Busca colaborador por nome:
+ * Busca de colaborador por nome:
  * 1º igualdade exata sem acento e sem maiúsculas
- * 2º só depois "contém". Se mais de um candidato casar no "contém", não escolher (retornar null).
+ * 2º só depois "contém" (se mais de um candidato casar, retorna null).
  */
 export function findCollaboratorByName(nameQuery: string | undefined | null, collaborators: Collaborator[]): Collaborator | null {
   if (!nameQuery) return null;
@@ -146,46 +205,378 @@ export function findCollaboratorByName(nameQuery: string | undefined | null, col
 }
 
 /**
- * Constrói a lista visual de itens para o card de revisão antes de gravar no banco
+ * Consulta única dos serviços abertos com soma dos adiantamentos
  */
-export function buildActionReviewItems(
+export async function fetchOpenServices(companyId: string): Promise<OpenServiceItem[]> {
+  const { data, error } = await supabase
+    .from('servicos')
+    .select('id, description, project_id, collaborator_id, total_value, status, adiantamentos(value)')
+    .eq('company_id', companyId)
+    .neq('status', 'Concluído')
+    .returns<ServicoWithAdiantamentosRow[]>();
+
+  if (error || !data) {
+    console.error('Erro ao buscar openServices para o Copiloto:', error);
+    return [];
+  }
+
+  return data.map((s) => {
+    const totalPago = (s.adiantamentos || []).reduce(
+      (sum, a) => sum + (Number(a.value) || 0),
+      0
+    );
+    const totalVal = Number(s.total_value) || 0;
+    return {
+      id: s.id,
+      description: s.description,
+      project_id: s.project_id,
+      collaborator_id: s.collaborator_id,
+      total_value: totalVal,
+      total_pago: totalPago,
+      saldo: Math.max(0, totalVal - totalPago),
+      status: s.status,
+    };
+  });
+}
+
+/**
+ * TAREFA 3: resolveCopilotActions
+ * Pré-resolve todos os IDs (obra_id, colaborador_id/responsavel_id, tarefa_id, servico_id)
+ * usando correspondência exata sem acento primeiro; includes só se for único candidato.
+ * Marca 'nao_executar: true' com motivo se o item não for localizado ou tiver valores inválidos.
+ */
+export function resolveCopilotActions(
   acoes: CopilotAction[],
   projects: Project[],
-  collaborators: Collaborator[]
+  collaborators: Collaborator[],
+  openTasks: OpenTaskItem[],
+  openServices: OpenServiceItem[]
+): ResolvedCopilotAction[] {
+  return acoes.map((acao) => {
+    const dados = { ...acao.dados };
+
+    if (acao.tipo === 'CADASTRAR_COLABORADOR') {
+      const nome = dados.nome?.trim();
+      const semNome = !nome;
+      return {
+        tipo: acao.tipo,
+        dados: {
+          ...dados,
+          nome: nome || '',
+          obra_id: null,
+          colaborador_id: null,
+          responsavel_id: null,
+          tarefa_id: null,
+          servico_id: null,
+          nao_executar: semNome,
+          motivo_recusa: semNome ? 'Nome do colaborador não informado.' : undefined,
+        },
+      };
+    }
+
+    if (acao.tipo === 'CRIAR_SERVICO') {
+      let resolvedObraId: string | null = null;
+      let resolvedObraNome: string | null = null;
+      if (dados.obra_id && projects.some((p) => p.id === dados.obra_id)) {
+        const found = projects.find((p) => p.id === dados.obra_id);
+        resolvedObraId = dados.obra_id;
+        resolvedObraNome = found?.name || null;
+      } else if (dados.obra_nome) {
+        const found = findProjectByName(dados.obra_nome, projects);
+        if (found) {
+          resolvedObraId = found.id;
+          resolvedObraNome = found.name;
+        }
+      }
+
+      let resolvedCollabId: string | null = null;
+      let resolvedCollabNome: string | null = null;
+      if (dados.colaborador_id && collaborators.some((c) => c.id === dados.colaborador_id)) {
+        const found = collaborators.find((c) => c.id === dados.colaborador_id);
+        resolvedCollabId = dados.colaborador_id;
+        resolvedCollabNome = found?.name || null;
+      } else if (dados.colaborador_nome) {
+        const found = findCollaboratorByName(dados.colaborador_nome, collaborators);
+        if (found) {
+          resolvedCollabId = found.id;
+          resolvedCollabNome = found.name;
+        }
+      }
+
+      const valorTotal = Number(dados.valor_total) || 0;
+      const valorAdiantamento = Number(dados.valor_adiantamento) || 0;
+
+      let naoExecutar = false;
+      let motivoRecusa: string | undefined = undefined;
+
+      if (valorAdiantamento > valorTotal) {
+        naoExecutar = true;
+        motivoRecusa = `Adiantamento (${formatBRL(valorAdiantamento)}) excede o valor total (${formatBRL(valorTotal)}).`;
+      } else if (valorTotal <= 0) {
+        naoExecutar = true;
+        motivoRecusa = 'Valor do serviço inválido ou não informado.';
+      } else if (dados.colaborador_nome && !resolvedCollabId) {
+        naoExecutar = true;
+        motivoRecusa = `Colaborador não identificado (IA ouviu: "${dados.colaborador_nome}").`;
+      } else if (dados.obra_nome && !resolvedObraId) {
+        naoExecutar = true;
+        motivoRecusa = `Obra não localizada (IA ouviu: "${dados.obra_nome}").`;
+      }
+
+      return {
+        tipo: acao.tipo,
+        dados: {
+          ...dados,
+          obra_id: resolvedObraId,
+          obra_nome_resolvido: resolvedObraNome,
+          colaborador_id: resolvedCollabId,
+          colaborador_nome_resolvido: resolvedCollabNome,
+          responsavel_id: null,
+          tarefa_id: null,
+          servico_id: null,
+          valor_total: valorTotal,
+          valor_adiantamento: valorAdiantamento,
+          saldo_restante: Math.max(0, valorTotal - valorAdiantamento),
+          nao_executar: naoExecutar,
+          motivo_recusa: motivoRecusa,
+        },
+      };
+    }
+
+    if (acao.tipo === 'CRIAR_TAREFA') {
+      let resolvedObraId: string | null = null;
+      let resolvedObraNome: string | null = null;
+      if (dados.obra_id && projects.some((p) => p.id === dados.obra_id)) {
+        const found = projects.find((p) => p.id === dados.obra_id);
+        resolvedObraId = dados.obra_id;
+        resolvedObraNome = found?.name || null;
+      } else if (dados.obra_nome) {
+        const found = findProjectByName(dados.obra_nome, projects);
+        if (found) {
+          resolvedObraId = found.id;
+          resolvedObraNome = found.name;
+        }
+      }
+
+      let resolvedRespId: string | null = null;
+      let resolvedRespNome: string | null = null;
+      if (dados.responsavel_id && collaborators.some((c) => c.id === dados.responsavel_id)) {
+        const found = collaborators.find((c) => c.id === dados.responsavel_id);
+        resolvedRespId = dados.responsavel_id;
+        resolvedRespNome = found?.name || null;
+      } else if (dados.responsavel_nome) {
+        const found = findCollaboratorByName(dados.responsavel_nome, collaborators);
+        if (found) {
+          resolvedRespId = found.id;
+          resolvedRespNome = found.name;
+        }
+      }
+
+      const titulo = dados.titulo?.trim();
+      let naoExecutar = false;
+      let motivoRecusa: string | undefined = undefined;
+
+      if (!titulo) {
+        naoExecutar = true;
+        motivoRecusa = 'Título da tarefa não informado.';
+      } else if (dados.responsavel_nome && !resolvedRespId) {
+        naoExecutar = true;
+        motivoRecusa = `Responsável não identificado (IA ouviu: "${dados.responsavel_nome}").`;
+      } else if (dados.obra_nome && !resolvedObraId) {
+        naoExecutar = true;
+        motivoRecusa = `Obra não localizada (IA ouviu: "${dados.obra_nome}").`;
+      }
+
+      return {
+        tipo: acao.tipo,
+        dados: {
+          ...dados,
+          titulo,
+          obra_id: resolvedObraId,
+          obra_nome_resolvido: resolvedObraNome,
+          responsavel_id: resolvedRespId,
+          responsavel_nome_resolvido: resolvedRespNome,
+          colaborador_id: null,
+          tarefa_id: null,
+          servico_id: null,
+          nao_executar: naoExecutar,
+          motivo_recusa: motivoRecusa,
+        },
+      };
+    }
+
+    if (acao.tipo === 'CONCLUIR_TAREFA') {
+      const tarefaId = dados.tarefa_id;
+      const termoBusca = dados.titulo?.trim() || dados.tarefa_titulo?.trim() || '';
+
+      let targetTask: OpenTaskItem | null = null;
+
+      if (tarefaId) {
+        targetTask = openTasks.find((t) => t.id === tarefaId) || null;
+      }
+
+      if (!targetTask && termoBusca) {
+        const termoNorm = normalizeText(termoBusca);
+        const exactMatch = openTasks.find((t) => normalizeText(t.title) === termoNorm);
+        if (exactMatch) {
+          targetTask = exactMatch;
+        } else {
+          const candidates = openTasks.filter((t) => {
+            const tNorm = normalizeText(t.title);
+            return tNorm.includes(termoNorm) || termoNorm.includes(tNorm);
+          });
+          if (candidates.length === 1) {
+            targetTask = candidates[0];
+          }
+        }
+      }
+
+      const naoExecutar = !targetTask;
+      const motivoRecusa = naoExecutar ? 'Tarefa não localizada.' : undefined;
+
+      const obraFound = targetTask?.project_id ? projects.find((p) => p.id === targetTask!.project_id) : null;
+
+      return {
+        tipo: acao.tipo,
+        dados: {
+          ...dados,
+          tarefa_id: targetTask ? targetTask.id : null,
+          tarefa_titulo_resolvido: targetTask ? targetTask.title : null,
+          obra_id: targetTask?.project_id || null,
+          obra_nome_resolvido: obraFound?.name || null,
+          colaborador_id: null,
+          responsavel_id: null,
+          servico_id: null,
+          nao_executar: naoExecutar,
+          motivo_recusa: motivoRecusa,
+        },
+      };
+    }
+
+    if (acao.tipo === 'QUITAR_SERVICO') {
+      const servicoId = dados.servico_id;
+      const termoBusca = dados.servico_nome?.trim() || dados.descricao?.trim() || '';
+      const valorPago = Number(dados.valor_pago) || 0;
+
+      let targetService: OpenServiceItem | null = null;
+
+      if (servicoId) {
+        targetService = openServices.find((s) => s.id === servicoId) || null;
+      }
+
+      if (!targetService && termoBusca) {
+        const termoNorm = normalizeText(termoBusca);
+        const exactMatch = openServices.find((s) => normalizeText(s.description) === termoNorm);
+        if (exactMatch) {
+          targetService = exactMatch;
+        } else {
+          const candidates = openServices.filter((s) => {
+            const sNorm = normalizeText(s.description);
+            return sNorm.includes(termoNorm) || termoNorm.includes(sNorm);
+          });
+          if (candidates.length === 1) {
+            targetService = candidates[0];
+          }
+        }
+      }
+
+      let naoExecutar = false;
+      let motivoRecusa: string | undefined = undefined;
+      let statusResultante: 'Concluído' | 'Em Andamento' = 'Em Andamento';
+
+      if (!targetService) {
+        naoExecutar = true;
+        motivoRecusa = 'Serviço não localizado.';
+      } else if (valorPago <= 0) {
+        naoExecutar = true;
+        motivoRecusa = 'Valor de pagamento não informado ou inválido.';
+      } else if (valorPago > targetService.saldo) {
+        naoExecutar = true;
+        motivoRecusa = `Valor do pagamento (${formatBRL(valorPago)}) excede o saldo restante (${formatBRL(targetService.saldo)}).`;
+      } else {
+        const somaFinal = targetService.total_pago + valorPago;
+        statusResultante = somaFinal >= targetService.total_value ? 'Concluído' : 'Em Andamento';
+      }
+
+      const obraFound = targetService?.project_id ? projects.find((p) => p.id === targetService!.project_id) : null;
+      const collabFound = targetService?.collaborator_id ? collaborators.find((c) => c.id === targetService!.collaborator_id) : null;
+
+      return {
+        tipo: acao.tipo,
+        dados: {
+          ...dados,
+          servico_id: targetService ? targetService.id : null,
+          servico_descricao_resolvida: targetService ? targetService.description : null,
+          servico_total_value: targetService ? targetService.total_value : undefined,
+          servico_total_pago: targetService ? targetService.total_pago : undefined,
+          servico_saldo_atual: targetService ? targetService.saldo : undefined,
+          servico_status_resultante: statusResultante,
+          obra_id: targetService?.project_id || null,
+          obra_nome_resolvido: obraFound?.name || null,
+          colaborador_id: targetService?.collaborator_id || null,
+          colaborador_nome_resolvido: collabFound?.name || null,
+          responsavel_id: null,
+          tarefa_id: null,
+          valor_pago: valorPago,
+          nao_executar: naoExecutar,
+          motivo_recusa: motivoRecusa,
+        },
+      };
+    }
+
+    return {
+      tipo: acao.tipo,
+      dados: {
+        ...dados,
+        obra_id: null,
+        colaborador_id: null,
+        responsavel_id: null,
+        tarefa_id: null,
+        servico_id: null,
+      },
+    };
+  });
+}
+
+/**
+ * Constrói a lista visual de itens para o card de revisão com DADOS REAIS já resolvidos
+ */
+export function buildActionReviewItems(
+  acoes: ResolvedCopilotAction[]
 ): ActionReviewItem[] {
   const todayStr = toISODate(new Date());
 
   return acoes.map((acao, index) => {
     const id = `review-${index}-${Date.now()}`;
+    const d = acao.dados;
 
     if (acao.tipo === 'CADASTRAR_COLABORADOR') {
-      const nome = acao.dados.nome?.trim() || 'Colaborador sem nome';
+      const nome = d.nome?.trim() || 'Colaborador sem nome';
       return {
         id,
         tipo: acao.tipo,
-        badge: '👷 Colaborador',
+        badge: '👷 Cadastrar Colaborador',
         titulo: nome,
         obraLabel: 'Geral / Empresa',
-        responsavelLabel: `Função: ${acao.dados.role || 'Prestador de Serviço'}`,
-        detalhes: `Tel: ${acao.dados.phone || 'Não informado'}${acao.dados.document ? ` • Doc: ${acao.dados.document}` : ''}`,
+        responsavelLabel: `Função: ${d.role || 'Prestador de Serviço'}`,
+        detalhes: `Tel: ${d.phone || 'Não informado'}${d.document ? ` • Doc: ${d.document}` : ''}`,
+        naoSeraExecutado: !!d.nao_executar,
+        motivoNaoExecutar: d.motivo_recusa,
       };
     }
 
     if (acao.tipo === 'CRIAR_SERVICO') {
-      const descricao = acao.dados.descricao?.trim() || 'Serviço de Empreitada';
-      const valorTotal = Number(acao.dados.valor_total) || 0;
-      const valorAdiantamento = Number(acao.dados.valor_adiantamento) || 0;
+      const descricao = d.descricao?.trim() || 'Serviço de Empreitada';
+      const valorTotal = Number(d.valor_total) || 0;
+      const valorAdiantamento = Number(d.valor_adiantamento) || 0;
       const saldo = Math.max(0, valorTotal - valorAdiantamento);
 
-      const p = acao.dados.obra_id
-        ? projects.find((proj) => proj.id === acao.dados.obra_id)
-        : findProjectByName(acao.dados.obra_nome, projects);
-      const obraLabel = p?.name || 'Obra não identificada';
+      const obraLabel = d.obra_nome_resolvido
+        || (d.obra_nome ? `Não identificada (IA ouviu: "${d.obra_nome}")` : 'Não informada');
 
-      const c = acao.dados.colaborador_id
-        ? collaborators.find((col) => col.id === acao.dados.colaborador_id)
-        : findCollaboratorByName(acao.dados.colaborador_nome, collaborators);
-      const responsavelLabel = c?.name || acao.dados.colaborador_nome || 'Não informado';
+      const responsavelLabel = d.colaborador_nome_resolvido
+        ? `Prestador: ${d.colaborador_nome_resolvido}`
+        : (d.colaborador_nome ? `Não identificado (IA ouviu: "${d.colaborador_nome}")` : 'Prestador: Não informado');
 
       return {
         id,
@@ -193,25 +584,25 @@ export function buildActionReviewItems(
         badge: '🏗️ Criar Serviço',
         titulo: descricao,
         obraLabel,
-        responsavelLabel: `Prestador: ${responsavelLabel}`,
+        responsavelLabel,
         valoresLabel: `Total: ${formatBRL(valorTotal)} • Adiantamento: ${formatBRL(valorAdiantamento)} • Saldo: ${formatBRL(saldo)}`,
         dataLabel: `Início: ${todayStr}`,
+        detalhes: d.observacoes || undefined,
+        naoSeraExecutado: !!d.nao_executar,
+        motivoNaoExecutar: d.motivo_recusa,
       };
     }
 
     if (acao.tipo === 'CRIAR_TAREFA') {
-      const titulo = acao.dados.titulo?.trim() || 'Nova Tarefa';
-      const isPurchase = acao.dados.is_compra || (acao.dados.observacoes || '').includes('[COMPRA]');
+      const titulo = d.titulo?.trim() || 'Nova Tarefa';
+      const isPurchase = d.is_compra || (d.observacoes || '').includes('[COMPRA]');
 
-      const p = acao.dados.obra_id
-        ? projects.find((proj) => proj.id === acao.dados.obra_id)
-        : findProjectByName(acao.dados.obra_nome, projects);
-      const obraLabel = p?.name || 'Obra não identificada';
+      const obraLabel = d.obra_nome_resolvido
+        || (d.obra_nome ? `Não identificada (IA ouviu: "${d.obra_nome}")` : 'Não informada');
 
-      const c = acao.dados.responsavel_id
-        ? collaborators.find((col) => col.id === acao.dados.responsavel_id)
-        : findCollaboratorByName(acao.dados.responsavel_nome, collaborators);
-      const responsavelLabel = c?.name || acao.dados.responsavel_nome || 'Não informado';
+      const responsavelLabel = d.responsavel_nome_resolvido
+        ? `Responsável: ${d.responsavel_nome_resolvido}`
+        : (d.responsavel_nome ? `Não identificado (IA ouviu: "${d.responsavel_nome}")` : 'Responsável: Não informado');
 
       return {
         id,
@@ -219,35 +610,62 @@ export function buildActionReviewItems(
         badge: isPurchase ? '🛒 Lista de Compras' : '📋 Criar Tarefa',
         titulo,
         obraLabel,
-        responsavelLabel: `Responsável: ${responsavelLabel}`,
-        dataLabel: `Data: ${acao.dados.data_prevista || todayStr}`,
+        responsavelLabel,
+        dataLabel: `Data: ${d.data_prevista || todayStr}`,
+        naoSeraExecutado: !!d.nao_executar,
+        motivoNaoExecutar: d.motivo_recusa,
       };
     }
 
     if (acao.tipo === 'CONCLUIR_TAREFA') {
-      const titulo = acao.dados.titulo?.trim() || acao.dados.tarefa_titulo?.trim() || 'Concluir Pendência';
+      const achou = !!d.tarefa_id && !!d.tarefa_titulo_resolvido;
+      const titulo = achou
+        ? d.tarefa_titulo_resolvido!
+        : (d.titulo?.trim() || d.tarefa_titulo?.trim() || 'Tarefa não identificada');
+
       return {
         id,
         tipo: acao.tipo,
-        badge: '✅ Concluir Tarefa',
+        badge: achou ? '✅ Concluir Tarefa' : '⚠️ Tarefa não localizada',
         titulo,
-        obraLabel: acao.dados.obra_nome || 'Obra vinculada',
-        responsavelLabel: acao.dados.responsavel_nome ? `Responsável: ${acao.dados.responsavel_nome}` : undefined,
-        detalhes: 'Marcar como Concluída no canteiro',
+        obraLabel: d.obra_nome_resolvido || 'Obra vinculada',
+        detalhes: achou ? 'Será marcada como Concluída no canteiro' : 'Nenhuma pendência aberta correspondente encontrada',
+        naoSeraExecutado: !!d.nao_executar,
+        motivoNaoExecutar: d.motivo_recusa,
       };
     }
 
     if (acao.tipo === 'QUITAR_SERVICO') {
-      const titulo = acao.dados.servico_nome?.trim() || acao.dados.descricao?.trim() || 'Serviço';
-      const valorPago = Number(acao.dados.valor_pago) || 0;
+      const achou = !!d.servico_id && !!d.servico_descricao_resolvida;
+      const titulo = achou
+        ? d.servico_descricao_resolvida!
+        : (d.servico_nome?.trim() || d.descricao?.trim() || 'Serviço não identificado');
+
+      const badge = !achou
+        ? '⚠️ Serviço não localizado'
+        : (d.servico_status_resultante === 'Concluído' ? '💰 Quitar Serviço (Integral)' : '💵 Pagamento de Serviço (Parcial)');
+
+      const valorPago = Number(d.valor_pago) || 0;
+      const valoresLabel = achou
+        ? `Total: ${formatBRL(d.servico_total_value)} • Já pago: ${formatBRL(d.servico_total_pago)} • Saldo atual: ${formatBRL(d.servico_saldo_atual)} • Pagamento: ${formatBRL(valorPago)}`
+        : `Pagamento: ${formatBRL(valorPago)}`;
+
+      const detalhes = achou
+        ? `Status resultante: ${d.servico_status_resultante}`
+        : 'Nenhum contrato em andamento correspondente encontrado';
+
       return {
         id,
         tipo: acao.tipo,
-        badge: '💰 Quitar / Pagar Serviço',
+        badge,
         titulo,
-        obraLabel: acao.dados.obra_nome || 'Obra vinculada',
-        valoresLabel: `Valor a pagar: ${formatBRL(valorPago)}`,
+        obraLabel: d.obra_nome_resolvido || 'Obra vinculada',
+        responsavelLabel: d.colaborador_nome_resolvido ? `Prestador: ${d.colaborador_nome_resolvido}` : undefined,
+        valoresLabel,
         dataLabel: `Data: ${todayStr}`,
+        detalhes,
+        naoSeraExecutado: !!d.nao_executar,
+        motivoNaoExecutar: d.motivo_recusa,
       };
     }
 
@@ -262,7 +680,10 @@ export function buildActionReviewItems(
 }
 
 /**
- * Executa as ações retornadas pelo Gemini Flash no banco de dados do Supabase
+ * TAREFA 3: executeCopilotActions
+ * Grava usando os IDs JÁ RESOLVIDOS pelo resolveCopilotActions.
+ * NÃO refaz busca por nome. Realiza apenas validações de segurança da empresa e saldo.
+ * Ações com 'nao_executar === true' são ignoradas na gravação e retornam como não executadas.
  */
 export async function executeCopilotActions({
   acoes,
@@ -271,7 +692,7 @@ export async function executeCopilotActions({
   projects,
   collaborators,
 }: {
-  acoes: CopilotAction[];
+  acoes: ResolvedCopilotAction[];
   companyId: string;
   userId: string;
   projects: Project[];
@@ -282,6 +703,18 @@ export async function executeCopilotActions({
 
   for (const acao of acoes) {
     try {
+      if (acao.dados.nao_executar) {
+        results.push({
+          tipo: 'erro',
+          badge: '⚠️ Não Executado',
+          titulo: acao.dados.tarefa_titulo_resolvido || acao.dados.servico_descricao_resolvida || acao.dados.titulo || acao.dados.descricao || acao.dados.nome || 'Ação cancelada',
+          subtitulo: acao.dados.motivo_recusa || 'Item marcado para não execução devido a pendências na identificação.',
+          detalhes: 'Nenhuma alteração foi realizada no banco de dados.',
+          sucesso: false,
+        });
+        continue;
+      }
+
       // 1. CADASTRAR COLABORADOR
       if (acao.tipo === 'CADASTRAR_COLABORADOR') {
         const nome = acao.dados.nome?.trim();
@@ -315,44 +748,21 @@ export async function executeCopilotActions({
         });
       }
 
-      // 2. CRIAR SERVIÇO (COM OU SEM ADIANTAMENTO)
+      // 2. CRIAR SERVIÇO
       else if (acao.tipo === 'CRIAR_SERVICO') {
         const descricao = acao.dados.descricao?.trim() || 'Serviço de Empreitada';
         const valorTotal = Number(acao.dados.valor_total) || 0;
         const valorAdiantamento = Number(acao.dados.valor_adiantamento) || 0;
 
-        // 2.5: Recusar adiantamento maior que o valor total
-        if (valorAdiantamento > valorTotal) {
-          results.push({
-            tipo: 'erro',
-            badge: '⚠️ Adiantamento Inválido',
-            titulo: 'Adiantamento excede o valor total',
-            subtitulo: `Adiantamento (${formatBRL(valorAdiantamento)}) não pode superar o valor do serviço (${formatBRL(valorTotal)}).`,
-            detalhes: 'Serviço não registrado. Ajuste os valores e tente novamente.',
-            sucesso: false,
-          });
-          continue;
-        }
+        // IDs já resolvidos com verificação de segurança no cache local
+        const targetProjId = acao.dados.obra_id && projects.some((p) => p.id === acao.dados.obra_id)
+          ? acao.dados.obra_id
+          : null;
 
-        // 2.1 e 2.2: Mapear obra pelo nome (sem fallback para projects[0])
-        let targetProjId: string | null = null;
-        if (acao.dados.obra_id && projects.some((p) => p.id === acao.dados.obra_id)) {
-          targetProjId = acao.dados.obra_id;
-        } else if (acao.dados.obra_nome) {
-          const found = findProjectByName(acao.dados.obra_nome, projects);
-          if (found) targetProjId = found.id;
-        }
+        const targetCollabId = acao.dados.colaborador_id && collaborators.some((c) => c.id === acao.dados.colaborador_id)
+          ? acao.dados.colaborador_id
+          : null;
 
-        // 2.2: Mapear colaborador pelo nome
-        let targetCollabId: string | null = null;
-        if (acao.dados.colaborador_id && collaborators.some((c) => c.id === acao.dados.colaborador_id)) {
-          targetCollabId = acao.dados.colaborador_id;
-        } else if (acao.dados.colaborador_nome) {
-          const foundC = findCollaboratorByName(acao.dados.colaborador_nome, collaborators);
-          if (foundC) targetCollabId = foundC.id;
-        }
-
-        // Insere o Serviço na tabela 'servicos'
         const { data: servico, error: sErr } = await supabase
           .from('servicos')
           .insert({
@@ -373,7 +783,6 @@ export async function executeCopilotActions({
         if (sErr) throw sErr;
         if (!servico) throw new Error('Falha ao cadastrar o serviço.');
 
-        // 2.5: Se houver adiantamento, insere o registro e checa o erro (lançar se falhar)
         if (valorAdiantamento > 0) {
           const { error: advErr } = await supabase.from('adiantamentos').insert({
             company_id: companyId,
@@ -407,23 +816,13 @@ export async function executeCopilotActions({
         const titulo = acao.dados.titulo?.trim();
         if (!titulo) continue;
 
-        // 2.1 e 2.2: Mapear obra pelo nome (sem fallback para projects[0])
-        let targetProjId: string | null = null;
-        if (acao.dados.obra_id && projects.some((p) => p.id === acao.dados.obra_id)) {
-          targetProjId = acao.dados.obra_id;
-        } else if (acao.dados.obra_nome) {
-          const found = findProjectByName(acao.dados.obra_nome, projects);
-          if (found) targetProjId = found.id;
-        }
+        const targetProjId = acao.dados.obra_id && projects.some((p) => p.id === acao.dados.obra_id)
+          ? acao.dados.obra_id
+          : null;
 
-        // 2.2: Mapear colaborador pelo nome
-        let targetCollabId: string | null = null;
-        if (acao.dados.responsavel_id && collaborators.some((c) => c.id === acao.dados.responsavel_id)) {
-          targetCollabId = acao.dados.responsavel_id;
-        } else if (acao.dados.responsavel_nome) {
-          const foundC = findCollaboratorByName(acao.dados.responsavel_nome, collaborators);
-          if (foundC) targetCollabId = foundC.id;
-        }
+        const targetCollabId = acao.dados.responsavel_id && collaborators.some((c) => c.id === acao.dados.responsavel_id)
+          ? acao.dados.responsavel_id
+          : null;
 
         const isPurchase = acao.dados.is_compra || (acao.dados.observacoes || '').includes('[COMPRA]');
         const dataPrev = acao.dados.data_prevista || todayStr;
@@ -464,150 +863,72 @@ export async function executeCopilotActions({
         });
       }
 
-      // 4. CONCLUIR TAREFA OU ITEM DA LISTA DE COMPRAS
+      // 4. CONCLUIR TAREFA
       else if (acao.tipo === 'CONCLUIR_TAREFA') {
-        const tarefaId = acao.dados.tarefa_id;
-        const termoBusca = acao.dados.titulo?.trim() || acao.dados.tarefa_titulo?.trim() || '';
-
-        let targetTaskId: string | null = null;
-        let targetTaskTitle: string = termoBusca;
-
-        // 2.3: Se vier tarefa_id, confirmar que ele existe entre as tarefas abertas da empresa
-        if (tarefaId) {
-          const { data: directTask } = await supabase
-            .from('tasks')
-            .select('id, title')
-            .eq('id', tarefaId)
-            .eq('company_id', companyId)
-            .neq('status', 'Concluída')
-            .maybeSingle();
-
-          if (directTask) {
-            targetTaskId = directTask.id;
-            targetTaskTitle = directTask.title;
-          }
-        }
-
-        // 2.3: Se não confirmou por tarefa_id e temos termoBusca, pesquisa nas tarefas abertas
-        // REMOVIDO o critério de palavra de 4 letras
-        if (!targetTaskId && termoBusca) {
-          const { data: openTasks } = await supabase
-            .from('tasks')
-            .select('id, title')
-            .eq('company_id', companyId)
-            .neq('status', 'Concluída')
-            .limit(100);
-
-          if (openTasks && openTasks.length > 0) {
-            const termoNorm = normalizeText(termoBusca);
-
-            // 1. Igualdade exata sem acentos
-            const exactMatch = openTasks.find((t) => normalizeText(t.title) === termoNorm);
-            if (exactMatch) {
-              targetTaskId = exactMatch.id;
-              targetTaskTitle = exactMatch.title;
-            } else {
-              // 2. Match por substring direta (somente se único candidato)
-              const partialMatches = openTasks.filter((t) => {
-                const tNorm = normalizeText(t.title);
-                return tNorm.includes(termoNorm) || termoNorm.includes(tNorm);
-              });
-
-              if (partialMatches.length === 1) {
-                targetTaskId = partialMatches[0].id;
-                targetTaskTitle = partialMatches[0].title;
-              }
-            }
-          }
-        }
-
-        if (targetTaskId) {
-          const { error: updErr } = await supabase
-            .from('tasks')
-            .update({ status: 'Concluída' })
-            .eq('id', targetTaskId);
-
-          if (updErr) throw updErr;
-
+        const targetTaskId = acao.dados.tarefa_id;
+        if (!targetTaskId) {
           results.push({
             tipo: 'tarefa',
-            badge: '✅ Concluída com Sucesso',
-            titulo: targetTaskTitle || 'Tarefa Baixada',
-            subtitulo: 'Marcada como Concluída no canteiro',
-            detalhes: 'Status atualizado pelo Copiloto IA',
-            sucesso: true,
-          });
-        } else {
-          results.push({
-            tipo: 'tarefa',
-            badge: 'ℹ️ Pendência não localizada',
-            titulo: termoBusca ? `"${termoBusca}"` : 'Tarefa não identificada',
+            badge: '⚠️ Tarefa não localizada',
+            titulo: acao.dados.titulo || 'Tarefa não identificada',
             subtitulo: 'Nenhuma pendência aberta correspondente encontrada para concluir.',
-            detalhes: 'Dica: Verifique se a tarefa já foi concluída ou o nome cadastrado.',
-            sucesso: false,
-          });
-        }
-      }
-
-      // 5. QUITAR SERVIÇO DE EMPREITADA
-      else if (acao.tipo === 'QUITAR_SERVICO') {
-        const termoBusca = acao.dados.servico_nome?.trim() || acao.dados.descricao?.trim() || '';
-        const valorPago = Number(acao.dados.valor_pago) || 0;
-
-        let targetServiceId: string | null = acao.dados.servico_id || null;
-
-        if (targetServiceId) {
-          const { data: directService } = await supabase
-            .from('servicos')
-            .select('id')
-            .eq('id', targetServiceId)
-            .eq('company_id', companyId)
-            .maybeSingle();
-
-          if (!directService) {
-            targetServiceId = null;
-          }
-        }
-
-        if (!targetServiceId && termoBusca) {
-          const { data: openServices } = await supabase
-            .from('servicos')
-            .select('id, description')
-            .eq('company_id', companyId)
-            .neq('status', 'Concluído')
-            .limit(50);
-
-          if (openServices && openServices.length > 0) {
-            const termoNorm = normalizeText(termoBusca);
-            const exactMatch = openServices.find((s) => normalizeText(s.description) === termoNorm);
-            if (exactMatch) {
-              targetServiceId = exactMatch.id;
-            } else {
-              const partialMatches = openServices.filter((s) => {
-                const sNorm = normalizeText(s.description);
-                return sNorm.includes(termoNorm) || termoNorm.includes(sNorm);
-              });
-              if (partialMatches.length === 1) {
-                targetServiceId = partialMatches[0].id;
-              }
-            }
-          }
-        }
-
-        // 2.4: Se não encontrar o serviço, gerar card "Serviço não localizado"
-        if (!targetServiceId) {
-          results.push({
-            tipo: 'servico',
-            badge: 'ℹ️ Serviço não localizado',
-            titulo: termoBusca ? `"${termoBusca}"` : 'Serviço não identificado',
-            subtitulo: 'Nenhum contrato em andamento correspondente foi encontrado para quitação.',
-            detalhes: 'Dica: Verifique se o serviço já foi concluído ou a descrição cadastrada.',
             sucesso: false,
           });
           continue;
         }
 
-        // 2.4: Buscar serviço e a soma atual dos adiantamentos
+        const { data: directTask, error: fErr } = await supabase
+          .from('tasks')
+          .select('id, title')
+          .eq('id', targetTaskId)
+          .eq('company_id', companyId)
+          .neq('status', 'Concluída')
+          .maybeSingle();
+
+        if (fErr || !directTask) {
+          results.push({
+            tipo: 'tarefa',
+            badge: '⚠️ Tarefa não localizada',
+            titulo: acao.dados.tarefa_titulo_resolvido || 'Tarefa',
+            subtitulo: 'A tarefa já pode ter sido concluída ou não pertence à empresa.',
+            sucesso: false,
+          });
+          continue;
+        }
+
+        const { error: updErr } = await supabase
+          .from('tasks')
+          .update({ status: 'Concluída' })
+          .eq('id', directTask.id);
+
+        if (updErr) throw updErr;
+
+        results.push({
+          tipo: 'tarefa',
+          badge: '✅ Concluída com Sucesso',
+          titulo: directTask.title,
+          subtitulo: 'Marcada como Concluída no canteiro',
+          detalhes: 'Status atualizado pelo Copiloto JPL',
+          sucesso: true,
+        });
+      }
+
+      // 5. QUITAR SERVIÇO DE EMPREITADA
+      else if (acao.tipo === 'QUITAR_SERVICO') {
+        const targetServiceId = acao.dados.servico_id;
+        const valorPago = Number(acao.dados.valor_pago) || 0;
+
+        if (!targetServiceId) {
+          results.push({
+            tipo: 'servico',
+            badge: '⚠️ Serviço não localizado',
+            titulo: acao.dados.servico_nome || 'Serviço',
+            subtitulo: 'Nenhum contrato em andamento correspondente foi encontrado para quitação.',
+            sucesso: false,
+          });
+          continue;
+        }
+
         const { data: servico, error: sErr } = await supabase
           .from('servicos')
           .select('id, description, total_value, status')
@@ -616,7 +937,7 @@ export async function executeCopilotActions({
           .single();
 
         if (sErr || !servico) {
-          throw sErr || new Error('Serviço não encontrado no banco de dados.');
+          throw sErr || new Error('Serviço não encontrado na base de dados.');
         }
 
         const { data: adiantamentosList, error: aErr } = await supabase
@@ -634,7 +955,6 @@ export async function executeCopilotActions({
         const totalValue = Number(servico.total_value) || 0;
         const saldoRestante = Math.max(0, totalValue - totalAdiantamentos);
 
-        // 2.4: Recusar se valor_pago for maior que o saldo restante (card de erro com o saldo)
         if (valorPago > saldoRestante) {
           results.push({
             tipo: 'erro',
@@ -647,7 +967,6 @@ export async function executeCopilotActions({
           continue;
         }
 
-        // 2.4: Gravar o adiantamento e checar o erro (lançar se falhar)
         if (valorPago > 0) {
           const { error: insAdvErr } = await supabase.from('adiantamentos').insert({
             company_id: companyId,
@@ -664,7 +983,6 @@ export async function executeCopilotActions({
         const somaFinalAdiantamentos = totalAdiantamentos + valorPago;
         const quitadoTotalmente = somaFinalAdiantamentos >= totalValue;
 
-        // 2.4: Só mudar o status para Concluído se a soma final for >= total_value
         if (quitadoTotalmente) {
           const { error: updErr } = await supabase
             .from('servicos')
