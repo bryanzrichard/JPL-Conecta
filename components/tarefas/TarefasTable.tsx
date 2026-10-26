@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { EnrichedTask } from './types';
 import { 
   CheckCircle2Icon, 
-  ClockIcon, 
   ConstructionIcon, 
   UserIcon, 
   ClipboardListIcon
@@ -15,7 +14,7 @@ interface TarefasTableProps {
   selectedTaskId: string | null;
   onSelectTask: (task: EnrichedTask) => void;
   onToggleStatus: (task: EnrichedTask) => void;
-  onRescheduleTomorrow: (task: EnrichedTask) => void;
+  onRescheduleTomorrow?: (task: EnrichedTask) => void;
   isDetailOpen: boolean;
   emptyMessage?: string;
   emptySubtitle?: string;
@@ -163,7 +162,6 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
               <th className="px-3 sm:px-4 py-3 font-semibold">Tarefa</th>
               <th className="w-24 sm:w-28 px-2 sm:px-3 py-3 font-semibold whitespace-nowrap">Prazo</th>
               <th className="w-20 sm:w-24 px-2 py-3 font-semibold text-center whitespace-nowrap">Prioridade</th>
-              <th className="w-20 px-2 py-3 font-semibold text-center whitespace-nowrap">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-[#111827]">
@@ -257,38 +255,6 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
                     <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded border ${getPriorityBadgeClass(task.prioridade)}`}>
                       {task.prioridade}
                     </span>
-                  </td>
-
-                  {/* Ações Rápidas */}
-                  <td className="w-20 px-2 py-2.5 whitespace-nowrap text-center align-middle" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-center gap-1">
-                      {/* Botão Adiar p/ Amanhã */}
-                      {!task.isCompleted && (
-                        <button
-                          type="button"
-                          onClick={() => onRescheduleTomorrow(task)}
-                          className="h-7 w-7 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
-                          title="Adiar prazo para amanhã"
-                        >
-                          <ClockIcon className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-
-                      {/* Botão Concluir rápido */}
-                      <button
-                        type="button"
-                        onClick={() => onToggleStatus(task)}
-                        className={`h-7 px-1.5 text-[11px] font-semibold rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
-                          task.isCompleted
-                            ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'
-                        }`}
-                        title={task.isCompleted ? 'Reabrir tarefa' : 'Concluir tarefa'}
-                      >
-                        <CheckCircle2Icon className="h-3.5 w-3.5" />
-                        <span className="hidden xl:inline">{task.isCompleted ? 'Reabrir' : 'Concluir'}</span>
-                      </button>
-                    </div>
                   </td>
                 </tr>
               );
