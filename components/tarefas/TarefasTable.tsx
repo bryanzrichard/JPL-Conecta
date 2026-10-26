@@ -1,15 +1,10 @@
 import React, { useMemo } from 'react';
 import { EnrichedTask } from './types';
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
 import { 
   CheckCircle2Icon, 
-  CircleIcon, 
   ClockIcon, 
-  ShoppingBagIcon, 
   ConstructionIcon, 
   UserIcon, 
-  AlertTriangleIcon,
   ClipboardListIcon
 } from '../../lib/icons';
 import { formatDateDM } from '../../lib/utils';
@@ -111,7 +106,7 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`text-xs truncate ${task.isCompleted ? 'line-through text-slate-400' : 'text-slate-800 dark:text-gray-100 font-semibold'}`}>
+                      <span className={`text-xs break-words line-clamp-2 leading-snug ${task.isCompleted ? 'line-through text-slate-400' : 'text-slate-800 dark:text-gray-100 font-semibold'}`}>
                         {task.title}
                       </span>
                       {task.isPurchase && (
@@ -158,19 +153,17 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
       </div>
 
       {/* ========================================================= */}
-      {/* 2. VISÃO DESKTOP: TABELA DE ALTA DENSIDADE               */}
+      {/* 2. VISÃO DESKTOP: TABELA DE ALTA DENSIDADE (SEM SCROLL)   */}
       {/* ========================================================= */}
-      <div className={`hidden md:block overflow-x-auto ${isDetailOpen ? 'max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar' : ''}`}>
-        <table className="w-full text-xs text-left text-slate-600 dark:text-gray-400">
+      <div className={`hidden md:block overflow-x-hidden ${isDetailOpen ? 'max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar' : ''}`}>
+        <table className="w-full table-fixed text-xs text-left text-slate-600 dark:text-gray-400">
           <thead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-[#94A3B8] bg-slate-50 dark:bg-[#111827] border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
             <tr>
-              <th className="w-8 px-3 py-3.5 text-center">Status</th>
-              <th className="px-3 sm:px-4 py-3.5 font-semibold">Tarefa</th>
-              <th className={isDetailOpen ? 'hidden' : 'px-4 py-3.5 font-semibold'}>Obra</th>
-              <th className={isDetailOpen ? 'hidden' : 'px-4 py-3.5 font-semibold'}>Responsável</th>
-              <th className="px-3 sm:px-4 py-3.5 font-semibold whitespace-nowrap">Prazo</th>
-              <th className={isDetailOpen ? 'hidden' : 'px-3 sm:px-4 py-3.5 font-semibold'}>Prioridade</th>
-              <th className="px-2 sm:px-4 py-3.5 font-semibold text-center w-24">Ações</th>
+              <th className="w-10 px-2.5 py-3 text-center">Status</th>
+              <th className="px-3 sm:px-4 py-3 font-semibold">Tarefa</th>
+              <th className="w-24 sm:w-28 px-2 sm:px-3 py-3 font-semibold whitespace-nowrap">Prazo</th>
+              <th className="w-20 sm:w-24 px-2 py-3 font-semibold text-center whitespace-nowrap">Prioridade</th>
+              <th className="w-20 px-2 py-3 font-semibold text-center whitespace-nowrap">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-[#111827]">
@@ -188,7 +181,7 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
                   }`}
                 >
                   {/* Status checkbox / button */}
-                  <td className="w-8 px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                  <td className="w-10 px-2.5 py-2.5 text-center align-middle" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
                       onClick={() => onToggleStatus(task)}
@@ -203,77 +196,81 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
                     </button>
                   </td>
 
-                  {/* Tarefa & Selo Compra */}
-                  <td className="px-3 sm:px-4 py-3 min-w-0">
+                  {/* Tarefa & Selo Compra + Subtítulo Obra e Responsável */}
+                  <td className="px-3 sm:px-4 py-2.5 min-w-0 align-middle">
                     <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`text-xs truncate ${task.isCompleted ? 'line-through text-slate-400' : isSelected ? 'font-bold text-emerald-700 dark:text-emerald-300' : 'font-semibold text-slate-900 dark:text-white'}`}>
+                      <div className="flex items-start gap-1.5 flex-wrap">
+                        <span
+                          className={`text-xs break-words line-clamp-2 leading-snug ${
+                            task.isCompleted
+                              ? 'line-through text-slate-400'
+                              : isSelected
+                              ? 'font-bold text-emerald-700 dark:text-emerald-300'
+                              : 'font-semibold text-slate-900 dark:text-white'
+                          }`}
+                          title={task.title}
+                        >
                           {task.title}
                         </span>
                         {task.isPurchase && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider shrink-0 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
                             Compra
                           </span>
                         )}
                       </div>
-                      {/* Subtítulo da Obra quando a coluna estiver escondida (painel aberto) */}
-                      {isDetailOpen && (
-                        <span className="text-[11px] text-slate-500 dark:text-gray-400 truncate max-w-[180px]" title={task.projectName}>
-                          {task.projectName} {task.collaboratorName ? `• ${task.collaboratorName}` : ''}
+
+                      {/* Subtítulo integrado estilo Linear/Notion (Obra • Responsável) */}
+                      <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-500 dark:text-gray-400 flex-wrap">
+                        <span className="inline-flex items-center gap-1 max-w-[180px] truncate" title={task.projectName}>
+                          <ConstructionIcon className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span className="truncate">{task.projectName}</span>
                         </span>
-                      )}
+                        {task.collaboratorName && (
+                          <>
+                            <span className="text-slate-300 dark:text-gray-600">•</span>
+                            <span className="inline-flex items-center gap-1 max-w-[140px] truncate" title={task.collaboratorName}>
+                              <UserIcon className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{task.collaboratorName}</span>
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </td>
 
-                  {/* Obra (oculta quando painel aberto) */}
-                  <td className={isDetailOpen ? 'hidden' : 'px-4 py-3'}>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 dark:bg-brand-dark-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 max-w-[180px] truncate" title={task.projectName}>
-                      <ConstructionIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{task.projectName}</span>
-                    </span>
-                  </td>
-
-                  {/* Responsável (oculta quando painel aberto) */}
-                  <td className={isDetailOpen ? 'hidden' : 'px-4 py-3 whitespace-nowrap'}>
-                    <span className="text-xs text-slate-700 dark:text-gray-300 truncate block max-w-[140px]" title={task.collaboratorName || 'Não atribuído'}>
-                      {task.collaboratorName || '-'}
-                    </span>
-                  </td>
-
                   {/* Prazo */}
-                  <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
+                  <td className="w-24 sm:w-28 px-2 sm:px-3 py-2.5 whitespace-nowrap align-middle">
+                    <div className="flex flex-col items-start gap-0.5">
                       <span className="font-mono text-xs text-slate-700 dark:text-gray-300">
                         {formatDateDM(task.data_fim_prevista)}
                       </span>
                       {task.isDelayed && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/40">
+                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/40">
                           Atrasada
                         </span>
                       )}
                     </div>
                   </td>
 
-                  {/* Prioridade (oculta quando painel aberto) */}
-                  <td className={isDetailOpen ? 'hidden' : 'px-3 sm:px-4 py-3 whitespace-nowrap'}>
-                    <span className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded border ${getPriorityBadgeClass(task.prioridade)}`}>
+                  {/* Prioridade */}
+                  <td className="w-20 sm:w-24 px-2 py-2.5 whitespace-nowrap text-center align-middle">
+                    <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded border ${getPriorityBadgeClass(task.prioridade)}`}>
                       {task.prioridade}
                     </span>
                   </td>
 
                   {/* Ações Rápidas */}
-                  <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                  <td className="w-20 px-2 py-2.5 whitespace-nowrap text-center align-middle" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-1">
                       {/* Botão Adiar p/ Amanhã */}
                       {!task.isCompleted && (
                         <button
                           type="button"
                           onClick={() => onRescheduleTomorrow(task)}
-                          className="h-7 px-2 text-[11px] font-medium text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+                          className="h-7 w-7 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
                           title="Adiar prazo para amanhã"
                         >
-                          <ClockIcon className="h-3 w-3 text-slate-400" />
-                          <span className="hidden xl:inline">Amanhã</span>
+                          <ClockIcon className="h-3.5 w-3.5" />
                         </button>
                       )}
 
@@ -281,15 +278,15 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
                       <button
                         type="button"
                         onClick={() => onToggleStatus(task)}
-                        className={`h-7 px-2 text-[11px] font-semibold rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
+                        className={`h-7 px-1.5 text-[11px] font-semibold rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
                           task.isCompleted
-                            ? 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
                             : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'
                         }`}
                         title={task.isCompleted ? 'Reabrir tarefa' : 'Concluir tarefa'}
                       >
-                        <CheckCircle2Icon className="h-3 w-3" />
-                        <span>{task.isCompleted ? 'Reabrir' : 'Concluir'}</span>
+                        <CheckCircle2Icon className="h-3.5 w-3.5" />
+                        <span className="hidden xl:inline">{task.isCompleted ? 'Reabrir' : 'Concluir'}</span>
                       </button>
                     </div>
                   </td>
