@@ -7,7 +7,7 @@ import { ThemeToggle } from './ui/ThemeToggle';
 import { GlobalSearchModal } from './GlobalSearchModal';
 import ConfirmationModal from './ui/ConfirmationModal';
 import { 
-    MenuIcon, XIcon, PlusIcon, ClipboardListIcon, FileTextIcon, 
+    MenuIcon, XIcon, ClipboardListIcon, FileTextIcon, 
     LayoutIcon, ConstructionIcon, ActivityIcon, BuildingIcon,
     LogOutIcon, ChevronRightIcon, UploadCloudIcon, SearchIcon,
     KeyRoundIcon, MoreVerticalIcon, CalculatorIcon
@@ -367,7 +367,7 @@ const MainLayout: React.FC = () => {
                         </button>
                     </div>
 
-                    {/* Direita: Tema + Registrar IA + Nova Tarefa */}
+                    {/* Direita: Tema + Registrar IA */}
                     <div className="flex items-center gap-2.5 shrink-0">
                         <ThemeToggle variant="icon" />
                         <Button
@@ -378,15 +378,6 @@ const MainLayout: React.FC = () => {
                         >
                             <UploadCloudIcon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                             <span>Registrar c/ IA</span>
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate('/tarefas', { state: { action: 'newTask' } })}
-                            className="h-8 text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-transparent dark:hover:bg-slate-900 dark:text-slate-300 gap-1.5 shadow-none"
-                        >
-                            <PlusIcon className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
-                            <span>Nova Tarefa</span>
                         </Button>
                     </div>
                 </header>

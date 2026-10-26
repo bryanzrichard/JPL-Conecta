@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useVisaoGeral } from '../hooks/useVisaoGeral';
 import { PainelHoje } from '../components/home/PainelHoje';
 import { CardObra } from '../components/home/CardObra';
@@ -9,21 +8,18 @@ import { ComposicaoCategorias } from '../components/home/ComposicaoCategorias';
 import { PrevistoRealizado } from '../components/home/PrevistoRealizado';
 import { GastoMensal } from '../components/home/GastoMensal';
 import { AuditLogsPanel } from '../components/home/AuditLogsPanel';
-import { Button } from '../components/ui/Button';
 import { 
   HomeIcon, 
   ConstructionIcon, 
   BarChartIcon, 
   ClipboardListIcon, 
   ChevronUpIcon, 
-  ChevronDownIcon,
-  PlusIcon
+  ChevronDownIcon
 } from '../lib/icons';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useMediaQuery } from '../hooks/use-media-query';
 
 const Home: React.FC = () => {
-  const navigate = useNavigate();
   const [mesesGasto, setMesesGasto] = useState<number>(6);
   const { painelHoje, obrasResumo, obrasCategorias, gastoMensal } = useVisaoGeral(mesesGasto);
 
@@ -63,30 +59,17 @@ const Home: React.FC = () => {
   return (
     <div className="w-full space-y-4 animate-in fade-in-50 pb-20 md:pb-6">
       {/* 1. CABEÇALHO OPERACIONAL NO PADRÃO NOTAS */}
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/20 shrink-0">
-            <HomeIcon className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-[#F8FAFC] tracking-tight">
-              Visão Geral
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-[#94A3B8] mt-0.5">
-              Pendências do dia, situação de cada obra e custos acima do previsto.
-            </p>
-          </div>
+      <header className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/20 shrink-0">
+          <HomeIcon className="h-5 w-5" />
         </div>
-
-        <div className="flex items-center gap-2.5">
-          <Button
-            size="sm"
-            onClick={() => navigate('/tarefas')}
-            className="h-9 text-xs font-bold bg-[#4F46E5] hover:bg-indigo-600 dark:bg-[#6366F1] dark:hover:bg-indigo-500 text-white gap-1.5 shadow-sm shadow-indigo-600/30 cursor-pointer"
-          >
-            <PlusIcon className="h-4 w-4" />
-            <span>+ Nova Tarefa</span>
-          </Button>
+        <div>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-[#F8FAFC] tracking-tight">
+            Visão Geral
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-[#94A3B8] mt-0.5">
+            Pendências do dia, situação de cada obra e custos acima do previsto.
+          </p>
         </div>
       </header>
 
