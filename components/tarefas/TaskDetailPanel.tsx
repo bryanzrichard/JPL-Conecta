@@ -99,6 +99,19 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
                   Compra
                 </span>
               )}
+              {task.isDelayed ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/40">
+                  Atrasada
+                </span>
+              ) : task.isTodayTask ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                  Hoje
+                </span>
+              ) : task.isTomorrowTask ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+                  Amanhã
+                </span>
+              ) : null}
             </div>
             <p className="text-[10px] text-slate-500 dark:text-[#94A3B8] truncate">
               {task.projectName} {task.collaboratorName ? `• ${task.collaboratorName}` : ''}
@@ -183,11 +196,19 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
                 </span>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="font-semibold text-slate-800 dark:text-gray-200">{formatDateBR(task.data_fim_prevista)}</span>
-                  {task.isDelayed && (
+                  {task.isDelayed ? (
                     <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/40">
                       Atrasada
                     </span>
-                  )}
+                  ) : task.isTodayTask ? (
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                      Hoje
+                    </span>
+                  ) : task.isTomorrowTask ? (
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+                      Amanhã
+                    </span>
+                  ) : null}
                 </div>
               </div>
             )}

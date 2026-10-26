@@ -135,11 +135,19 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
                     <span className="text-[11px] font-mono text-slate-600 dark:text-gray-300">
                       {formatDateDM(task.data_fim_prevista)}
                     </span>
-                    {task.isDelayed && (
-                      <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300">
+                    {task.isDelayed ? (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300">
                         Atrasada
                       </span>
-                    )}
+                    ) : task.isTodayTask ? (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded border bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300">
+                        Hoje
+                      </span>
+                    ) : task.isTomorrowTask ? (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300">
+                        Amanhã
+                      </span>
+                    ) : null}
                   </div>
                   <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${getPriorityBadgeClass(task.prioridade)}`}>
                     {task.prioridade}
@@ -242,11 +250,19 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
                       <span className="font-mono text-xs text-slate-700 dark:text-gray-300">
                         {formatDateDM(task.data_fim_prevista)}
                       </span>
-                      {task.isDelayed && (
+                      {task.isDelayed ? (
                         <span className="text-[9px] font-bold px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/40">
                           Atrasada
                         </span>
-                      )}
+                      ) : task.isTodayTask ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded border bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                          Hoje
+                        </span>
+                      ) : task.isTomorrowTask ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+                          Amanhã
+                        </span>
+                      ) : null}
                     </div>
                   </td>
 
