@@ -372,15 +372,13 @@ export type ObraCategoriaRow = {
 };
 
 export type GastoMensalRow = {
-  ano?: number;
-  mes?: number | string;
-  ano_mes?: string;
-  mes_ano?: string;
-  gasto_material?: number;
-  gasto_mao_de_obra?: number;
-  gasto_cartorio?: number;
-  gasto_total?: number;
-  total?: number;
+  mes: string;
+  project_id: string;
+  obra: string;
+  material: number;
+  mao_de_obra: number;
+  cartorio: number;
+  total: number;
 };
 
 // --- Supabase Database Definition (Inferred) ---
