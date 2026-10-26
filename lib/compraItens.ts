@@ -144,7 +144,8 @@ const NUM_WORDS_PATTERN =
 const MATERIAIS_COM_BITOLA = new Set([
   'ferro', 'vergalhao', 'vergalhão', 'brita', 'pedra', 'cano', 'tubo', 'fio', 'cabo', 'disjuntor',
   'chave', 'prego', 'parafuso', 'eletroduto', 'conduite', 'conduíte', 'joelho', 'curva', 'luva',
-  'te', 'tê', 'reducao', 'redução', 'tijolo', 'bloco', 'broca',
+  'te', 'tê', 'reducao', 'redução', 'tijolo', 'bloco', 'broca', 'bucha', 'porca', 'arruela',
+  'abracadeira', 'abraçadeira', 'lixa', 'registro', 'valvula', 'válvula', 'mangueira', 'rebite', 'grampo',
 ]);
 
 const MATERIAIS_M3 = ['areia', 'brita', 'pedra', 'terra'];
@@ -264,7 +265,10 @@ export function parseListaColada(texto: string): CompraItem[] {
       if (endNumOnlyMatch) {
         const prefix = endNumOnlyMatch[1].trim();
         const lastWord = prefix.split(/\s+/).pop()?.toLowerCase() || '';
-        if (!MATERIAIS_COM_BITOLA.has(lastWord)) {
+        const isBitola =
+          MATERIAIS_COM_BITOLA.has(lastWord) ||
+          (lastWord.endsWith('s') && MATERIAIS_COM_BITOLA.has(lastWord.slice(0, -1)));
+        if (!isBitola) {
           const q = parseNumeroToken(endNumOnlyMatch[2]);
           if (q !== null) {
             quantidade = q;

@@ -71,6 +71,7 @@ export const TaskFormDrawer: React.FC<TaskFormDrawerProps> = ({
   const [compraItens, setCompraItens] = useState<CompraItem[]>([]);
   const [compraItensError, setCompraItensError] = useState<string | null>(null);
   const prevEndDateRef = useRef<string | null>(null);
+  const isLegacyPurchaseWithoutItemsRef = useRef<boolean>(false);
 
   const defaultValues = useMemo(() => getInitialValues(taskToEdit), [taskToEdit]);
 
@@ -117,7 +118,9 @@ export const TaskFormDrawer: React.FC<TaskFormDrawerProps> = ({
         ? (taskToEdit.observacoes || '').includes('[COMPRA]') || (taskToEdit.description || '').toLowerCase().includes('[compra]')
         : false;
       setIsPurchase(detectedPurchase);
-      setCompraItens(detectedPurchase && taskToEdit ? parseCompraItens(taskToEdit.materiais_previstos) : []);
+      const initialItens = detectedPurchase && taskToEdit ? parseCompraItens(taskToEdit.materiais_previstos) : [];
+      setCompraItens(initialItens);
+      isLegacyPurchaseWithoutItemsRef.current = Boolean(isEditMode && detectedPurchase && initialItens.length === 0);
     }
   }, [isOpen, defaultValues, reset, taskToEdit, isEditMode]);
 
@@ -144,10 +147,15 @@ export const TaskFormDrawer: React.FC<TaskFormDrawerProps> = ({
       if (isPurchase) {
         const validItens = compraItens.filter((i) => i.nome.trim() !== '');
         if (validItens.length === 0) {
-          setCompraItensError('Adicione pelo menos um item.');
-          throw new Error('Adicione pelo menos um item.');
+          if (isLegacyPurchaseWithoutItemsRef.current && isEditMode && taskToEdit) {
+            finalMateriais = taskToEdit.materiais_previstos ?? [];
+          } else {
+            setCompraItensError('Adicione pelo menos um item.');
+            throw new Error('Adicione pelo menos um item.');
+          }
+        } else {
+          finalMateriais = validItens;
         }
-        finalMateriais = validItens;
       } else {
         finalMateriais = isEditMode && taskToEdit ? (taskToEdit.materiais_previstos ?? []) : [];
       }

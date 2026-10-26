@@ -124,6 +124,21 @@ check(t13[1].quantidade === 2 && t13[1].unidade === 'lata' && t13[1].nome === 'T
 const t14 = parseListaColada('joelho 25mm');
 check(t14.length === 1 && t14[0].quantidade === null && t14[0].unidade === null && t14[0].nome === 'Joelho 25mm', 'Caso 14 falhou');
 
+// 15. Medidas que não são quantidade (bitolas/especificações de materiais)
+// "parafuso 6, bucha 6" -> {null, null, Parafuso 6} {null, null, Bucha 6}
+const t15 = parseListaColada('parafuso 6, bucha 6');
+check(t15.length === 2, 'Caso 15 esperava 2 itens');
+check(t15[0].quantidade === null && t15[0].unidade === null && t15[0].nome === 'Parafuso 6', 'Caso 15 item 0 falhou');
+check(t15[1].quantidade === null && t15[1].unidade === null && t15[1].nome === 'Bucha 6', 'Caso 15 item 1 falhou');
+
+// "lixa 120" -> {null, null, Lixa 120}
+const t16 = parseListaColada('lixa 120');
+check(t16.length === 1 && t16[0].quantidade === null && t16[0].unidade === null && t16[0].nome === 'Lixa 120', 'Caso 16 falhou');
+
+// "2 lixas 120" -> {2, null, Lixas 120}
+const t17 = parseListaColada('2 lixas 120');
+check(t17.length === 1 && t17[0].quantidade === 2 && t17[0].unidade === null && t17[0].nome === 'Lixas 120', 'Caso 17 falhou');
+
 // Casos complementares já existentes mantidos
 const ex1 = parseListaColada('10 sacos cimento');
 check(ex1.length === 1 && ex1[0].quantidade === 10 && ex1[0].unidade === 'saco' && ex1[0].nome === 'Cimento', `Ex1 falhou: ${JSON.stringify(ex1)}`);
