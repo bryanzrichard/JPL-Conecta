@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
@@ -120,7 +121,9 @@ export const Orcamentos: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'etapas' | 'categorias'>('etapas');
 
   // Filtros Úteis na Página
-  const [selectedProjectFilter, setSelectedProjectFilter] = useState<string>('all');
+  const [searchParams] = useSearchParams();
+  const obraParam = searchParams.get('obra');
+  const [selectedProjectFilter, setSelectedProjectFilter] = useState<string>(() => obraParam || 'all');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Split View Selection: ID da etapa ou sub-passo ativo para o Inspector
@@ -208,12 +211,14 @@ export const Orcamentos: React.FC = () => {
   // Mapa de Obras por ID para acesso rápido
   const projectsMap = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects]);
 
-  // Inicializar o filtro de obra com a primeira obra cadastrada (se houver)
+  // Inicializar o filtro de obra com o parâmetro da URL ou primeira obra cadastrada (se houver)
   useEffect(() => {
-    if (selectedProjectFilter === 'all' && projects.length > 0) {
+    if (obraParam) {
+      setSelectedProjectFilter(obraParam);
+    } else if (selectedProjectFilter === 'all' && projects.length > 0) {
       setSelectedProjectFilter(projects[0].id);
     }
-  }, [projects]);
+  }, [projects, obraParam]);
 
   // Obra ativa derivada do filtro
   const effectiveProjectId = selectedProjectFilter !== 'all' ? selectedProjectFilter : null;

@@ -143,6 +143,7 @@ export type Project = {
   name: string;
   status: ProjectStatus;
   manager?: string | null;
+  area_m2?: number | null;
   start_date?: string | null;
   end_date?: string | null;
   address_street?: string | null;
@@ -326,6 +327,62 @@ export type DashboardSpendingRow = {
     total: number;
 };
 
+export type PainelHojeRow = {
+  tarefas_atrasadas: number;
+  tarefas_hoje: number;
+  compras_pendentes: number;
+  empreitadas_vencendo: number;
+  empreitadas_vencidas: number;
+  notas_para_revisar: number;
+};
+
+export type ObraResumoRow = {
+  project_id: string;
+  nome: string;
+  status: string;
+  area_m2: number | null;
+  orcado_total: number;
+  orcado_material: number;
+  orcado_mao_de_obra: number;
+  gasto_material: number;
+  gasto_mao_de_obra: number;
+  gasto_cartorio: number;
+  gasto_total: number;
+  a_pagar: number;
+  comprometido: number;
+  pct_gasto: number | null;
+  pct_comprometido: number | null;
+  pct_avanco: number | null;
+  etapas_total: number;
+  etapas_concluidas: number;
+  custo_m2: number | null;
+  orcado_m2: number | null;
+  comprometido_m2: number | null;
+};
+
+export type ObraCategoriaRow = {
+  project_id: string;
+  obra: string;
+  categoria: string;
+  orcado_material: number;
+  realizado_material: number;
+  desvio_valor: number;
+  desvio_pct: number | null;
+  pct_do_realizado_obra: number | null;
+};
+
+export type GastoMensalRow = {
+  ano?: number;
+  mes?: number | string;
+  ano_mes?: string;
+  mes_ano?: string;
+  gasto_material?: number;
+  gasto_mao_de_obra?: number;
+  gasto_cartorio?: number;
+  gasto_total?: number;
+  total?: number;
+};
+
 // --- Supabase Database Definition (Inferred) ---
 
 export type Json =
@@ -428,6 +485,22 @@ export type Database = {
       get_project_budget_by_category: {
         Args: { p_company_id: string; p_project_id: string };
         Returns: OrcamentoCategorySummary[];
+      };
+      get_painel_hoje: {
+        Args: { p_company_id: string; p_hoje: string };
+        Returns: PainelHojeRow[];
+      };
+      get_obras_resumo: {
+        Args: { p_company_id: string };
+        Returns: ObraResumoRow[];
+      };
+      get_obras_categorias: {
+        Args: { p_company_id: string };
+        Returns: ObraCategoriaRow[];
+      };
+      get_gasto_mensal: {
+        Args: { p_company_id: string; p_meses: number };
+        Returns: GastoMensalRow[];
       };
     };
     Enums: {

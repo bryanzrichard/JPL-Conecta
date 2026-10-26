@@ -48,6 +48,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, d
         name: project.name || '',
         status: (isPastOrToday ? 'Concluído' : project.status) || 'Planejamento',
         manager: project.manager || '',
+        area_m2: project.area_m2 ?? null,
         start_date: project.start_date ? project.start_date.split('T')[0] : '',
         end_date: project.end_date ? project.end_date.split('T')[0] : null,
         address_zip: project.address_zip || '',
@@ -62,6 +63,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, d
       name: '',
       status: 'Planejamento',
       manager: '',
+      area_m2: null,
       start_date: '',
       end_date: null,
       address_zip: '',
@@ -116,7 +118,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, d
   const mutation = useMutation({
     mutationFn: async (data: ProjectFormValues) => {
       if (!profile?.company_id || !user?.id) throw new Error("Usuário ou empresa não autenticado.");
-      const payload = { ...data, start_date: data.start_date || null, end_date: data.end_date || null };
+      const payload = { 
+        ...data, 
+        start_date: data.start_date || null, 
+        end_date: data.end_date || null,
+        area_m2: data.area_m2 != null ? Number(data.area_m2) : null
+      };
       
       const { error } = isEditMode
         ? await supabase.from('projects').update(payload).eq('id', project.id)
@@ -263,11 +270,11 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, d
               <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-800">
                 <CalendarIcon className="h-4 w-4 text-brand-blue-500" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
-                  2. Cronograma de Execução
+                  2. Cronograma de Execução & Área
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
                     Data de Início da Obra <span className="text-red-500">*</span>
@@ -289,6 +296,19 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project, d
                     {...register('end_date')} 
                     className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
                   />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Área construída (m²)
+                  </Label>
+                  <Input 
+                    type="text" 
+                    {...register('area_m2')} 
+                    placeholder="Ex: 1.250,50" 
+                    className="h-9 text-xs bg-white dark:bg-brand-dark-950 border-gray-300 dark:border-gray-800" 
+                  />
+                  {errors.area_m2 && <p className="text-[11px] text-red-500">{errors.area_m2.message}</p>}
                 </div>
               </div>
             </div>

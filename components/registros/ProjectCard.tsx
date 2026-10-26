@@ -101,6 +101,13 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
                   </div>
               )}
 
+              {project.area_m2 != null && Number(project.area_m2) > 0 && (
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <span className="text-brand-blue-500/70 font-mono text-[11px] font-bold">m²</span>
+                      <span className="line-clamp-1">{Number(project.area_m2).toLocaleString('pt-BR')} m² de área</span>
+                  </div>
+              )}
+
               {!!fullAddress && (
                   <div className="flex items-start gap-2 text-xs text-gray-500 pt-1">
                       <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />

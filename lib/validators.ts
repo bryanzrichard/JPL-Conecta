@@ -228,6 +228,10 @@ export const projectSchema = z.object({
     name: z.string({ message: "O Nome da Obra é obrigatório." }).min(1, "O Nome da Obra é obrigatório.").min(3, "O nome deve ter pelo menos 3 caracteres."),
     status: z.enum(PROJECT_STATUSES, { message: "O status é obrigatório." }),
     manager: z.string().optional().nullable(),
+    area_m2: z.preprocess(
+      (val) => (val === '' || val === null || val === undefined ? null : stringToNumberPreprocessor(val)),
+      z.number({ message: "A área deve ser um número." }).gt(0, "A área construída deve ser maior que zero.").optional().nullable()
+    ),
     start_date: z.string({ message: "A data de início é obrigatória." }).min(1, "A data de início é obrigatória."),
     end_date: z.string().optional().nullable(),
     address_street: z.string().optional().nullable(),

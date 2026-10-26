@@ -1078,6 +1078,15 @@ const Registros: React.FC = () => {
                 </div>
               </div>
 
+              {selectedProject.area_m2 != null && Number(selectedProject.area_m2) > 0 && (
+                <div className="pt-2 border-t border-slate-200/60 dark:border-gray-700/60">
+                  <p className="text-[10px] text-slate-400 dark:text-gray-500">Área Construída</p>
+                  <p className="font-mono text-xs font-semibold text-slate-800 dark:text-gray-200 tabular-nums">
+                    {Number(selectedProject.area_m2).toLocaleString('pt-BR')} m²
+                  </p>
+                </div>
+              )}
+
               {selectedProject.end_date && (selectedProject.end_date.includes('T') ? selectedProject.end_date.split('T')[0] : selectedProject.end_date) <= new Date().toLocaleDateString('en-CA') && (
                 <div className="pt-2 border-t border-slate-200/60 dark:border-gray-700/60 flex items-center justify-between text-[11px]">
                   <span className="text-slate-500 dark:text-gray-400 font-medium">Status do Cronograma:</span>

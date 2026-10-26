@@ -1,126 +1,118 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { useDashboardAlerts } from '../hooks/useDashboardAlerts';
-import { SystemHealthPanel } from '../components/home/SystemHealthPanel';
+import React, { useMemo } from 'react';
+import { useVisaoGeral } from '../hooks/useVisaoGeral';
+import { PainelHoje } from '../components/home/PainelHoje';
+import { CardObra } from '../components/home/CardObra';
+import { EstourosPrevisto } from '../components/home/EstourosPrevisto';
 import { DashboardCharts } from '../components/home/DashboardCharts';
 import { AuditLogsPanel } from '../components/home/AuditLogsPanel';
 import { PageHeader } from '../components/ui/PageHeader';
-import { HomeIcon, AlertTriangleIcon, ClockIcon, ChevronRightIcon, TrendingUpIcon } from '../lib/icons';
+import { HomeIcon, ConstructionIcon } from '../lib/icons';
 import { Skeleton } from '../components/ui/Skeleton';
 
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-};
-
 const Home: React.FC = () => {
-    const { profile, user } = useAuth();
-    const navigate = useNavigate();
-    const { monthlySpending, delayedTasks, pendingAi, isLoading } = useDashboardAlerts(
-        profile?.company_id,
-        user?.id
+  const { painelHoje, obrasResumo, obrasCategorias } = useVisaoGeral();
+
+  // Filtrar apenas obras não concluídas para os cards em andamento
+  const activeObras = useMemo(() => {
+    return (obrasResumo.data || []).filter(
+      (o) => o.status !== 'Concluido' && o.status !== 'Concluído'
     );
+  }, [obrasResumo.data]);
 
-    return (
-        <div className="space-y-6 animate-in fade-in-50 pb-20 md:pb-0">
-            <PageHeader
-                icon={HomeIcon}
-                title="Visão Geral & Indicadores"
-                description="Acompanhe métricas executivas, alertas operacionais e integridade do sistema."
-            />
+  // Set de IDs das obras concluídas para o filtro do bloco Estouros
+  const concludedProjectIds = useMemo(() => {
+    return new Set(
+      (obrasResumo.data || [])
+        .filter((o) => o.status === 'Concluido' || o.status === 'Concluído')
+        .map((o) => o.project_id)
+    );
+  }, [obrasResumo.data]);
 
-            {/* KPI EXECUTIVE ALERTS ROW */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* 1. GASTOS NO MÊS */}
-                <div 
-                    onClick={() => navigate('/notas')}
-                    className="bg-brand-dark-900 border border-gray-800 hover:border-gray-700 p-5 rounded-xl flex items-center justify-between cursor-pointer transition-all shadow-sm hover:shadow-md group"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
-                            <TrendingUpIcon className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-medium text-gray-400">Total Faturado no Mês</p>
-                            {isLoading ? (
-                                <Skeleton className="h-7 w-28 mt-1" />
-                            ) : (
-                                <p className="text-xl font-bold text-white tracking-tight">{formatCurrency(monthlySpending)}</p>
-                            )}
-                        </div>
-                    </div>
-                    <ChevronRightIcon className="h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors" />
-                </div>
+  return (
+    <div className="space-y-7 animate-in fade-in-50 pb-20 md:pb-6">
+      {/* CABEÇALHO DA PÁGINA */}
+      <PageHeader
+        icon={HomeIcon}
+        title="Visão Geral"
+        description="Pendências do dia, situação de cada obra e custos acima do previsto."
+      />
 
-                {/* 2. TAREFAS ATRASADAS */}
-                <div 
-                    onClick={() => navigate('/tarefas')}
-                    className={`bg-brand-dark-900 border p-5 rounded-xl flex items-center justify-between cursor-pointer transition-all shadow-sm hover:shadow-md group ${
-                        delayedTasks > 0 ? 'border-red-900/40 hover:border-red-800/60 bg-red-950/10' : 'border-gray-800 hover:border-gray-700'
-                    }`}
-                >
-                    <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl border flex items-center justify-center transition-transform group-hover:scale-105 ${
-                            delayedTasks > 0 ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-brand-dark-800 border-gray-700 text-gray-400'
-                        }`}>
-                            <AlertTriangleIcon className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-medium text-gray-400">Tarefas em Atraso</p>
-                            {isLoading ? (
-                                <Skeleton className="h-7 w-16 mt-1" />
-                            ) : (
-                                <p className={`text-xl font-bold tracking-tight ${delayedTasks > 0 ? 'text-red-400' : 'text-white'}`}>
-                                    {delayedTasks} {delayedTasks === 1 ? 'tarefa' : 'tarefas'}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                    <ChevronRightIcon className="h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors" />
-                </div>
+      {/* BLOCO 1: HOJE */}
+      <PainelHoje
+        data={painelHoje.data}
+        isLoading={painelHoje.isLoading}
+        isError={painelHoje.isError}
+      />
 
-                {/* 3. PENDÊNCIAS / PROCESSAMENTOS IA */}
-                <div 
-                    onClick={() => navigate('/notas')}
-                    className={`bg-brand-dark-900 border p-5 rounded-xl flex items-center justify-between cursor-pointer transition-all shadow-sm hover:shadow-md group sm:col-span-2 lg:col-span-1 ${
-                        pendingAi > 0 ? 'border-amber-900/40 hover:border-amber-800/60 bg-amber-950/10' : 'border-gray-800 hover:border-gray-700'
-                    }`}
-                >
-                    <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl border flex items-center justify-center transition-transform group-hover:scale-105 ${
-                            pendingAi > 0 ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-brand-dark-800 border-gray-700 text-gray-400'
-                        }`}>
-                            <ClockIcon className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-medium text-gray-400">Processamento IA & Fila</p>
-                            {isLoading ? (
-                                <Skeleton className="h-7 w-20 mt-1" />
-                            ) : (
-                                <p className={`text-xl font-bold tracking-tight ${pendingAi > 0 ? 'text-amber-400' : 'text-white'}`}>
-                                    {pendingAi} {pendingAi === 1 ? 'item pendente' : 'itens pendentes'}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                    <ChevronRightIcon className="h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors" />
-                </div>
-            </div>
-
-            {/* DASHBOARD CHARTS */}
-            <DashboardCharts />
-
-            {/* AUDIT LOGS & HEALTH CHECK - SIDE BY SIDE IN WIDESCREEN DESKTOP */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
-                <div className="min-h-[440px] flex flex-col">
-                    <AuditLogsPanel />
-                </div>
-                <div className="min-h-[440px] flex flex-col">
-                    <SystemHealthPanel />
-                </div>
-            </div>
+      {/* BLOCO 2: OBRAS EM ANDAMENTO */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+              <ConstructionIcon className="h-4 w-4" />
+            </span>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-gray-200">
+              Obras em andamento
+            </h2>
+          </div>
+          {!obrasResumo.isLoading && (
+            <span className="text-[11px] text-slate-500 dark:text-gray-400">
+              {activeObras.length} {activeObras.length === 1 ? 'obra ativa' : 'obras ativas'}
+            </span>
+          )}
         </div>
-    );
+
+        {obrasResumo.isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-64 rounded-2xl" />
+            ))}
+          </div>
+        ) : obrasResumo.isError ? (
+          <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/20 text-xs text-amber-800 dark:text-amber-300">
+            Não foi possível carregar o resumo das obras no momento.
+          </div>
+        ) : activeObras.length === 0 ? (
+          <div className="p-8 text-center bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl space-y-1">
+            <p className="text-xs font-semibold text-slate-700 dark:text-gray-300">
+              Nenhuma obra em andamento no momento.
+            </p>
+            <p className="text-[11px] text-slate-400 dark:text-gray-500">
+              Cadastre uma nova obra ou reabra uma obra em planejamento para acompanhar o consumo.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {activeObras.map((obra) => (
+                <CardObra key={obra.project_id} obra={obra} />
+              ))}
+            </div>
+            {/* LEGENDA CURTA ABAIXO DOS CARDS */}
+            <p className="text-xs text-slate-500 dark:text-gray-400 text-center sm:text-left pt-1">
+              Barra: dinheiro gasto. Traço: obra pronta.
+            </p>
+          </div>
+        )}
+      </section>
+
+      {/* BLOCO 3: ESTOURANDO O PREVISTO */}
+      <EstourosPrevisto
+        categorias={obrasCategorias.data}
+        concludedProjectIds={concludedProjectIds}
+        isLoading={obrasCategorias.isLoading}
+        isError={obrasCategorias.isError}
+      />
+
+      {/* DASHBOARD CHARTS (MANTIDO CONFORME ESPECIFICAÇÃO) */}
+      <DashboardCharts />
+
+      {/* AUDIT LOGS (MANTIDO CONFORME ESPECIFICAÇÃO) */}
+      <div className="pt-2">
+        <AuditLogsPanel />
+      </div>
+    </div>
+  );
 };
 
 export default Home;
