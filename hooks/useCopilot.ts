@@ -133,6 +133,24 @@ export function useCopilot({
       const res = response.result;
       const baseText = res.resumo_ia || 'Comando processado.';
       await handleProcessCopilotResponse(res, baseText);
+    } catch (err: unknown) {
+      console.warn('Erro ao processar mensagem no Copiloto:', err);
+      const erroInfo = await extrairErroCopilot(err);
+      const errorText = formatarMensagemErroCopilot({
+        codigo: erroInfo.codigo,
+        origem: 'texto',
+        detalhe: erroInfo.detalhe,
+      });
+
+      const errorMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ia',
+        text: errorText,
+        timestamp: timeStr,
+        createdAt: new Date().toISOString(),
+        retryText: text,
+      };
+      setChatMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsProcessingAudioIA(false);
     }
@@ -185,6 +203,27 @@ export function useCopilot({
       const res = response.result;
       const baseText = res.resumo_ia || 'Comando processado.';
       await handleProcessCopilotResponse(res, baseText, messageId);
+    } catch (err: unknown) {
+      console.warn('Erro ao reenviar mensagem no Copiloto:', err);
+      const erroInfo = await extrairErroCopilot(err);
+      const errorText = formatarMensagemErroCopilot({
+        codigo: erroInfo.codigo,
+        origem: 'texto',
+        detalhe: erroInfo.detalhe,
+      });
+
+      setChatMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                text: errorText,
+                reenviando: false,
+                retryText: textToRetry,
+              }
+            : m
+        )
+      );
     } finally {
       setIsProcessingAudioIA(false);
     }
