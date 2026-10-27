@@ -302,3 +302,51 @@ export async function executarConsulta(
     };
   }
 }
+
+/**
+ * Executa múltiplas consultas em paralelo (Promise.allSettled) e notifica
+ * individualmente cada card à medida que conclui.
+ */
+export async function executarConsultasEmParalelo(
+  consultas: ConsultaResultado[],
+  companyId: string,
+  aoConcluir: (idx: number, resultado: ConsultaResultado) => void,
+  customClient?: SupabaseRpcClient
+): Promise<void> {
+  const queryPromises = consultas.map(async (item, idx) => {
+    if (item.erro) {
+      return { idx, resultado: item };
+    }
+    try {
+      const resultado = await executarConsulta(
+        { pedido: item.pedido, obraNome: item.obraNome },
+        companyId,
+        customClient
+      );
+      const finalResult: ConsultaResultado = {
+        ...resultado,
+        carregando: false,
+        executadoEm: new Date().toISOString(),
+      };
+      aoConcluir(idx, finalResult);
+      return { idx, resultado: finalResult };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao consultar';
+      const errorResult: ConsultaResultado = {
+        pedido: item.pedido,
+        obraNome: item.obraNome,
+        linhas: [],
+        notas: [],
+        total: 0,
+        erro: msg,
+        carregando: false,
+        executadoEm: new Date().toISOString(),
+      };
+      aoConcluir(idx, errorResult);
+      return { idx, resultado: errorResult };
+    }
+  });
+
+  await Promise.allSettled(queryPromises);
+}
+
