@@ -179,6 +179,8 @@ export interface ChatMessage {
   review?: PendingReviewData;
   consultas?: ConsultaResultado[];
   consultando?: boolean;
+  retryText?: string;
+  reenviando?: boolean;
 }
 
 export function formatBRL(val?: number | null): string {

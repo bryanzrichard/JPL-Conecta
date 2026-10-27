@@ -51,6 +51,10 @@ import {
   clearCopilotHistory,
   executeGuardedConfirm,
 } from '../lib/copilotHistorico';
+import {
+  extrairErroCopilot,
+  formatarMensagemErroCopilot,
+} from '../lib/copilotErros';
 import { CopilotPanel } from '../components/tarefas/CopilotPanel';
 import { formatApiError } from '../lib/handleError';
 import { formatDateBR } from '../lib/utils';
@@ -396,7 +400,8 @@ export const Tarefas: React.FC = () => {
 
   const handleProcessCopilotResponse = async (
     res: { resumo_ia?: string; transcricao?: string; acoes?: CopilotAction[] },
-    baseText: string
+    baseText: string,
+    targetMessageId?: string
   ) => {
     const rawAcoes = res.acoes || [];
     const consultaActions = rawAcoes.filter((a) => a.tipo === 'CONSULTAR');
@@ -408,7 +413,7 @@ export const Tarefas: React.FC = () => {
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     if (consultaActions.length > 0) {
-      const iaMsgId = (Date.now() + 1).toString();
+      const iaMsgId = targetMessageId || (Date.now() + 1).toString();
 
       // Monta os cards iniciais de consulta com indicador individual de carregamento
       const initialConsultas: ConsultaResultado[] = consultaActions.map((a) => {
@@ -454,7 +459,11 @@ export const Tarefas: React.FC = () => {
         ...(reviewData ? { review: reviewData } : {}),
       };
 
-      setChatMessages((prev) => [...prev, initialIaMsg]);
+      setChatMessages((prev) =>
+        targetMessageId
+          ? prev.map((m) => (m.id === targetMessageId ? initialIaMsg : m))
+          : [...prev, initialIaMsg]
+      );
 
       const companyId = profile?.company_id || '';
 
@@ -518,7 +527,7 @@ export const Tarefas: React.FC = () => {
       );
       const reviewItems = buildActionReviewItems(resolvedActions);
       const iaMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: targetMessageId || (Date.now() + 1).toString(),
         sender: 'ia',
         text: baseText,
         timestamp: timeStr,
@@ -529,16 +538,24 @@ export const Tarefas: React.FC = () => {
           status: 'pending',
         },
       };
-      setChatMessages((prev) => [...prev, iaMsg]);
+      setChatMessages((prev) =>
+        targetMessageId
+          ? prev.map((m) => (m.id === targetMessageId ? iaMsg : m))
+          : [...prev, iaMsg]
+      );
     } else {
       const iaMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: targetMessageId || (Date.now() + 1).toString(),
         sender: 'ia',
         text: baseText,
         timestamp: timeStr,
         createdAt: nowIso,
       };
-      setChatMessages((prev) => [...prev, iaMsg]);
+      setChatMessages((prev) =>
+        targetMessageId
+          ? prev.map((m) => (m.id === targetMessageId ? iaMsg : m))
+          : [...prev, iaMsg]
+      );
     }
   };
 
@@ -590,8 +607,23 @@ export const Tarefas: React.FC = () => {
       });
 
       if (error || !data?.result) {
-        let errorDetail = error?.message || 'Falha ao processar com o Gemini Flash';
-        throw new Error(errorDetail);
+        const erroInfo = await extrairErroCopilot(error);
+        const errorText = formatarMensagemErroCopilot({
+          codigo: erroInfo.codigo,
+          origem: 'texto',
+          detalhe: erroInfo.detalhe,
+        });
+
+        const errorMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ia',
+          text: errorText,
+          timestamp: timeStr,
+          createdAt: new Date().toISOString(),
+          retryText: text,
+        };
+        setChatMessages((prev) => [...prev, errorMsg]);
+        return;
       }
 
       const res = data.result;
@@ -599,15 +631,110 @@ export const Tarefas: React.FC = () => {
       await handleProcessCopilotResponse(res, baseText);
     } catch (err: unknown) {
       console.warn('Erro ao processar mensagem no Copiloto:', err);
-      const msgText = err instanceof Error ? err.message : 'Erro na Edge Function';
+      const erroInfo = await extrairErroCopilot(err);
+      const errorText = formatarMensagemErroCopilot({
+        codigo: erroInfo.codigo,
+        origem: 'texto',
+        detalhe: erroInfo.detalhe,
+      });
+
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'ia',
-        text: `⚠️ Não consegui concluir a ação: ${msgText}. Verifique o deploy de "processar-comando-voz" ou a API_KEY no Supabase.`,
+        text: errorText,
         timestamp: timeStr,
         createdAt: new Date().toISOString(),
+        retryText: text,
       };
       setChatMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsProcessingAudioIA(false);
+    }
+  };
+
+  const handleRetryCopilotTextMessage = async (messageId: string, textToRetry: string) => {
+    if (isProcessingAudioIA) return;
+
+    setChatMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, reenviando: true } : m))
+    );
+    setIsProcessingAudioIA(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('processar-comando-voz', {
+        body: {
+          textCommand: textToRetry,
+          projectsList: projects.map((p) => ({ id: p.id, name: p.name })),
+          collaboratorsList: collaborators.map((c) => ({ id: c.id, name: c.name })),
+          pendingTasksList: allTasks
+            .filter((t) => t.status !== 'Concluída')
+            .map((t) => {
+              const isPurchase = (t.observacoes || '').includes('[COMPRA]') || (t.description || '').toLowerCase().includes('[compra]');
+              const itens = isPurchase
+                ? parseCompraItens(t.materiais_previstos)
+                    .filter((i) => !i.comprado)
+                    .map((i) => ({ nome: i.nome, quantidade: i.quantidade, unidade: i.unidade }))
+                : undefined;
+              return {
+                id: t.id,
+                title: t.title,
+                obra: projectsMap.get(t.project_id)?.name || 'Geral',
+                responsavel: t.responsavel_execucao_id ? collaboratorsMap.get(t.responsavel_execucao_id)?.name : null,
+                data_prevista: t.data_fim_prevista,
+                isPurchase,
+                ...(itens && itens.length > 0 ? { itens } : {}),
+              };
+            }),
+        },
+      });
+
+      if (error || !data?.result) {
+        const erroInfo = await extrairErroCopilot(error);
+        const errorText = formatarMensagemErroCopilot({
+          codigo: erroInfo.codigo,
+          origem: 'texto',
+          detalhe: erroInfo.detalhe,
+        });
+
+        setChatMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  text: errorText,
+                  reenviando: false,
+                  retryText: textToRetry,
+                }
+              : m
+          )
+        );
+        return;
+      }
+
+      const res = data.result;
+      const baseText = res.resumo_ia || 'Comando processado.';
+      await handleProcessCopilotResponse(res, baseText, messageId);
+    } catch (err: unknown) {
+      console.warn('Erro ao reenviar mensagem no Copiloto:', err);
+      const erroInfo = await extrairErroCopilot(err);
+      const errorText = formatarMensagemErroCopilot({
+        codigo: erroInfo.codigo,
+        origem: 'texto',
+        detalhe: erroInfo.detalhe,
+      });
+
+      setChatMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                text: errorText,
+                reenviando: false,
+                retryText: textToRetry,
+              }
+            : m
+        )
+      );
     } finally {
       setIsProcessingAudioIA(false);
     }
@@ -761,8 +888,22 @@ export const Tarefas: React.FC = () => {
       });
 
       if (error || !data?.result) {
-        let errorDetail = error?.message || 'Falha ao processar com Gemini Flash';
-        throw new Error(errorDetail);
+        const erroInfo = await extrairErroCopilot(error);
+        const errorText = formatarMensagemErroCopilot({
+          codigo: erroInfo.codigo,
+          origem: 'audio',
+          detalhe: erroInfo.detalhe,
+        });
+
+        const errorMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ia',
+          text: errorText,
+          timestamp: timeStr,
+          createdAt: nowIso,
+        };
+        setChatMessages((prev) => [...prev, errorMsg]);
+        return;
       }
 
       const res = data.result;
@@ -773,11 +914,17 @@ export const Tarefas: React.FC = () => {
       await handleProcessCopilotResponse(res, baseText);
     } catch (err: unknown) {
       console.warn('Erro ao processar áudio no Copiloto:', err);
-      const msgText = err instanceof Error ? err.message : 'Erro na Edge Function';
+      const erroInfo = await extrairErroCopilot(err);
+      const errorText = formatarMensagemErroCopilot({
+        codigo: erroInfo.codigo,
+        origem: 'audio',
+        detalhe: erroInfo.detalhe,
+      });
+
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'ia',
-        text: `⚠️ Não consegui transcrever o áudio: ${msgText}. Verifique o deploy de "processar-comando-voz" ou a API_KEY no Supabase.`,
+        text: errorText,
         timestamp: timeStr,
         createdAt: nowIso,
       };
@@ -1382,6 +1529,7 @@ export const Tarefas: React.FC = () => {
         onConfirmActions={handleConfirmCopilotActions}
         onCancelActions={handleCancelCopilotActions}
         onRefreshConsulta={handleRefreshConsulta}
+        onRetryTextMessage={handleRetryCopilotTextMessage}
         onClearConversation={handleClearCopilotConversation}
       />
 

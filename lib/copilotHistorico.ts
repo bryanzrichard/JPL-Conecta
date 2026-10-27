@@ -172,7 +172,7 @@ export function formatResumoConsulta(resultado: ConsultaResultado): string {
  * - garante createdAt em ISO
  */
 export function sanitizeMessageForStorage(msg: ChatMessage): ChatMessage {
-  const { consultando: _unusedConsultando, ...rest } = msg;
+  const { consultando: _unusedConsultando, reenviando: _unusedReenviando, ...rest } = msg;
 
   const sanitizedConsultas = rest.consultas?.map((c) => {
     const isInterrupted = c.carregando === true;
@@ -188,6 +188,7 @@ export function sanitizeMessageForStorage(msg: ChatMessage): ChatMessage {
     ...rest,
     createdAt: msg.createdAt || new Date().toISOString(),
     consultando: false,
+    reenviando: false,
     ...(sanitizedConsultas ? { consultas: sanitizedConsultas } : {}),
   };
 }
@@ -249,6 +250,7 @@ export function loadCopilotHistory(
       return {
         ...msg,
         consultando: false,
+        reenviando: false,
         timestamp: formatMessageTimestamp(msg.createdAt, msg.timestamp),
         ...(sanitizedConsultas ? { consultas: sanitizedConsultas } : {}),
         ...(sanitizedReview ? { review: sanitizedReview } : {}),

@@ -9,6 +9,7 @@ import {
   ConstructionIcon,
   ShoppingBagIcon,
   ClipboardListIcon,
+  RefreshCwIcon,
 } from '../../lib/icons';
 
 export interface CopilotMensagemProps {
@@ -17,6 +18,7 @@ export interface CopilotMensagemProps {
   onCancelActions: (messageId: string) => void;
   isProcessingAudioIA: boolean;
   onRefreshConsulta?: (messageId: string, consultaIndex: number) => Promise<void>;
+  onRetryTextMessage?: (messageId: string, textToRetry: string) => Promise<void>;
 }
 
 export const CopilotMensagem: React.FC<CopilotMensagemProps> = ({
@@ -25,6 +27,7 @@ export const CopilotMensagem: React.FC<CopilotMensagemProps> = ({
   onCancelActions,
   isProcessingAudioIA,
   onRefreshConsulta,
+  onRetryTextMessage,
 }) => {
   const isUser = message.sender === 'user';
 
@@ -41,6 +44,21 @@ export const CopilotMensagem: React.FC<CopilotMensagemProps> = ({
         }`}
       >
         <p className="whitespace-pre-wrap font-sans">{message.text}</p>
+
+        {/* Botão Reenviar para mensagens de erro de texto */}
+        {message.retryText && (
+          <div className="mt-2 pt-2 border-t border-slate-100 dark:border-gray-700/60 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => onRetryTextMessage?.(message.id, message.retryText!)}
+              disabled={message.reenviando || isProcessingAudioIA}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors cursor-pointer"
+            >
+              <RefreshCwIcon className={`h-3 w-3 ${message.reenviando ? 'animate-spin' : ''}`} />
+              <span>{message.reenviando ? 'Reenviando...' : 'Reenviar'}</span>
+            </button>
+          </div>
+        )}
 
         {/* Indicador de consulta em andamento (quando não há cards individuais com estado) */}
         {message.consultando && (!message.consultas || message.consultas.length === 0) && (

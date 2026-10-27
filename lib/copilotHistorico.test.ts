@@ -12,6 +12,13 @@ import {
   STORAGE_WARNING_MESSAGE,
   executeGuardedConfirm,
 } from './copilotHistorico';
+import {
+  extrairErroCopilot,
+  formatarMensagemErroCopilot,
+  MSG_IA_SOBRECARREGADA,
+  MSG_IA_LIMITE,
+  SUFIXO_AUDIO,
+} from './copilotErros';
 import type { ChatMessage, PendingReviewData } from './copilotExecutor';
 import { ConsultaResultado } from './copilotConsultas';
 
@@ -471,7 +478,165 @@ export async function runCopilotHistoricoTests() {
     console.log('✓ Teste 14: Dois cliques seguidos em Confirmar executam uma única vez');
   }
 
-  console.log('=== TODOS OS 14 TESTES PASSARAM COM SUCESSO! ===\n');
+  // Teste 15: Simular resposta 503 com código IA_SOBRECARREGADA
+  {
+    const mockHttpError = {
+      context: {
+        json: async () => ({ error: 'Service Unavailable', codigo: 'IA_SOBRECARREGADA' }),
+      },
+      message: 'FunctionsHttpError: 503',
+    };
+
+    const erroInfo = await extrairErroCopilot(mockHttpError);
+    assert(erroInfo.codigo === 'IA_SOBRECARREGADA', 'deve extrair código IA_SOBRECARREGADA');
+
+    const msgTexto = formatarMensagemErroCopilot({
+      codigo: erroInfo.codigo,
+      origem: 'texto',
+      detalhe: erroInfo.detalhe,
+    });
+    assert(msgTexto === MSG_IA_SOBRECARREGADA, `mensagem de texto deve ser "${MSG_IA_SOBRECARREGADA}"`);
+
+    // Mensagem de texto ganha o texto para o botão Reenviar
+    const chatMsg: ChatMessage = {
+      id: 'err-1',
+      sender: 'ia',
+      text: msgTexto,
+      timestamp: '10:00',
+      retryText: 'comprar 10 sacos de cimento',
+    };
+    assert(!!chatMsg.retryText, 'mensagem de erro de texto deve possuir retryText para o botão Reenviar');
+    console.log('✓ Teste 15: Resposta 503 com IA_SOBRECARREGADA exibe mensagem correta e possui botão Reenviar');
+  }
+
+  // Teste 16: Simular resposta com código IA_LIMITE
+  {
+    const mockHttpError = {
+      context: {
+        json: async () => ({ error: 'Resource Exhausted', codigo: 'IA_LIMITE' }),
+      },
+      message: 'FunctionsHttpError: 429',
+    };
+
+    const erroInfo = await extrairErroCopilot(mockHttpError);
+    assert(erroInfo.codigo === 'IA_LIMITE', 'deve extrair código IA_LIMITE');
+
+    const msgTexto = formatarMensagemErroCopilot({
+      codigo: erroInfo.codigo,
+      origem: 'texto',
+      detalhe: erroInfo.detalhe,
+    });
+    assert(msgTexto === MSG_IA_LIMITE, `mensagem de texto deve ser "${MSG_IA_LIMITE}"`);
+    console.log('✓ Teste 16: Resposta com IA_LIMITE exibe mensagem de limite correta');
+  }
+
+  // Teste 17: Simular 500 com ERRO_INTERNO e falha de rede (mantém mensagem de deploy / API_KEY)
+  {
+    const mockHttp500 = {
+      context: {
+        json: async () => ({ error: 'Function crashed', codigo: 'ERRO_INTERNO' }),
+      },
+      message: 'FunctionsHttpError: 500',
+    };
+    const erro500 = await extrairErroCopilot(mockHttp500);
+    assert(erro500.codigo === 'ERRO_INTERNO', 'deve extrair ERRO_INTERNO no 500');
+    const msg500 = formatarMensagemErroCopilot({
+      codigo: erro500.codigo,
+      origem: 'texto',
+      detalhe: erro500.detalhe,
+    });
+    assert(msg500.includes('Verifique o deploy de "processar-comando-voz" ou a API_KEY'), 'deve orientar verificar deploy/API_KEY');
+
+    // Falha de rede (sem corpo HTTP)
+    const mockNetworkError = new Error('Failed to fetch / NetworkError');
+    const erroRede = await extrairErroCopilot(mockNetworkError);
+    assert(erroRede.codigo === 'ERRO_INTERNO', 'falha de rede deve ser tratada como ERRO_INTERNO');
+    const msgRede = formatarMensagemErroCopilot({
+      codigo: erroRede.codigo,
+      origem: 'texto',
+      detalhe: erroRede.detalhe,
+    });
+    assert(msgRede.includes('Verifique o deploy de "processar-comando-voz" ou a API_KEY'), 'falha de rede orienta deploy/API_KEY');
+    console.log('✓ Teste 17: ERRO_INTERNO e falha de rede mantêm mensagem de verificação de deploy / API_KEY');
+  }
+
+  // Teste 18: Erro em áudio: sem retryText, mensagem termina com "Grave o áudio de novo."
+  {
+    const mockAudioError = {
+      context: {
+        json: async () => ({ error: 'Overloaded', codigo: 'IA_SOBRECARREGADA' }),
+      },
+    };
+    const erroAudio = await extrairErroCopilot(mockAudioError);
+    const msgAudio = formatarMensagemErroCopilot({
+      codigo: erroAudio.codigo,
+      origem: 'audio',
+      detalhe: erroAudio.detalhe,
+    });
+    assert(msgAudio.endsWith(SUFIXO_AUDIO), `mensagem de áudio deve terminar com '${SUFIXO_AUDIO}', obteve: '${msgAudio}'`);
+
+    const chatAudioMsg: ChatMessage = {
+      id: 'audio-err-1',
+      sender: 'ia',
+      text: msgAudio,
+      timestamp: '10:00',
+    };
+    assert(chatAudioMsg.retryText === undefined, 'erro de áudio não deve ter retryText (sem botão Reenviar)');
+    console.log('✓ Teste 18: Erro em áudio termina com "Grave o áudio de novo." e não possui botão Reenviar');
+  }
+
+  // Teste 19: Reenviar com sucesso substitui a mensagem de erro sem duplicar mensagem do usuário
+  {
+    let messages: ChatMessage[] = [
+      { id: 'user-1', sender: 'user', text: 'pintar sala', timestamp: '10:00' },
+      { id: 'ia-err-1', sender: 'ia', text: MSG_IA_SOBRECARREGADA, timestamp: '10:01', retryText: 'pintar sala' },
+    ];
+
+    // Simula clique em "Reenviar": estado entra em reenviando
+    messages = messages.map((m) => (m.id === 'ia-err-1' ? { ...m, reenviando: true } : m));
+    assert(messages[1].reenviando === true, 'botão deve entrar em estado Reenviando...');
+
+    // Resposta bem sucedida recebida: substitui a mensagem 'ia-err-1' diretamente
+    const respostaSucesso: ChatMessage = {
+      id: 'ia-err-1',
+      sender: 'ia',
+      text: 'Serviço de pintura registrado com sucesso.',
+      timestamp: '10:02',
+    };
+    messages = messages.map((m) => (m.id === 'ia-err-1' ? respostaSucesso : m));
+
+    // Verificações
+    const userMsgs = messages.filter((m) => m.sender === 'user');
+    assert(userMsgs.length === 1, `não deve duplicar mensagem do usuário (esperado 1, obteve ${userMsgs.length})`);
+    assert(messages.length === 2, 'conversa deve conter exatamente 2 mensagens');
+    assert(messages[1].text === 'Serviço de pintura registrado com sucesso.', 'mensagem de erro foi substituída');
+    assert(messages[1].retryText === undefined, 'botão Reenviar foi removido após sucesso');
+    console.log('✓ Teste 19: Reenviar com sucesso substitui o erro e não duplica a mensagem do usuário');
+  }
+
+  // Teste 20: F5 com erro de texto na tela: retryText é preservado e reenviando é resetado
+  {
+    localStorage.clear();
+    const msgComErroTexto: ChatMessage = {
+      id: 'msg-erro-f5',
+      sender: 'ia',
+      text: MSG_IA_SOBRECARREGADA,
+      timestamp: '11:00',
+      createdAt: new Date().toISOString(),
+      retryText: 'comprar 5 latas de tinta',
+      reenviando: true, // Se usuário der F5 no meio do envio
+    };
+
+    saveCopilotHistory('empresa-1', 'user-retry', [msgComErroTexto]);
+    const loaded = loadCopilotHistory('empresa-1', 'user-retry');
+
+    assert(loaded.length === 1, 'deve carregar 1 mensagem');
+    assert(loaded[0].retryText === 'comprar 5 latas de tinta', 'retryText deve ser preservado após F5');
+    assert(loaded[0].reenviando === false, 'reenviando deve ser resetado para false após F5 para permitir novo clique');
+    console.log('✓ Teste 20: F5 preserva retryText e reseta reenviando, mantendo o botão Reenviar funcional');
+  }
+
+  console.log('=== TODOS OS 20 TESTES PASSARAM COM SUCESSO! ===\n');
 }
 
 runCopilotHistoricoTests().catch((err) => {

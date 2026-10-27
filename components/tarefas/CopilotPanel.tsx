@@ -33,6 +33,7 @@ interface CopilotPanelProps {
   onConfirmActions: (messageId: string, acoes: ResolvedCopilotAction[]) => void;
   onCancelActions: (messageId: string) => void;
   onRefreshConsulta?: (messageId: string, consultaIndex: number) => Promise<void>;
+  onRetryTextMessage?: (messageId: string, textToRetry: string) => Promise<void>;
   onClearConversation?: () => void;
 }
 
@@ -52,6 +53,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
   onConfirmActions,
   onCancelActions,
   onRefreshConsulta,
+  onRetryTextMessage,
   onClearConversation,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -276,6 +278,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
               onCancelActions={onCancelActions}
               isProcessingAudioIA={isProcessingAudioIA}
               onRefreshConsulta={onRefreshConsulta}
+              onRetryTextMessage={onRetryTextMessage}
             />
           ))}
 
