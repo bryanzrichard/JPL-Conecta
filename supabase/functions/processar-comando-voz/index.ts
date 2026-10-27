@@ -13,24 +13,14 @@ const corsHeaders = {
 // Modelo unico: Flash-Lite (cota gratuita maior e resposta mais rapida).
 // Pode ser trocado sem mexer no codigo pelo segredo GEMINI_MODEL no Supabase.
 const MODELO_PADRAO = 'gemini-3.1-flash-lite';
+// Usado quando o principal esta sobrecarregado (503/500) ou sem cota (429). Troca pelo segredo GEMINI_MODEL_RESERVA
+const MODELO_RESERVA_PADRAO = 'gemini-3.5-flash-lite';
 
 // Erro temporario (cota por minuto, sobrecarga): vale tentar de novo uma vez
 const isErroTemporario = (error: any) => {
     const msg = String(error?.message || '');
     const status = Number(error?.status || error?.code || 0);
     return status === 429 || status === 500 || status === 503 || /429|503|overloaded|unavailable|RESOURCE_EXHAUSTED/i.test(msg);
-};
-
-// Ate 2 tentativas, somente para erro temporario
-const generateContentWithRetry = async (genAI: GoogleGenAI, request: any) => {
-    try {
-        return await genAI.models.generateContent(request);
-    } catch (error: any) {
-        console.error(`Gemini falhou (tentativa 1): ${error?.message}`);
-        if (!isErroTemporario(error)) throw error;
-        await new Promise(resolve => setTimeout(resolve, 900));
-        return await genAI.models.generateContent(request);
-    }
 };
 
 // Listas enxutas: menos texto enviado = resposta mais rapida e menos cota
@@ -53,6 +43,63 @@ const limitarContexto = (payload: any) => {
     });
     return { projetos, colaboradores, tarefas };
 };
+
+// ---- INICIO correcao de obra (Parte 10) ----
+const normalizarTexto = (s: unknown): string =>
+    String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+// Obras cujo nome completo aparece no texto (palavra inteira, sem acento)
+const obrasCitadasNoTexto = (texto: unknown, projetos: any[]): any[] => {
+    const t = ` ${normalizarTexto(texto)} `;
+    if (t.trim() === '') return [];
+    return projetos.filter((p: any) => {
+        const nome = normalizarTexto(p?.name);
+        return nome.length >= 3 && t.includes(` ${nome} `);
+    });
+};
+
+const ACOES_COM_OBRA = ['CRIAR_SERVICO', 'CRIAR_TAREFA', 'QUITAR_SERVICO', 'MARCAR_ITENS_COMPRADOS'];
+
+// Garante obra_nome preenchido: id valido vira nome oficial, id inventado e descartado,
+// e se a IA nao devolveu obra nenhuma, usa a unica obra citada no texto do usuario.
+const corrigirObras = (acoes: any[], projetos: any[], textoUsuario: unknown): string[] => {
+    const correcoes: string[] = [];
+    const citadas = obrasCitadasNoTexto(textoUsuario, projetos);
+    const unicaCitada = citadas.length === 1 ? citadas[0] : null;
+    const totalConsultas = acoes.filter((a: any) => a?.tipo === 'CONSULTAR').length;
+
+    acoes.forEach((acao: any, i: number) => {
+        if (!acao || typeof acao.dados !== 'object' || acao.dados === null) return;
+        const alvo = acao.tipo === 'CONSULTAR' ? acao.dados.consulta : acao.dados;
+        if (!alvo || typeof alvo !== 'object') return;
+        const usaObra = acao.tipo === 'CONSULTAR' || ACOES_COM_OBRA.includes(acao.tipo);
+        if (!usaObra) return;
+
+        const porId = alvo.obra_id ? projetos.find((p: any) => p.id === alvo.obra_id) : null;
+        if (porId) {
+            if (normalizarTexto(alvo.obra_nome) !== normalizarTexto(porId.name)) {
+                correcoes.push(`acao ${i + 1}: obra_nome "${alvo.obra_nome ?? ''}" -> "${porId.name}" (pelo id)`);
+            }
+            alvo.obra_nome = porId.name;
+            return;
+        }
+        if (alvo.obra_id) {
+            correcoes.push(`acao ${i + 1}: obra_id inexistente descartado`);
+            alvo.obra_id = null;
+        }
+        if (String(alvo.obra_nome ?? '').trim() !== '') return;
+
+        // Consulta: so completa se for a unica pergunta da mensagem, para nao levar a obra de uma pergunta para outra
+        if (acao.tipo === 'CONSULTAR' && totalConsultas > 1) return;
+        if (unicaCitada) {
+            alvo.obra_id = unicaCitada.id;
+            alvo.obra_nome = unicaCitada.name;
+            correcoes.push(`acao ${i + 1}: obra "${unicaCitada.name}" encontrada no texto`);
+        }
+    });
+    return correcoes;
+};
+// ---- FIM correcao de obra (Parte 10) ----
 
 // Formato fixo da resposta: o Gemini devolve sempre este JSON
 const campo = (type: any) => ({ type, nullable: true });
@@ -189,6 +236,11 @@ Contexto da Empresa:
 - Colaboradores cadastrados: ${JSON.stringify(ctx.colaboradores)}
 - Tarefas e Compras Pendentes no Sistema (as mais próximas do prazo): ${JSON.stringify(ctx.tarefas)}
 - Data de hoje: ${todayStr}
+
+Regra de obra (vale para TODAS as ações que têm obra, inclusive CONSULTAR):
+- Sempre que o usuário citar uma obra, preencha "obra_nome" com o nome exatamente como aparece em "Obras cadastradas". Se não estiver na lista, escreva o nome como o usuário falou.
+- Nunca deixe "obra_nome" vazio quando houver obra citada, mesmo que a obra também apareça no título ou no resumo.
+- "obra_id" é opcional: copie o id da lista sem alterar nenhum caractere, ou use null. Na dúvida, use null e preencha só "obra_nome".
 
 Ações Suportadas:
 1. "CADASTRAR_COLABORADOR":
@@ -340,31 +392,57 @@ ${payload.textCommand ? `Mensagem do usuário: "${payload.textCommand}"` : 'Anal
 `;
         parts.push({ text: promptText });
 
-        const modelo = Deno.env.get('GEMINI_MODEL') || MODELO_PADRAO;
+        const modeloPrincipal = Deno.env.get('GEMINI_MODEL') || MODELO_PADRAO;
+        const modeloReserva = Deno.env.get('GEMINI_MODEL_RESERVA') || MODELO_RESERVA_PADRAO;
+
+        // Uma chamada a um modelo: com formato fixo; se o modelo recusar o formato (400), repete sem ele
+        const chamarModelo = async (modelo: string) => {
+            try {
+                return await genAI.models.generateContent({
+                    model: modelo,
+                    contents: { parts },
+                    config: { responseMimeType: 'application/json', responseSchema: SCHEMA_RESPOSTA, temperature: 0.1 },
+                });
+            } catch (err: any) {
+                const status = Number(err?.status || err?.code || 0);
+                if (status !== 400 && !/schema|INVALID_ARGUMENT/i.test(String(err?.message || ''))) throw err;
+                console.warn(`Formato fixo recusado pelo modelo ${modelo}; tentando sem ele. ${err?.message}`);
+                return await genAI.models.generateContent({
+                    model: modelo,
+                    contents: { parts },
+                    config: { responseMimeType: 'application/json', temperature: 0.1 },
+                });
+            }
+        };
+
         const inicio = Date.now();
         let aiResponse: any = null;
-
+        let modeloUsado = modeloPrincipal;
         try {
-            aiResponse = await generateContentWithRetry(genAI, {
-                model: modelo,
-                contents: { parts },
-                config: { responseMimeType: 'application/json', responseSchema: SCHEMA_RESPOSTA, temperature: 0.1 },
-            });
-        } catch (err: any) {
-            // Se o modelo recusar o formato fixo (erro 400), tenta uma vez sem ele
-            const status = Number(err?.status || err?.code || 0);
-            if (status !== 400 && !/schema|INVALID_ARGUMENT/i.test(String(err?.message || ''))) throw err;
-            console.warn(`Formato fixo recusado pelo modelo ${modelo}; tentando sem ele. ${err?.message}`);
-            aiResponse = await generateContentWithRetry(genAI, {
-                model: modelo,
-                contents: { parts },
-                config: { responseMimeType: 'application/json', temperature: 0.1 },
-            });
+            aiResponse = await chamarModelo(modeloPrincipal);
+        } catch (errPrincipal: any) {
+            if (!isErroTemporario(errPrincipal) || modeloReserva === modeloPrincipal) throw errPrincipal;
+            console.warn(`Modelo ${modeloPrincipal} indisponivel (${errPrincipal?.status || ''}); usando reserva ${modeloReserva}. ${errPrincipal?.message}`);
+            modeloUsado = modeloReserva;
+            try {
+                aiResponse = await chamarModelo(modeloReserva);
+            } catch (errReserva: any) {
+                console.error(`Reserva ${modeloReserva} tambem falhou: ${errReserva?.message}`);
+                throw errReserva;
+            }
         }
 
-        console.log(`Copiloto respondeu em ${Date.now() - inicio} ms (modelo ${modelo})`);
+        console.log(`Copiloto respondeu em ${Date.now() - inicio} ms (modelo ${modeloUsado})`);
         const parsedResult = JSON.parse(String(aiResponse.text || '').trim());
         if (!Array.isArray(parsedResult.acoes)) parsedResult.acoes = [];
+
+        // Diagnostico: o que a IA devolveu de obra em cada acao
+        console.log('Obras devolvidas pela IA: ' + JSON.stringify(parsedResult.acoes.map((a: any) => {
+            const alvo = a?.tipo === 'CONSULTAR' ? a?.dados?.consulta : a?.dados;
+            return { tipo: a?.tipo, obra_id: alvo?.obra_id ?? null, obra_nome: alvo?.obra_nome ?? null };
+        })));
+        const correcoes = corrigirObras(parsedResult.acoes, ctx.projetos, payload.textCommand || parsedResult.transcricao);
+        if (correcoes.length > 0) console.log('Obras corrigidas: ' + correcoes.join(' | '));
 
         return new Response(JSON.stringify({ success: true, result: parsedResult }), {
             status: 200,
@@ -373,8 +451,14 @@ ${payload.textCommand ? `Mensagem do usuário: "${payload.textCommand}"` : 'Anal
     } catch (e: any) {
         console.error('Erro na Edge Function processar-comando-voz:', e);
         const errorMessage = e instanceof Error ? e.message : 'Ocorreu um erro desconhecido.';
-        return new Response(JSON.stringify({ error: errorMessage }), {
-            status: 500,
+        // Codigo para o app mostrar a mensagem certa: IA_SOBRECARREGADA, IA_LIMITE ou ERRO_INTERNO
+        const statusIa = Number(e?.status || e?.code || 0);
+        const textoErro = String(e?.message || '');
+        let codigo = 'ERRO_INTERNO';
+        if (statusIa === 429 || /RESOURCE_EXHAUSTED|quota/i.test(textoErro)) codigo = 'IA_LIMITE';
+        else if (isErroTemporario(e)) codigo = 'IA_SOBRECARREGADA';
+        return new Response(JSON.stringify({ error: errorMessage, codigo }), {
+            status: codigo === 'ERRO_INTERNO' ? 500 : 503,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
