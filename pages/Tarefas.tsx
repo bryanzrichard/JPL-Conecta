@@ -49,6 +49,7 @@ import {
   loadCopilotHistory,
   saveCopilotHistory,
   clearCopilotHistory,
+  executeGuardedConfirm,
 } from '../lib/copilotHistorico';
 import { CopilotPanel } from '../components/tarefas/CopilotPanel';
 import { formatApiError } from '../lib/handleError';
@@ -614,46 +615,74 @@ export const Tarefas: React.FC = () => {
 
   const handleConfirmCopilotActions = async (messageId: string, acoes: ResolvedCopilotAction[]) => {
     if (!profile?.company_id || !user?.id) return;
-    setIsProcessingAudioIA(true);
-    try {
-      const cardResults = await executeCopilotActions({
-        acoes,
-        companyId: profile.company_id,
-        userId: user.id,
-        projects,
-        collaborators,
-      });
+    const companyId = profile.company_id;
+    const userId = user.id;
 
-      setChatMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === messageId && msg.review
-            ? {
-                ...msg,
-                review: { ...msg.review, status: 'confirmed' },
-                cards: cardResults,
-              }
-            : msg
-        )
-      );
+    await executeGuardedConfirm({
+      messageId,
+      getStatus: () => {
+        const msg = chatMessages.find((m) => m.id === messageId);
+        return msg?.review?.status;
+      },
+      onSetStatus: (status) => {
+        setChatMessages((prev) => {
+          const next = prev.map((msg) =>
+            msg.id === messageId && msg.review
+              ? {
+                  ...msg,
+                  review: { ...msg.review, status },
+                }
+              : msg
+          );
+          saveCopilotHistory(companyId, userId, next);
+          return next;
+        });
+      },
+      onExecute: async () => {
+        setIsProcessingAudioIA(true);
+        try {
+          const cardResults = await executeCopilotActions({
+            acoes,
+            companyId,
+            userId,
+            projects,
+            collaborators,
+          });
 
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['collaborators'] });
-      queryClient.invalidateQueries({ queryKey: ['servicos'] });
-      queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
-      queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
-      queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
-      queryClient.invalidateQueries({ queryKey: ['copilotOpenServices'] });
-    } catch (err: unknown) {
-      console.warn('Erro ao executar ações do Copiloto:', err);
-      const msgText = err instanceof Error ? err.message : 'Erro ao gravar';
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao executar ações',
-        description: msgText,
-      });
-    } finally {
-      setIsProcessingAudioIA(false);
-    }
+          setChatMessages((prev) => {
+            const next = prev.map((msg) =>
+              msg.id === messageId && msg.review
+                ? {
+                    ...msg,
+                    cards: cardResults,
+                  }
+                : msg
+            );
+            saveCopilotHistory(companyId, userId, next);
+            return next;
+          });
+
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+          queryClient.invalidateQueries({ queryKey: ['collaborators'] });
+          queryClient.invalidateQueries({ queryKey: ['servicos'] });
+          queryClient.invalidateQueries({ queryKey: ['adiantamentos'] });
+          queryClient.invalidateQueries({ queryKey: ['servicesSummary'] });
+          queryClient.invalidateQueries({ queryKey: ['advancesSummary'] });
+          queryClient.invalidateQueries({ queryKey: ['copilotOpenServices'] });
+        } catch (err: unknown) {
+          console.warn('Erro ao executar ações do Copiloto:', err);
+          const msgText = err instanceof Error ? err.message : 'Erro ao gravar';
+          toast({
+            variant: 'destructive',
+            title: 'Erro ao executar ações',
+            description: msgText,
+          });
+          throw err;
+        } finally {
+          setIsProcessingAudioIA(false);
+        }
+      },
+    });
   };
 
   const handleCancelCopilotActions = (messageId: string) => {

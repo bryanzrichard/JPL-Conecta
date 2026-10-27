@@ -1,4 +1,4 @@
-import type { ChatMessage } from './copilotExecutor';
+import type { ChatMessage, PendingReviewData } from './copilotExecutor';
 import { ConsultaResultado, descreverConsulta } from './copilotConsultas';
 import { formatCurrency } from './utils';
 
@@ -141,6 +141,10 @@ export function formatHoraConsulta(isoString?: string): string {
  * Ex: "Total R$ 4.900,00", "3 notas, R$ 1.950,00", "Nenhum lançamento" ou mensagem de erro.
  */
 export function formatResumoConsulta(resultado: ConsultaResultado): string {
+  if (resultado.carregando) {
+    return 'Consultando...';
+  }
+
   if (resultado.erro) {
     return resultado.erro;
   }
@@ -171,10 +175,12 @@ export function sanitizeMessageForStorage(msg: ChatMessage): ChatMessage {
   const { consultando: _unusedConsultando, ...rest } = msg;
 
   const sanitizedConsultas = rest.consultas?.map((c) => {
+    const isInterrupted = c.carregando === true;
     const { carregando: _unusedCarregando, ...cRest } = c;
     return {
       ...cRest,
       carregando: false,
+      ...(isInterrupted ? { erro: 'Consulta interrompida. Clique em Atualizar.' } : {}),
     };
   });
 
@@ -219,11 +225,35 @@ export function loadCopilotHistory(
       throw new Error('Conteúdo inválido');
     }
 
-    return (parsed as ChatMessage[]).map((msg) => ({
-      ...msg,
-      consultando: false,
-      timestamp: formatMessageTimestamp(msg.createdAt, msg.timestamp),
-    }));
+    return (parsed as ChatMessage[]).map((msg) => {
+      const sanitizedConsultas = msg.consultas?.map((c) => {
+        if (c.carregando) {
+          return {
+            ...c,
+            carregando: false,
+            erro: 'Consulta interrompida. Clique em Atualizar.',
+          };
+        }
+        return c;
+      });
+
+      const sanitizedReview = msg.review
+        ? {
+            ...msg.review,
+            status: (msg.review.status === 'executando'
+              ? 'interrompida'
+              : msg.review.status) as PendingReviewData['status'],
+          }
+        : undefined;
+
+      return {
+        ...msg,
+        consultando: false,
+        timestamp: formatMessageTimestamp(msg.createdAt, msg.timestamp),
+        ...(sanitizedConsultas ? { consultas: sanitizedConsultas } : {}),
+        ...(sanitizedReview ? { review: sanitizedReview } : {}),
+      };
+    });
   } catch (err: unknown) {
     console.warn('Falha ao carregar histórico do Copiloto:', err);
     notifyStorageWarning(onWarning);
@@ -280,5 +310,55 @@ export function clearCopilotHistory(companyId: string, userId: string): void {
     localStorage.removeItem(key);
   } catch (err: unknown) {
     console.warn('Falha ao remover histórico do Copiloto:', err);
+  }
+}
+
+const activeConfirmations = new Set<string>();
+
+export interface GuardedConfirmOptions {
+  messageId: string;
+  getStatus: () => PendingReviewData['status'] | undefined;
+  onSetStatus: (status: PendingReviewData['status']) => void;
+  onExecute: () => Promise<void>;
+  onSaveImmediate?: () => void;
+  activeSet?: Set<string>;
+}
+
+/**
+ * Executa a confirmação de ações com proteção contra cliques duplicados:
+ * - Ignora o clique se o status já for 'executando', 'confirmed' ou 'interrompida'
+ * - Ignora chamadas concorrentes para a mesma mensagem
+ * - Marca 'executando' ANTES de chamar onExecute e persiste imediatamente
+ * - Em caso de sucesso, marca 'confirmed' e persiste imediatamente
+ * - Em caso de falha, reverte para 'pending', persiste imediatamente e relança o erro
+ */
+export async function executeGuardedConfirm(
+  options: GuardedConfirmOptions
+): Promise<boolean> {
+  const { messageId, getStatus, onSetStatus, onExecute, onSaveImmediate, activeSet = activeConfirmations } = options;
+  const currentStatus = getStatus();
+
+  if (currentStatus === 'executando' || currentStatus === 'confirmed' || currentStatus === 'interrompida') {
+    return false;
+  }
+  if (activeSet.has(messageId)) {
+    return false;
+  }
+
+  activeSet.add(messageId);
+  onSetStatus('executando');
+  if (onSaveImmediate) onSaveImmediate();
+
+  try {
+    await onExecute();
+    onSetStatus('confirmed');
+    if (onSaveImmediate) onSaveImmediate();
+    return true;
+  } catch (err) {
+    onSetStatus('pending');
+    if (onSaveImmediate) onSaveImmediate();
+    throw err;
+  } finally {
+    activeSet.delete(messageId);
   }
 }

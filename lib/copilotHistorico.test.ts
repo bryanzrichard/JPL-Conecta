@@ -10,8 +10,9 @@ import {
   buildRecentActivities,
   resetStorageWarningFlagForTest,
   STORAGE_WARNING_MESSAGE,
+  executeGuardedConfirm,
 } from './copilotHistorico';
-import type { ChatMessage } from './copilotExecutor';
+import type { ChatMessage, PendingReviewData } from './copilotExecutor';
 import { ConsultaResultado } from './copilotConsultas';
 
 // Mock simples de localStorage em memória para os testes em Node/Vitest
@@ -48,7 +49,7 @@ function assert(condition: boolean, msg: string) {
   }
 }
 
-export function runCopilotHistoricoTests() {
+export async function runCopilotHistoricoTests() {
   console.log('--- Iniciando testes de copilotHistorico.ts ---');
 
   // Teste 1: Chave de armazenamento por empresa e usuário
@@ -166,8 +167,12 @@ export function runCopilotHistoricoTests() {
     const sanitized = sanitizeMessageForStorage(msg);
     assert(sanitized.consultando === false, 'consultando deve ser false ao salvar');
     assert(sanitized.consultas![0].carregando === false, 'carregando deve ser false ao salvar');
+    assert(
+      sanitized.consultas![0].erro === 'Consulta interrompida. Clique em Atualizar.',
+      'consulta com carregando=true deve receber erro de interrupção ao salvar'
+    );
     assert(sanitized.review!.status === 'pending', 'card de revisão pendente deve continuar pendente após F5');
-    console.log('✓ Teste 5: Sanitização remove estados voláteis e preserva dados vitais');
+    console.log('✓ Teste 5: Sanitização remove estados voláteis e marca erro de interrupção');
   }
 
   // Teste 6: Salvar e carregar histórico com isolamento por usuário
@@ -299,7 +304,177 @@ export function runCopilotHistoricoTests() {
     console.log('✓ Teste 10: buildRecentActivities unificado e ordenado do mais recente para o mais antigo');
   }
 
-  console.log('=== TODOS OS 10 TESTES PASSARAM COM SUCESSO! ===\n');
+  // Teste 11 (Defeito 1): Salvar consulta com carregando=true e ler
+  {
+    localStorage.clear();
+    const msgWithLoadingConsulta: ChatMessage = {
+      id: 'msg-consulta-interrompida',
+      sender: 'ia',
+      text: 'Gasto da obra',
+      timestamp: '14:00',
+      createdAt: new Date().toISOString(),
+      consultas: [
+        {
+          pedido: { tipo: 'GASTOS', obra_nome: 'Edifício Horizonte' },
+          obraNome: 'Edifício Horizonte',
+          total: 0,
+          linhas: [],
+          carregando: true, // Interrompido durante consulta!
+        },
+      ],
+    };
+
+    saveCopilotHistory('empresa-1', 'user-test', [msgWithLoadingConsulta]);
+    const loaded = loadCopilotHistory('empresa-1', 'user-test');
+
+    assert(loaded.length === 1, 'Deve carregar 1 mensagem');
+    const consulta = loaded[0].consultas?.[0];
+    assert(!!consulta, 'Deve conter consulta');
+    assert(consulta.carregando === false, 'carregando deve ser false após carregar histórico');
+    assert(
+      consulta.erro === 'Consulta interrompida. Clique em Atualizar.',
+      `erro deve ser 'Consulta interrompida. Clique em Atualizar.', obteve: '${consulta.erro}'`
+    );
+    const resumo = formatResumoConsulta(consulta);
+    assert(
+      resumo === 'Consulta interrompida. Clique em Atualizar.',
+      `resumo no painel de atividades deve ser igual ao erro, obteve: '${resumo}'`
+    );
+
+    // Teste 11b: dados salvos diretamente com carregando=true (versão antiga no localStorage)
+    const key = getCopilotStorageKey('empresa-1', 'user-legacy');
+    localStorage.setItem(
+      key,
+      JSON.stringify([
+        {
+          id: 'msg-legacy',
+          sender: 'ia',
+          text: 'Consulta legado',
+          consultas: [{ pedido: { tipo: 'GASTOS' }, carregando: true, linhas: [], total: 0 }],
+        },
+      ])
+    );
+    const loadedLegacy = loadCopilotHistory('empresa-1', 'user-legacy');
+    assert(loadedLegacy[0].consultas?.[0].carregando === false, 'carregando legado deve virar false');
+    assert(
+      loadedLegacy[0].consultas?.[0].erro === 'Consulta interrompida. Clique em Atualizar.',
+      'deve injetar erro de interrupção em dados legados'
+    );
+    console.log('✓ Teste 11: Salvar consulta com carregando=true e ler vem com erro e resumo correto');
+  }
+
+  // Teste 12 (Defeito 1): formatResumoConsulta com carregando=true retorna "Consultando..."
+  {
+    const consultaEmAndamento: ConsultaResultado = {
+      pedido: { tipo: 'GASTOS' },
+      obraNome: 'Residencial Bela Vista',
+      carregando: true,
+      total: 0,
+      linhas: [],
+    };
+    const resumo = formatResumoConsulta(consultaEmAndamento);
+    assert(
+      resumo === 'Consultando...',
+      `formatResumoConsulta com carregando=true deve ser 'Consultando...', obteve: '${resumo}'`
+    );
+    console.log('✓ Teste 12: formatResumoConsulta com carregando=true retorna "Consultando..."');
+  }
+
+  // Teste 13 (Defeito 2): Salvar review com status 'executando' e ler: vem como 'interrompida'
+  {
+    localStorage.clear();
+    const msgExecutando: ChatMessage = {
+      id: 'msg-exec-1',
+      sender: 'ia',
+      text: 'Revisão em andamento',
+      timestamp: '15:00',
+      createdAt: new Date().toISOString(),
+      review: {
+        status: 'executando',
+        acoes: [],
+        items: [
+          {
+            id: 'item-1',
+            tipo: 'CRIAR_TAREFA',
+            badge: 'Tarefa',
+            obraLabel: 'Obra 1',
+            titulo: 'Comprar pregos',
+            detalhes: '5 kg',
+          },
+        ],
+      },
+    };
+
+    saveCopilotHistory('empresa-1', 'user-exec', [msgExecutando]);
+    const loaded = loadCopilotHistory('empresa-1', 'user-exec');
+
+    assert(loaded.length === 1, 'Deve carregar 1 mensagem');
+    assert(!!loaded[0].review, 'Mensagem deve conter review');
+    assert(
+      loaded[0].review.status === 'interrompida',
+      `review com status 'executando' deve virar 'interrompida' ao ser lida, obteve: '${loaded[0].review.status}'`
+    );
+    console.log('✓ Teste 13: Salvar review com status "executando" e ler vem como "interrompida"');
+  }
+
+  // Teste 14 (Defeito 2): Dois cliques seguidos em Confirmar: a execução é chamada uma única vez
+  {
+    let executeCalls = 0;
+    const statusHolder: { current: PendingReviewData['status'] } = { current: 'pending' };
+    const activeTestSet = new Set<string>();
+
+    const onExecute = async () => {
+      executeCalls++;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    };
+
+    // Dispara dois cliques simultâneos para a mesma mensagem
+    const p1 = executeGuardedConfirm({
+      messageId: 'msg-confirm-double',
+      getStatus: () => statusHolder.current,
+      onSetStatus: (status) => {
+        statusHolder.current = status;
+      },
+      onExecute,
+      activeSet: activeTestSet,
+    });
+
+    const p2 = executeGuardedConfirm({
+      messageId: 'msg-confirm-double',
+      getStatus: () => statusHolder.current,
+      onSetStatus: (status) => {
+        statusHolder.current = status;
+      },
+      onExecute,
+      activeSet: activeTestSet,
+    });
+
+    const [res1, res2] = await Promise.all([p1, p2]);
+
+    assert(executeCalls === 1, `A execução deve ser chamada uma única vez, obteve ${executeCalls} chamadas`);
+    assert((res1 && !res2) || (!res1 && res2), 'Uma chamada deve ter sido aceita e a outra ignorada');
+    assert(statusHolder.current === 'confirmed', `Status final deve ser confirmed, obteve: '${statusHolder.current}'`);
+
+    // Clique adicional quando já está confirmed também deve ser ignorado
+    const p3 = await executeGuardedConfirm({
+      messageId: 'msg-confirm-double',
+      getStatus: () => statusHolder.current,
+      onSetStatus: (status) => {
+        statusHolder.current = status;
+      },
+      onExecute,
+      activeSet: activeTestSet,
+    });
+    assert(p3 === false, 'Clique adicional após confirmação concluída deve ser ignorado');
+    assert(executeCalls === 1, 'Chamadas continuam sendo 1');
+
+    console.log('✓ Teste 14: Dois cliques seguidos em Confirmar executam uma única vez');
+  }
+
+  console.log('=== TODOS OS 14 TESTES PASSARAM COM SUCESSO! ===\n');
 }
 
-runCopilotHistoricoTests();
+runCopilotHistoricoTests().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

@@ -25,11 +25,13 @@ export const CopilotReviewCard: React.FC<CopilotReviewCardProps> = ({
   review,
   onConfirm,
   onCancel,
-  isExecuting,
+  isExecuting: isExecutingProp,
 }) => {
   const isPending = review.status === 'pending';
   const isConfirmed = review.status === 'confirmed';
   const isCancelled = review.status === 'cancelled';
+  const isExecuting = review.status === 'executando' || isExecutingProp;
+  const isInterrompida = review.status === 'interrompida';
 
   return (
     <div className="mt-2.5 pt-2.5 border-t border-slate-200/80 dark:border-gray-700/60 space-y-2.5">
@@ -45,6 +47,16 @@ export const CopilotReviewCard: React.FC<CopilotReviewCardProps> = ({
         {isCancelled && (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
             <XIcon className="h-3.5 w-3.5" /> Cancelado
+          </span>
+        )}
+        {isExecuting && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" /> Gravando...
+          </span>
+        )}
+        {isInterrompida && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+            <span>⚠️</span> Interrompida
           </span>
         )}
       </div>
@@ -163,6 +175,15 @@ export const CopilotReviewCard: React.FC<CopilotReviewCardProps> = ({
           );
         })}
       </div>
+
+      {isInterrompida && (
+        <div className="p-2.5 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 text-amber-900 dark:text-amber-200 text-xs font-medium flex items-start gap-2">
+          <span className="shrink-0 mt-0.5 text-sm">⚠️</span>
+          <span className="leading-relaxed">
+            A gravação foi interrompida. Confira em Tarefas/Serviços se os itens foram gravados antes de repetir.
+          </span>
+        </div>
+      )}
 
       {isPending && (
         <div className="pt-1.5 flex items-center gap-2">

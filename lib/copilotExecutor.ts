@@ -166,7 +166,7 @@ export interface ActionReviewItem {
 export interface PendingReviewData {
   acoes: ResolvedCopilotAction[];
   items: ActionReviewItem[];
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'executando' | 'interrompida';
 }
 
 export interface ChatMessage {

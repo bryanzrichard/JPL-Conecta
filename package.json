@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "lint": "tsc --noEmit",
+    "test:historico": "tsx lib/copilotHistorico.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "dotenv": "^17.4.2",
+    "tsx": "^4.23.15",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }
