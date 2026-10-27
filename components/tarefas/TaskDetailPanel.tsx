@@ -24,6 +24,7 @@ interface TaskDetailPanelProps {
   hasNext: boolean;
   currentIndex: number;
   totalCount: number;
+  isMutating?: boolean;
 }
 
 type NamedItem = { nome?: unknown };
@@ -42,6 +43,11 @@ function extractNames(items: unknown): string[] {
     }
   }
   return result;
+}
+
+function cleanObservacoesOrDescricao(text: string | null | undefined): string {
+  if (!text) return '';
+  return text.replace(/\[compra\]/gi, '').trim();
 }
 
 const getPriorityBadgeClass = (priority: TaskPriority) => {
@@ -71,11 +77,86 @@ const getStatusBadgeClass = (status: TaskStatus) => {
 export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
   task, onClose, onEdit, onDelete, onToggleStatus, onRescheduleTomorrow,
   onPrevTask, onNextTask, hasPrev, hasNext, currentIndex, totalCount,
+  isMutating = false,
 }) => {
   const materiais = extractNames(task.materiais_previstos);
   const compraItens = parseCompraItens(task.materiais_previstos);
   const equipamentos = extractNames(task.equipamentos_utilizados);
   const hasCustoReal = task.custo_real !== null && task.custo_real !== undefined && Number(task.custo_real) > 0;
+  const cleanDescricao = cleanObservacoesOrDescricao(task.description);
+  const cleanObservacoes = cleanObservacoesOrDescricao(task.observacoes);
+
+  // Linha compacta para compras: informações separadas por " · "
+  const compraInfoItems: React.ReactNode[] = [];
+  if (task.projectName) {
+    compraInfoItems.push(
+      <span key="obra" className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-gray-200">
+        <ConstructionIcon className="h-3 w-3 text-emerald-600 shrink-0" />
+        {task.projectName}
+      </span>
+    );
+  }
+
+  // "Início Previsto" só aparece se for diferente do prazo
+  if (task.data_inicio_prevista && (!task.data_fim_prevista || task.data_inicio_prevista !== task.data_fim_prevista)) {
+    compraInfoItems.push(
+      <span key="inicio" className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-gray-200">
+        <CalendarIcon className="h-3 w-3 text-indigo-500 shrink-0" />
+        Início: {formatDateBR(task.data_inicio_prevista)}
+      </span>
+    );
+  }
+
+  if (task.data_fim_prevista) {
+    compraInfoItems.push(
+      <span key="prazo" className="inline-flex items-center gap-1.5 flex-wrap">
+        <ClockIcon className="h-3 w-3 text-amber-500 shrink-0" />
+        <span className="font-semibold text-slate-800 dark:text-gray-200">
+          Prazo: {formatDateBR(task.data_fim_prevista)}
+        </span>
+        {task.isDelayed ? (
+          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/40">
+            Atrasada
+          </span>
+        ) : task.isTodayTask ? (
+          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+            Hoje
+          </span>
+        ) : task.isTomorrowTask ? (
+          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+            Amanhã
+          </span>
+        ) : null}
+      </span>
+    );
+  }
+
+  if (task.collaboratorName) {
+    compraInfoItems.push(
+      <span key="resp" className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-gray-200">
+        <UserIcon className="h-3 w-3 text-blue-500 shrink-0" />
+        {task.collaboratorName}
+      </span>
+    );
+  }
+
+  compraInfoItems.push(
+    <span
+      key="prio"
+      className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded border ${getPriorityBadgeClass(task.prioridade)}`}
+    >
+      {task.prioridade}
+    </span>
+  );
+
+  if (hasCustoReal) {
+    compraInfoItems.push(
+      <span key="custo" className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-gray-200">
+        <DollarSignIcon className="h-3 w-3 text-emerald-600 shrink-0" />
+        Custo: <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">{formatCurrency(task.custo_real)}</span>
+      </span>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm select-text">
@@ -161,158 +242,14 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
         </div>
       </div>
 
-      {/* 2. CORPO DETALHADO (SCROLLABLE) */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar text-xs">
-        <div className="bg-slate-50/70 dark:bg-brand-dark-800/50 border border-slate-200/80 dark:border-gray-800 p-3.5 rounded-xl space-y-2.5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {task.projectName && (
-              <div className="space-y-0.5">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                  <ConstructionIcon className="h-3 w-3 text-emerald-600" /> Obra / Canteiro
-                </span>
-                <p className="font-semibold text-slate-800 dark:text-gray-200">{task.projectName}</p>
-              </div>
-            )}
-
-            {task.collaboratorName && (
-              <div className="space-y-0.5">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                  <UserIcon className="h-3 w-3 text-blue-500" /> Responsável
-                </span>
-                <p className="font-semibold text-slate-800 dark:text-gray-200">{task.collaboratorName}</p>
-              </div>
-            )}
-
-            {task.data_inicio_prevista && (
-              <div className="space-y-0.5">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                  <CalendarIcon className="h-3 w-3 text-indigo-500" /> Início Previsto
-                </span>
-                <p className="font-semibold text-slate-800 dark:text-gray-200">{formatDateBR(task.data_inicio_prevista)}</p>
-              </div>
-            )}
-
-            {task.data_fim_prevista && (
-              <div className="space-y-0.5">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                  <ClockIcon className="h-3 w-3 text-amber-500" /> Prazo Final
-                </span>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-semibold text-slate-800 dark:text-gray-200">{formatDateBR(task.data_fim_prevista)}</span>
-                  {task.isDelayed ? (
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/40">
-                      Atrasada
-                    </span>
-                  ) : task.isTodayTask ? (
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                      Hoje
-                    </span>
-                  ) : task.isTomorrowTask ? (
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
-                      Amanhã
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider block">
-                Prioridade
-              </span>
-              <span className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded border ${getPriorityBadgeClass(task.prioridade)}`}>
-                {task.prioridade}
-              </span>
-            </div>
-
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider block">
-                Tipo de Registro
-              </span>
-              <span className="font-semibold text-slate-800 dark:text-gray-200">
-                {task.isPurchase ? '🛒 Lista de Compras' : '🏗️ Tarefa de Canteiro'}
-              </span>
-            </div>
-
-            {hasCustoReal && (
-              <div className="space-y-0.5 sm:col-span-2">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                  <DollarSignIcon className="h-3 w-3 text-emerald-600" /> Custo Real
-                </span>
-                <p className="font-bold text-emerald-600 dark:text-emerald-400 font-mono text-sm">
-                  {formatCurrency(task.custo_real)}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {task.description && task.description.trim() !== '' && (
-          <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Descrição Detalhada</span>
-            <p className="text-xs text-slate-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{task.description}</p>
-          </div>
-        )}
-
-        {task.observacoes && task.observacoes.trim() !== '' && (
-          <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Observações</span>
-            <p className="text-xs text-slate-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{task.observacoes}</p>
-          </div>
-        )}
-
-        {task.isPurchase && compraItens.length > 0 ? (
-          <CompraItensChecklist task={task} />
-        ) : materiais.length > 0 ? (
-          <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-2">
-            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-gray-800">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <PackageIcon className="h-3.5 w-3.5 text-indigo-500" /> Materiais Previstos
-              </span>
-              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300">
-                {materiais.length} {materiais.length === 1 ? 'item' : 'itens'}
-              </span>
-            </div>
-            <ul className="space-y-1">
-              {materiais.map((mat, idx) => (
-                <li key={idx} className="flex items-center gap-2 text-slate-700 dark:text-gray-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
-                  <span>{mat}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        {equipamentos.length > 0 && (
-          <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-2">
-            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-gray-800">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <WrenchIcon className="h-3.5 w-3.5 text-amber-500" /> Equipamentos Utilizados
-              </span>
-              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300">
-                {equipamentos.length} {equipamentos.length === 1 ? 'item' : 'itens'}
-              </span>
-            </div>
-            <ul className="space-y-1">
-              {equipamentos.map((eq, idx) => (
-                <li key={idx} className="flex items-center gap-2 text-slate-700 dark:text-gray-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
-                  <span>{eq}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      {/* 3. RODAPÉ DE AÇÕES */}
-      <div className="p-3 bg-white dark:bg-[#111827] border-t border-slate-200/80 dark:border-gray-800 flex items-center justify-between gap-2 shrink-0 flex-wrap">
+      {/* 2. BARRA DE AÇÕES (FIXA NO TOPO, LOGO ABAIXO DA TOPBAR) */}
+      <div className="p-3 bg-white dark:bg-[#111827] border-b border-slate-200/80 dark:border-gray-800 flex items-center justify-between gap-2 shrink-0 flex-wrap">
         <div className="flex items-center gap-2">
           <Button
             size="sm"
+            disabled={isMutating}
             onClick={() => onToggleStatus(task)}
-            className={`h-8 text-xs font-semibold gap-1.5 cursor-pointer ${
+            className={`h-8 text-xs font-semibold gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
               task.isCompleted
                 ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-gray-200 border border-slate-200 dark:border-gray-700'
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
@@ -326,8 +263,9 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
             <Button
               variant="outline"
               size="sm"
+              disabled={isMutating}
               onClick={() => onRescheduleTomorrow(task)}
-              className="h-8 text-xs font-semibold border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1.5 cursor-pointer"
+              className="h-8 text-xs font-semibold border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               title="Adiar prazo para amanhã"
             >
               <ClockIcon className="h-3.5 w-3.5 text-slate-400" />
@@ -359,6 +297,192 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
             <span>Excluir</span>
           </Button>
         </div>
+      </div>
+
+      {/* 3. CORPO DETALHADO (SCROLLABLE) */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar text-xs">
+        {task.isPurchase ? (
+          <>
+            {/* 1) CompraItensChecklist (logo no início do corpo) */}
+            {compraItens.length > 0 ? (
+              <CompraItensChecklist task={task} />
+            ) : materiais.length > 0 ? (
+              <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-2">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-gray-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <PackageIcon className="h-3.5 w-3.5 text-indigo-500" /> Materiais Previstos
+                  </span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300">
+                    {materiais.length} {materiais.length === 1 ? 'item' : 'itens'}
+                  </span>
+                </div>
+                <ul className="space-y-1">
+                  {materiais.map((mat, idx) => (
+                    <li key={idx} className="flex items-center gap-2 text-slate-700 dark:text-gray-300">
+                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
+                      <span>{mat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {/* 2) Linha compacta com as informações que existirem separadas por " · " */}
+            {compraInfoItems.length > 0 && (
+              <div className="bg-slate-50/70 dark:bg-brand-dark-800/50 border border-slate-200/80 dark:border-gray-800 p-2.5 sm:px-3 rounded-xl flex items-center gap-2 flex-wrap text-xs text-slate-600 dark:text-gray-400">
+                {compraInfoItems.map((item, idx) => (
+                  <React.Fragment key={idx}>
+                    {idx > 0 && <span className="text-slate-300 dark:text-gray-600 select-none">·</span>}
+                    {item}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          /* Tarefas comuns: grade de 2 colunas */
+          <div className="bg-slate-50/70 dark:bg-brand-dark-800/50 border border-slate-200/80 dark:border-gray-800 p-3.5 rounded-xl space-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {task.projectName && (
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                    <ConstructionIcon className="h-3 w-3 text-emerald-600" /> Obra / Canteiro
+                  </span>
+                  <p className="font-semibold text-slate-800 dark:text-gray-200">{task.projectName}</p>
+                </div>
+              )}
+
+              {task.collaboratorName && (
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                    <UserIcon className="h-3 w-3 text-blue-500" /> Responsável
+                  </span>
+                  <p className="font-semibold text-slate-800 dark:text-gray-200">{task.collaboratorName}</p>
+                </div>
+              )}
+
+              {task.data_inicio_prevista && (
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                    <CalendarIcon className="h-3 w-3 text-indigo-500" /> Início Previsto
+                  </span>
+                  <p className="font-semibold text-slate-800 dark:text-gray-200">{formatDateBR(task.data_inicio_prevista)}</p>
+                </div>
+              )}
+
+              {task.data_fim_prevista && (
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                    <ClockIcon className="h-3 w-3 text-amber-500" /> Prazo Final
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold text-slate-800 dark:text-gray-200">{formatDateBR(task.data_fim_prevista)}</span>
+                    {task.isDelayed ? (
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/40">
+                        Atrasada
+                      </span>
+                    ) : task.isTodayTask ? (
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                        Hoje
+                      </span>
+                    ) : task.isTomorrowTask ? (
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+                        Amanhã
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider block">
+                  Prioridade
+                </span>
+                <span className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded border ${getPriorityBadgeClass(task.prioridade)}`}>
+                  {task.prioridade}
+                </span>
+              </div>
+
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider block">
+                  Tipo de Registro
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-gray-200">
+                  🏗️ Tarefa de Canteiro
+                </span>
+              </div>
+
+              {hasCustoReal && (
+                <div className="space-y-0.5 sm:col-span-2">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                    <DollarSignIcon className="h-3 w-3 text-emerald-600" /> Custo Real
+                  </span>
+                  <p className="font-bold text-emerald-600 dark:text-emerald-400 font-mono text-sm">
+                    {formatCurrency(task.custo_real)}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 3) Descrição e observações se houver (para compras e tarefas comuns) */}
+        {cleanDescricao !== '' && (
+          <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Descrição Detalhada</span>
+            <p className="text-xs text-slate-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{cleanDescricao}</p>
+          </div>
+        )}
+
+        {cleanObservacoes !== '' && (
+          <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Observações</span>
+            <p className="text-xs text-slate-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{cleanObservacoes}</p>
+          </div>
+        )}
+
+        {/* Materiais e equipamentos para tarefas comuns */}
+        {!task.isPurchase && materiais.length > 0 && (
+          <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-2">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-gray-800">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <PackageIcon className="h-3.5 w-3.5 text-indigo-500" /> Materiais Previstos
+              </span>
+              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300">
+                {materiais.length} {materiais.length === 1 ? 'item' : 'itens'}
+              </span>
+            </div>
+            <ul className="space-y-1">
+              {materiais.map((mat, idx) => (
+                <li key={idx} className="flex items-center gap-2 text-slate-700 dark:text-gray-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
+                  <span>{mat}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {equipamentos.length > 0 && (
+          <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-2">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-gray-800">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <WrenchIcon className="h-3.5 w-3.5 text-amber-500" /> Equipamentos Utilizados
+              </span>
+              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-brand-dark-800 text-slate-600 dark:text-gray-300">
+                {equipamentos.length} {equipamentos.length === 1 ? 'item' : 'itens'}
+              </span>
+            </div>
+            <ul className="space-y-1">
+              {equipamentos.map((eq, idx) => (
+                <li key={idx} className="flex items-center gap-2 text-slate-700 dark:text-gray-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                  <span>{eq}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

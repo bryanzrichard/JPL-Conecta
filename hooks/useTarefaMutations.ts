@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../contexts/ToastContext';
@@ -21,6 +21,11 @@ export interface UseTarefaMutationsParams {
   setTaskToDelete: React.Dispatch<React.SetStateAction<Task | null>>;
 }
 
+interface TaskMutationContext {
+  previousTasks?: Task[];
+  previousSelectedTask?: EnrichedTask | null;
+}
+
 export function useTarefaMutations({
   companyId,
   userId,
@@ -40,6 +45,13 @@ export function useTarefaMutations({
   // Quick Command Input State & Gravador com IA (Gemini Flash)
   const [quickInputText, setQuickInputText] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Rastreamento de tarefas em gravação para desabilitar botões e evitar clique duplo
+  const [mutatingTaskIds, setMutatingTaskIds] = useState<Set<string>>(new Set());
+  const isTaskMutating = useCallback(
+    (taskId: string) => mutatingTaskIds.has(taskId),
+    [mutatingTaskIds]
+  );
 
   // -------------------------------------------------------------
   // PARSER EM TEMPO REAL DO QUICK INPUT
@@ -116,7 +128,12 @@ export function useTarefaMutations({
     },
   });
 
-  const toggleTaskStatusMutation = useMutation({
+  const toggleTaskStatusMutation = useMutation<
+    void,
+    unknown,
+    { taskId: string; newStatus: 'Concluída' | 'Planejada' },
+    TaskMutationContext
+  >({
     mutationFn: async ({
       taskId,
       newStatus,
@@ -132,19 +149,60 @@ export function useTarefaMutations({
         .eq('company_id', companyId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    onMutate: async ({ taskId, newStatus }) => {
+      setMutatingTaskIds((prev) => new Set(prev).add(taskId));
+
+      // Cancelar refetches em andamento para não sobrescrever o update otimista
+      await queryClient.cancelQueries({ queryKey: ['tasks', companyId] });
+
+      // Snapshot dos dados anteriores
+      const previousTasks = queryClient.getQueryData<Task[]>(['tasks', companyId]);
+      const previousSelectedTask = selectedTask;
+
+      // Aplicar atualização otimista na lista de tarefas do cache
+      queryClient.setQueryData<Task[]>(['tasks', companyId], (old) => {
+        if (!old) return old;
+        return old.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
+      });
+
+      // Atualizar tarefa selecionada no mesmo instante se for ela
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask((prev) => (prev ? { ...prev, status: newStatus } : null));
+      }
+
+      return { previousTasks, previousSelectedTask };
     },
-    onError: (err) => {
+    onError: (err, _variables, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(['tasks', companyId], context.previousTasks);
+      }
+      if (context?.previousSelectedTask) {
+        setSelectedTask(context.previousSelectedTask);
+      }
       toast({
         variant: 'destructive',
         title: 'Erro ao atualizar status',
         description: formatApiError(err),
       });
     },
+    onSettled: (_data, _error, variables) => {
+      if (variables?.taskId) {
+        setMutatingTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(variables.taskId);
+          return next;
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
   });
 
-  const rescheduleTaskMutation = useMutation({
+  const rescheduleTaskMutation = useMutation<
+    void,
+    unknown,
+    { taskId: string; newDate: string },
+    TaskMutationContext
+  >({
     mutationFn: async ({ taskId, newDate }: { taskId: string; newDate: string }) => {
       if (!companyId) return;
       const { error } = await supabase
@@ -158,9 +216,68 @@ export function useTarefaMutations({
         .eq('company_id', companyId);
       if (error) throw error;
     },
+    onMutate: async ({ taskId, newDate }) => {
+      setMutatingTaskIds((prev) => new Set(prev).add(taskId));
+
+      await queryClient.cancelQueries({ queryKey: ['tasks', companyId] });
+
+      const previousTasks = queryClient.getQueryData<Task[]>(['tasks', companyId]);
+      const previousSelectedTask = selectedTask;
+
+      queryClient.setQueryData<Task[]>(['tasks', companyId], (old) => {
+        if (!old) return old;
+        return old.map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                data_inicio_prevista: newDate,
+                data_fim_prevista: newDate,
+                status: 'Planejada' as const,
+              }
+            : t
+        );
+      });
+
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask((prev) =>
+          prev
+            ? {
+                ...prev,
+                data_inicio_prevista: newDate,
+                data_fim_prevista: newDate,
+                status: 'Planejada',
+              }
+            : null
+        );
+      }
+
+      return { previousTasks, previousSelectedTask };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({ title: 'Reagendado!', description: 'Data da tarefa atualizada com sucesso.' });
+    },
+    onError: (err, _variables, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(['tasks', companyId], context.previousTasks);
+      }
+      if (context?.previousSelectedTask) {
+        setSelectedTask(context.previousSelectedTask);
+      }
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao reagendar',
+        description: formatApiError(err),
+      });
+    },
+    onSettled: (_data, _error, variables) => {
+      if (variables?.taskId) {
+        setMutatingTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(variables.taskId);
+          return next;
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 
@@ -197,6 +314,7 @@ export function useTarefaMutations({
     inputRef,
     fallbackProjId,
     parsedPreview,
+    isTaskMutating,
     createQuickTaskMutation,
     toggleTaskStatusMutation,
     rescheduleTaskMutation,

@@ -19,6 +19,7 @@ interface TarefasTableProps {
   isDetailOpen: boolean;
   emptyMessage?: string;
   emptySubtitle?: string;
+  isTaskMutating?: (taskId: string) => boolean;
 }
 
 const getPriorityBadgeClass = (priority: TaskPriority) => {
@@ -41,6 +42,7 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
   isDetailOpen,
   emptyMessage = 'Nenhuma pendência encontrada',
   emptySubtitle = 'Nenhum registro corresponde aos filtros ou visão selecionada.',
+  isTaskMutating,
 }) => {
   // Ordenação por prazo crescente; tarefas sem prazo por último
   const sortedTasks = useMemo(() => {
@@ -76,6 +78,7 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
       <div className="md:hidden space-y-2 p-2">
         {sortedTasks.map((task) => {
           const isSelected = selectedTaskId === task.id;
+          const isMutating = isTaskMutating ? isTaskMutating(task.id) : false;
           return (
             <div
               key={task.id}
@@ -90,11 +93,13 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
                 <div className="flex items-start gap-2.5 min-w-0">
                   <button
                     type="button"
+                    disabled={isMutating}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (isMutating) return;
                       onToggleStatus(task);
                     }}
-                    className="mt-0.5 text-slate-400 hover:text-emerald-600 cursor-pointer shrink-0"
+                    className="mt-0.5 text-slate-400 hover:text-emerald-600 cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                     title={task.isCompleted ? 'Marcar como não concluída' : 'Marcar como concluída'}
                   >
                     {task.isCompleted ? (
@@ -201,6 +206,7 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
           <tbody className="divide-y divide-slate-100 dark:divide-gray-800 bg-white dark:bg-[#111827]">
             {sortedTasks.map((task) => {
               const isSelected = selectedTaskId === task.id;
+              const isMutating = isTaskMutating ? isTaskMutating(task.id) : false;
               return (
                 <tr
                   id={`task-row-${task.id}`}
@@ -216,8 +222,12 @@ export const TarefasTable: React.FC<TarefasTableProps> = ({
                   <td className="w-10 px-2.5 py-2.5 text-center align-middle" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
-                      onClick={() => onToggleStatus(task)}
-                      className="text-slate-400 hover:text-emerald-600 cursor-pointer inline-flex items-center justify-center"
+                      disabled={isMutating}
+                      onClick={() => {
+                        if (isMutating) return;
+                        onToggleStatus(task);
+                      }}
+                      className="text-slate-400 hover:text-emerald-600 cursor-pointer inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                       title={task.isCompleted ? 'Reabrir tarefa' : 'Concluir tarefa'}
                     >
                       {task.isCompleted ? (

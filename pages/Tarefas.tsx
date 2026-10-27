@@ -129,6 +129,7 @@ export const Tarefas: React.FC = () => {
     toggleTaskStatusMutation,
     rescheduleTaskMutation,
     deleteTaskMutation,
+    isTaskMutating,
   } = useTarefaMutations({
     companyId: profile?.company_id,
     userId: user?.id,
@@ -250,6 +251,7 @@ export const Tarefas: React.FC = () => {
             <TarefasTable
               tasks={activeTabTasks}
               selectedTaskId={selectedTask?.id || null}
+              isTaskMutating={isTaskMutating}
               onSelectTask={handleSelectTask}
               onToggleStatus={(task) =>
                 toggleTaskStatusMutation.mutate({
@@ -287,6 +289,7 @@ export const Tarefas: React.FC = () => {
                 <TaskDetailPanel
                   task={selectedTask}
                   onClose={() => setSelectedTask(null)}
+                  isMutating={isTaskMutating(selectedTask.id)}
                   onEdit={handleOpenEditDrawer}
                   onDelete={(task) => setTaskToDelete(task)}
                   onToggleStatus={(task) =>
@@ -358,6 +361,7 @@ export const Tarefas: React.FC = () => {
             <TaskDetailPanel
               task={selectedTask}
               onClose={() => setIsMobileDetailDrawerOpen(false)}
+              isMutating={isTaskMutating(selectedTask.id)}
               onEdit={(task) => {
                 setIsMobileDetailDrawerOpen(false);
                 handleOpenEditDrawer(task);
