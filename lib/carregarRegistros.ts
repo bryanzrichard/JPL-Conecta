@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { NotaFiscal, NotaWithItemCount, Service, ServiceWithDetails, Task } from '../types';
+import { CartorioRecord, NotaFiscal, NotaWithItemCount, Service, ServiceWithDetails, Task } from '../types';
 import { EnrichedTask } from '../components/tarefas/types';
 import { toISODate } from './taskParser';
 
@@ -200,4 +200,52 @@ export async function carregarTarefa(
     data.projects?.name || null,
     data.collaborators?.name || null
   );
+}
+
+/**
+ * Carrega um registro de cartório por ID e descobre o índice da página (base 0)
+ * em que ele aparece na ordenação padrão da empresa (issue_date desc, created_at desc)
+ */
+export async function carregarRegistroCartorioEPagina(
+  id: string,
+  companyId: string,
+  pageSize = 10
+): Promise<{ record: CartorioRecord; page: number } | null> {
+  const { data: record, error } = await supabase
+    .from('cartorio_records')
+    .select('*')
+    .eq('id', id)
+    .eq('company_id', companyId)
+    .maybeSingle();
+
+  if (error || !record) {
+    if (error) console.error('Erro ao carregar registro de cartório:', error);
+    return null;
+  }
+
+  // Contar registros que aparecem antes na ordenação (issue_date maior, ou mesma data e criado depois)
+  const [resMaior, resMesmaData] = await Promise.all([
+    supabase
+      .from('cartorio_records')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', companyId)
+      .gt('issue_date', record.issue_date),
+    supabase
+      .from('cartorio_records')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', companyId)
+      .eq('issue_date', record.issue_date)
+      .gt('created_at', record.created_at),
+  ]);
+
+  if (resMaior.error) console.error('Erro ao contar registros com issue_date maior:', resMaior.error);
+  if (resMesmaData.error) console.error('Erro ao contar registros com mesma data:', resMesmaData.error);
+
+  const countAntes = (resMaior.count || 0) + (resMesmaData.count || 0);
+  const page = Math.floor(countAntes / pageSize);
+
+  return {
+    record: record as CartorioRecord,
+    page,
+  };
 }

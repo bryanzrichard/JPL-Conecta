@@ -38,6 +38,7 @@ import CartorioModal from '../components/cartorio/CartorioModal';
 import { formatApiError } from '../lib/handleError';
 import { logAuditAction } from '../lib/auditLogger';
 import { formatCurrency, openStorageFile } from '../lib/utils';
+import { carregarRegistroCartorioEPagina } from '../lib/carregarRegistros';
 
 const PAGE_SIZE = 10;
 
@@ -79,10 +80,11 @@ const Cartorio: React.FC = () => {
     const navigate = useNavigate();
     const handledCartorioIdRef = useRef<string | null>(null);
 
-    // Interceptar ?editar={id} para rolar até a linha e destacar por 3 segundos sem abrir modal
+    // Interceptar ?editar={id}: limpa filtros, descobre a página exata, navega e destaca a linha
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
-        const editCartorioId = searchParams.get('editar') || (location.state as any)?.editId;
+        const stateObj = typeof location.state === 'object' && location.state !== null ? (location.state as Record<string, unknown>) : null;
+        const editCartorioId = searchParams.get('editar') || (stateObj?.editId ? String(stateObj.editId) : null);
 
         if (!editCartorioId || !profile?.company_id) return;
         if (handledCartorioIdRef.current === editCartorioId) return;
@@ -91,22 +93,50 @@ const Cartorio: React.FC = () => {
         // Limpar parâmetros da URL imediatamente para evitar reaberturas involuntárias
         navigate(location.pathname, { replace: true, state: {} });
 
-        setHighlightRecordId(editCartorioId);
-        const timer = setTimeout(() => {
-            setHighlightRecordId(null);
-        }, 3000);
+        // 1. Limpar busca e filtros da página
+        setSearchTerm('');
+        setDebouncedSearch('');
+        setFilters(initialFilters);
+        setTempFilters(initialFilters);
 
-        setTimeout(() => {
-            const el = document.getElementById(`cartorio-row-${editCartorioId}`) || document.getElementById(`cartorio-card-${editCartorioId}`);
-            if (el) {
-                el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        let isCurrent = true;
+
+        // 2. Carregar o registro e descobrir em qual página ele aparece (PAGE_SIZE = 10)
+        carregarRegistroCartorioEPagina(editCartorioId, profile.company_id, PAGE_SIZE).then((resultado) => {
+            if (!isCurrent) return;
+
+            if (!resultado) {
+                toast({
+                    title: 'Registro de cartório não encontrado',
+                    variant: 'destructive',
+                });
+                return;
             }
-        }, 150);
+
+            // 3. Define a página calculada
+            setPage(resultado.page);
+
+            // 4. Destaca a linha por 3 segundos
+            setHighlightRecordId(editCartorioId);
+            setTimeout(() => {
+                if (isCurrent) {
+                    setHighlightRecordId(null);
+                }
+            }, 3000);
+
+            // 5. Rola suavemente até o registro se já estiver no DOM
+            setTimeout(() => {
+                const el = document.getElementById(`cartorio-row-${editCartorioId}`) || document.getElementById(`cartorio-card-${editCartorioId}`);
+                if (el) {
+                    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                }
+            }, 150);
+        });
 
         return () => {
-            clearTimeout(timer);
+            isCurrent = false;
         };
-    }, [location.search, location.state, profile?.company_id, navigate]);
+    }, [location.search, location.state, profile?.company_id, navigate, toast]);
 
     React.useEffect(() => {
         const handler = setTimeout(() => {
@@ -195,7 +225,10 @@ const Cartorio: React.FC = () => {
             }
             const from = page * PAGE_SIZE;
             const to = from + PAGE_SIZE - 1;
-            const res = await query.order('issue_date', { ascending: false }).range(from, to);
+            const res = await query
+                .order('issue_date', { ascending: false })
+                .order('created_at', { ascending: false })
+                .range(from, to);
             if (res.error) throw res.error;
             return { data: res.data as CartorioRecord[], count: res.count ?? 0 };
         },
