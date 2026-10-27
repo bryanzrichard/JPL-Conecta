@@ -1,6 +1,7 @@
 
 import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { queryClient } from '../lib/queryClient';
 import { Session, User } from '@supabase/supabase-js';
 import { Profile } from '../types';
 
@@ -119,6 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    queryClient.clear();
     setUser(null);
     setProfile(null);
     setSession(null);

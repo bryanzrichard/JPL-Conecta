@@ -115,6 +115,8 @@ const MainLayout: React.FC = () => {
         switch (pathname) {
             case '/':
                 return { module: 'Visão Geral & Indicadores', description: 'Métricas financeiras e auditoria' };
+            case '/busca':
+                return { module: 'Busca', description: 'Análise, filtros e inteligência de preços' };
             case '/notas':
                 return { module: 'Gestão de Notas Fiscais', description: 'Lançamentos, IA e conciliação' };
             case '/orcamentos':

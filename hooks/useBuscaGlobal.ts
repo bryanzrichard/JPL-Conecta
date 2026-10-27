@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from './useAuth';
 import {
   BuscaGlobalTipo,
   BuscaGlobalRow,
@@ -39,6 +40,9 @@ export function useBuscaGlobal(
   termo: string,
   options: UseBuscaGlobalOptions = {}
 ): UseBuscaGlobalResult {
+  const { user } = useAuth();
+  const userId = user?.id || 'anon';
+
   const {
     limite = 8,
     tipo = null,
@@ -61,7 +65,16 @@ export function useBuscaGlobal(
   const shouldSearch = enabled && cleanTerm.length >= 2;
 
   const query = useQuery<BuscaGlobalRow[]>({
-    queryKey: ['busca-global', cleanTerm, limite, tipo, projectId, inicio, fim],
+    queryKey: [
+      'busca-global',
+      userId,
+      cleanTerm,
+      limite,
+      tipo,
+      projectId,
+      inicio,
+      fim,
+    ],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('busca_global', {
         p_termo: cleanTerm,

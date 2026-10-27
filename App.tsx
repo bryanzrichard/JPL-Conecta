@@ -1,9 +1,11 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './lib/queryClient';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from './pages/Home';
+import Busca from './pages/Busca';
 import RegisterKey from './pages/RegisterKey';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
@@ -21,16 +23,6 @@ import Tarefas from './pages/Tarefas';
 import { ToastProvider } from './contexts/ToastContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster } from './components/ui/Toaster';
-
-// Create a client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 1,
-    },
-  },
-});
 
 function App() {
   const { loading, error, signOut } = useAuth();
@@ -83,6 +75,7 @@ function App() {
                 {/* Main application layout for users with a valid company key */}
                 <Route element={<MainLayout />}>
                   <Route path="/" element={<Home />} />
+                  <Route path="/busca" element={<Busca />} />
                   <Route path="/notas" element={<Notas />} />
                   <Route path="/orcamentos" element={<Orcamentos />} />
                   <Route path="/orcamento" element={<Navigate to="/orcamentos" replace />} />
