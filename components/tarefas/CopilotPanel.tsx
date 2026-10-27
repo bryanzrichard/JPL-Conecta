@@ -204,7 +204,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
   // Aberto: Chat Completo Expandido na Vertical + Janela Lateral
   // -------------------------------------------------------------
   return (
-    <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm flex flex-col h-[calc(100vh-210px)] min-h-[560px] max-h-[820px] transition-all">
+    <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm flex flex-col h-[calc(100vh-175px)] md:h-[calc(100vh-125px)] min-h-[500px] transition-all">
       {/* Topo do Chat */}
       <div className="p-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
