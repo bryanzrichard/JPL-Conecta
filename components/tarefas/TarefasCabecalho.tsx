@@ -6,15 +6,13 @@ import { openOfficialGroupLink } from '../../lib/whatsappGenerator';
 export interface TarefasCabecalhoProps {
   hasNotificationPermission: boolean;
   onRequestNotificationPermission: () => void;
-  onOpenPauta: () => void;
-  dailyProgress?: number;
+  onOpenMobileWhatsappPreview: () => void;
 }
 
 export const TarefasCabecalho: React.FC<TarefasCabecalhoProps> = ({
   hasNotificationPermission,
   onRequestNotificationPermission,
-  onOpenPauta,
-  dailyProgress,
+  onOpenMobileWhatsappPreview,
 }) => {
   return (
     <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-2 border-b border-slate-200/80 dark:border-gray-800">
@@ -67,22 +65,6 @@ export const TarefasCabecalho: React.FC<TarefasCabecalhoProps> = ({
           )}
         </button>
 
-        {/* Botão Pauta Diária Dinâmico (Desktop & Mobile) */}
-        <button
-          type="button"
-          onClick={onOpenPauta}
-          className="h-8 px-2.5 sm:px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-          title="Visualizar e enviar Pauta Diária da Obra"
-        >
-          <ClipboardListIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>Pauta Diária</span>
-          {dailyProgress !== undefined && (
-            <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-emerald-600 text-white">
-              {dailyProgress}%
-            </span>
-          )}
-        </button>
-
         {/* Botão Oficial do Grupo WhatsApp */}
         <button
           type="button"
@@ -91,9 +73,20 @@ export const TarefasCabecalho: React.FC<TarefasCabecalhoProps> = ({
           title="Abrir Grupo Oficial do WhatsApp da JPL Construtora"
         >
           <SendIcon className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Grupo WhatsApp</span>
-          <span className="sm:hidden">Grupo</span>
+          <span>Grupo WhatsApp</span>
         </button>
+
+        {/* Botão Ver Pauta no Mobile */}
+        <div className="lg:hidden">
+          <Button
+            size="sm"
+            onClick={onOpenMobileWhatsappPreview}
+            className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+          >
+            <CopyIcon className="h-3.5 w-3.5 mr-1" />
+            <span>Ver Pauta</span>
+          </Button>
+        </div>
       </div>
     </header>
   );

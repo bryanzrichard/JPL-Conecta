@@ -1,20 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import {
-  ChatMessage,
-  ResolvedCopilotAction,
-} from '../../lib/copilotExecutor';
+import { ChatMessage, ResolvedCopilotAction } from '../../lib/copilotExecutor';
 import { buildRecentActivities, CopilotActivityItem } from '../../lib/copilotHistorico';
 import { CopilotMensagem } from './CopilotMensagem';
 import { CopilotActivityFeed } from './CopilotActivityFeed';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import {
-  BotIcon,
-  MicIcon,
-  MicOffIcon,
-  SendIcon,
-  SparklesIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
+  BotIcon, MicIcon, MicOffIcon, SendIcon, SparklesIcon, ChevronDownIcon, ChevronUpIcon,
 } from '../../lib/icons';
 
 interface CopilotPanelProps {
@@ -60,6 +51,27 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelHeight, setPanelHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isExpanded) return;
+
+    const calculateHeight = () => {
+      if (!panelRef.current) return;
+      const rect = panelRef.current.getBoundingClientRect();
+      const spaceToBottom = window.innerHeight - rect.top - 20;
+      setPanelHeight(Math.max(400, Math.floor(spaceToBottom)));
+    };
+
+    calculateHeight();
+    const timer = setTimeout(calculateHeight, 50);
+    window.addEventListener('resize', calculateHeight);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', calculateHeight);
+    };
+  }, [isExpanded]);
 
   // Confirmação em 2 cliques para limpar conversa (3 segundos)
   const [isConfirmingClear, setIsConfirmingClear] = useState<boolean>(false);
@@ -204,7 +216,11 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
   // Aberto: Chat Completo Expandido na Vertical + Janela Lateral
   // -------------------------------------------------------------
   return (
-    <div className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm flex flex-col h-[calc(100vh-175px)] md:h-[calc(100vh-125px)] min-h-[500px] transition-all">
+    <div
+      ref={panelRef}
+      style={panelHeight ? { height: `${panelHeight}px` } : undefined}
+      className="bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm flex flex-col h-[calc(100vh-175px)] md:h-[calc(100vh-140px)] min-h-[400px] transition-all"
+    >
       {/* Topo do Chat */}
       <div className="p-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">

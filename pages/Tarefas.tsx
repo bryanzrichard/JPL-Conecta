@@ -126,8 +126,8 @@ export const Tarefas: React.FC = () => {
     previewDateMode,
     setPreviewDateMode,
     isCopiedSuccess,
-    isMobileWhatsappPreviewOpen: isPautaOpen,
-    setIsMobileWhatsappPreviewOpen: setIsPautaOpen,
+    isMobileWhatsappPreviewOpen,
+    setIsMobileWhatsappPreviewOpen,
     whatsappTasks,
     formattedWhatsAppText,
     dailyProgress,
@@ -176,8 +176,7 @@ export const Tarefas: React.FC = () => {
       <TarefasCabecalho
         hasNotificationPermission={hasNotificationPermission}
         onRequestNotificationPermission={requestNotificationPermission}
-        onOpenPauta={() => setIsPautaOpen(true)}
-        dailyProgress={dailyProgress}
+        onOpenMobileWhatsappPreview={() => setIsMobileWhatsappPreviewOpen(true)}
       />
 
       {/* ========================================================= */}
@@ -265,7 +264,7 @@ export const Tarefas: React.FC = () => {
             className={`${
               selectedTask && isDesktop
                 ? 'w-full lg:w-[48%] xl:w-[46%] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800'
-                : 'w-full'
+                : 'w-full lg:w-[60%] xl:w-[62%] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-gray-800'
             }`}
           >
             <TarefasTable
@@ -298,33 +297,52 @@ export const Tarefas: React.FC = () => {
             />
           </div>
 
-          {/* LADO DIREITO (DESKTOP): PAINEL DE DETALHE QUANDO HOUVER TAREFA SELECIONADA */}
-          {isDesktop && selectedTask && (
+          {/* LADO DIREITO (DESKTOP): PAINEL DE DETALHE OU PAUTA WHATSAPP */}
+          {isDesktop && (
             <div
-              className="w-full lg:w-[52%] xl:w-[54%] shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col animate-in fade-in-0 duration-150 p-3 sm:p-4"
+              className={`w-full ${
+                selectedTask ? 'lg:w-[52%] xl:w-[54%]' : 'lg:w-[40%] xl:w-[38%]'
+              } shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col animate-in fade-in-0 duration-150 p-2.5 sm:p-3`}
             >
-              <TaskDetailPanel
-                task={selectedTask}
-                onClose={() => setSelectedTask(null)}
-                isMutating={isTaskMutating(selectedTask.id)}
-                onEdit={handleOpenEditDrawer}
-                onDelete={(task) => setTaskToDelete(task)}
-                onToggleStatus={(task) =>
-                  toggleTaskStatusMutation.mutate({
-                    taskId: task.id,
-                    newStatus: task.isCompleted ? 'Planejada' : 'Concluída',
-                  })
-                }
-                onRescheduleTomorrow={(task) =>
-                  rescheduleTaskMutation.mutate({ taskId: task.id, newDate: tomorrowStr })
-                }
-                onPrevTask={handlePrevTask}
-                onNextTask={handleNextTask}
-                hasPrev={hasPrevTask}
-                hasNext={hasNextTask}
-                currentIndex={selectedTaskIndex}
-                totalCount={activeTabTasks.length}
-              />
+              {selectedTask ? (
+                <TaskDetailPanel
+                  task={selectedTask}
+                  onClose={() => setSelectedTask(null)}
+                  isMutating={isTaskMutating(selectedTask.id)}
+                  onEdit={handleOpenEditDrawer}
+                  onDelete={(task) => setTaskToDelete(task)}
+                  onToggleStatus={(task) =>
+                    toggleTaskStatusMutation.mutate({
+                      taskId: task.id,
+                      newStatus: task.isCompleted ? 'Planejada' : 'Concluída',
+                    })
+                  }
+                  onRescheduleTomorrow={(task) =>
+                    rescheduleTaskMutation.mutate({ taskId: task.id, newDate: tomorrowStr })
+                  }
+                  onPrevTask={handlePrevTask}
+                  onNextTask={handleNextTask}
+                  hasPrev={hasPrevTask}
+                  hasNext={hasNextTask}
+                  currentIndex={selectedTaskIndex}
+                  totalCount={activeTabTasks.length}
+                />
+              ) : (
+                <PautaWhatsAppPanel
+                  previewDateMode={previewDateMode}
+                  setPreviewDateMode={setPreviewDateMode}
+                  dailyProgress={dailyProgress}
+                  formattedWhatsAppText={formattedWhatsAppText}
+                  handleDirectGroupSend={handleDirectGroupSend}
+                  handleCopyWhatsApp={handleCopyWhatsApp}
+                  isCopiedSuccess={isCopiedSuccess}
+                  todayDateStr={todayStr}
+                  tomorrowDateStr={tomorrowStr}
+                  tasksCount={whatsappTasks.length}
+                  completedCount={whatsappTasks.filter((t) => t.status === 'Concluída').length}
+                  purchasesCount={whatsappTasks.filter((t) => t.isPurchase).length}
+                />
+              )}
             </div>
           )}
         </div>
@@ -396,30 +414,32 @@ export const Tarefas: React.FC = () => {
         </ResponsiveModal>
       )}
 
-      {/* Pauta do WhatsApp (Gaveta Lateral no Desktop & Bottom Sheet no Mobile) */}
-      <ResponsiveModal
-        open={isPautaOpen}
-        onOpenChange={setIsPautaOpen}
-        displayMode="drawer"
-      >
-        <ResponsiveModalContent size="md">
-          <PautaWhatsAppPanel
-            previewDateMode={previewDateMode}
-            setPreviewDateMode={setPreviewDateMode}
-            dailyProgress={dailyProgress}
-            formattedWhatsAppText={formattedWhatsAppText}
-            handleDirectGroupSend={handleDirectGroupSend}
-            handleCopyWhatsApp={handleCopyWhatsApp}
-            isCopiedSuccess={isCopiedSuccess}
-            onClose={() => setIsPautaOpen(false)}
-            todayDateStr={todayStr}
-            tomorrowDateStr={tomorrowStr}
-            tasksCount={whatsappTasks.length}
-            completedCount={whatsappTasks.filter((t) => t.status === 'Concluída').length}
-            purchasesCount={whatsappTasks.filter((t) => t.isPurchase).length}
-          />
-        </ResponsiveModalContent>
-      </ResponsiveModal>
+      {/* Pauta do WhatsApp no Celular (Gaveta / Bottom Sheet) */}
+      {!isDesktop && (
+        <ResponsiveModal
+          open={isMobileWhatsappPreviewOpen}
+          onOpenChange={setIsMobileWhatsappPreviewOpen}
+          displayMode="drawer"
+        >
+          <ResponsiveModalContent size="md">
+            <PautaWhatsAppPanel
+              previewDateMode={previewDateMode}
+              setPreviewDateMode={setPreviewDateMode}
+              dailyProgress={dailyProgress}
+              formattedWhatsAppText={formattedWhatsAppText}
+              handleDirectGroupSend={handleDirectGroupSend}
+              handleCopyWhatsApp={handleCopyWhatsApp}
+              isCopiedSuccess={isCopiedSuccess}
+              onClose={() => setIsMobileWhatsappPreviewOpen(false)}
+              todayDateStr={todayStr}
+              tomorrowDateStr={tomorrowStr}
+              tasksCount={whatsappTasks.length}
+              completedCount={whatsappTasks.filter((t) => t.status === 'Concluída').length}
+              purchasesCount={whatsappTasks.filter((t) => t.isPurchase).length}
+            />
+          </ResponsiveModalContent>
+        </ResponsiveModal>
+      )}
 
       {/* Modal de Confirmação de Exclusão */}
       <ConfirmationModal
