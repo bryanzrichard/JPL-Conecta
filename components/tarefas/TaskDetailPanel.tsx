@@ -249,13 +249,14 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
             size="sm"
             disabled={isMutating}
             onClick={() => onToggleStatus(task)}
+            variant={task.isCompleted ? 'outline' : 'primary'}
             className={`h-8 text-xs font-semibold gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
               task.isCompleted
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-gray-200 border border-slate-200 dark:border-gray-700'
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-gray-100 border border-slate-300 dark:border-gray-600'
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
             }`}
           >
-            <CheckCircle2Icon className="h-3.5 w-3.5" />
+            <CheckCircle2Icon className={`h-3.5 w-3.5 ${task.isCompleted ? 'text-slate-600 dark:text-gray-300' : 'text-white'}`} />
             <span>{task.isCompleted ? 'Reabrir Tarefa' : 'Concluir Tarefa'}</span>
           </Button>
 
