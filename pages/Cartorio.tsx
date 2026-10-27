@@ -99,12 +99,8 @@ const Cartorio: React.FC = () => {
         setFilters(initialFilters);
         setTempFilters(initialFilters);
 
-        let isCurrent = true;
-
         // 2. Carregar o registro e descobrir em qual página ele aparece (PAGE_SIZE = 10)
         carregarRegistroCartorioEPagina(editCartorioId, profile.company_id, PAGE_SIZE).then((resultado) => {
-            if (!isCurrent) return;
-
             if (!resultado) {
                 toast({
                     title: 'Registro de cartório não encontrado',
@@ -119,9 +115,7 @@ const Cartorio: React.FC = () => {
             // 4. Destaca a linha por 3 segundos
             setHighlightRecordId(editCartorioId);
             setTimeout(() => {
-                if (isCurrent) {
-                    setHighlightRecordId(null);
-                }
+                setHighlightRecordId(null);
             }, 3000);
 
             // 5. Rola suavemente até o registro se já estiver no DOM
@@ -132,10 +126,6 @@ const Cartorio: React.FC = () => {
                 }
             }, 150);
         });
-
-        return () => {
-            isCurrent = false;
-        };
     }, [location.search, location.state, profile?.company_id, navigate, toast]);
 
     React.useEffect(() => {
