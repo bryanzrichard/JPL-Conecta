@@ -138,6 +138,7 @@ const Notas: React.FC = () => {
 
     // Modals state
     const [selectedNota, setSelectedNota] = useState<NotaFiscal | NotaWithItemCount | null>(null);
+    const [highlightItemId, setHighlightItemId] = useState<string | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -290,11 +291,15 @@ const Notas: React.FC = () => {
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         const editNotaId = searchParams.get('editar') || (location.state as any)?.editId;
+        const itemParam = searchParams.get('item');
 
         if (!editNotaId || !profile?.company_id) return;
         if (handledNotaIdRef.current === editNotaId) return;
 
         handledNotaIdRef.current = editNotaId;
+        if (itemParam) {
+            setHighlightItemId(itemParam);
+        }
         navigate(location.pathname, { replace: true, state: {} });
 
         let isCurrent = true;
@@ -1200,9 +1205,11 @@ const Notas: React.FC = () => {
             <DetalhesNotaModal
                 nota={selectedNota}
                 isOpen={isDetailsModalOpen}
+                highlightItemId={highlightItemId}
                 onClose={() => {
                     setIsDetailsModalOpen(false);
                     setSelectedNota(null);
+                    setHighlightItemId(null);
                 }}
                 onEdit={(nota) => {
                     setIsDetailsModalOpen(false);

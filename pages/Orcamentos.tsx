@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
 import { useMediaQuery } from '../hooks/use-media-query';
+import { useOrcamentoDeepLink } from '../hooks/useOrcamentoDeepLink';
 import {
   Project,
   Collaborator,
@@ -263,6 +264,16 @@ export const Orcamentos: React.FC = () => {
       return data || [];
     },
     enabled: !!profile?.company_id,
+  });
+
+  // Deep Link: /orcamentos?obra=<id>&etapa=<id>
+  const { highlightedEtapaId } = useOrcamentoDeepLink({
+    etapas,
+    isLoadingEtapas,
+    setSelectedProjectFilter,
+    setExpandedEtapaIds,
+    setSelectedEtapaId,
+    setActiveTab,
   });
 
   // 4. Carregar Todos os Itens de Orçamento da Obra (ou de todas as obras)
@@ -1560,7 +1571,9 @@ export const Orcamentos: React.FC = () => {
                               id={`etapa-row-${main.id}`}
                               onClick={() => setSelectedEtapaId(main.id)}
                               className={`group transition-colors cursor-pointer ${
-                                isMainSelected
+                                highlightedEtapaId === main.id
+                                  ? 'ring-2 ring-indigo-500 bg-indigo-100/70 dark:bg-indigo-950/70 border-l-4 border-indigo-600'
+                                  : isMainSelected
                                   ? 'bg-[#F5F3FF] dark:bg-indigo-500/[0.12] border-l-4 border-[#818CF8]'
                                   : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/30'
                               }`}
@@ -1720,7 +1733,9 @@ export const Orcamentos: React.FC = () => {
                                   }}
                                   onClick={() => setSelectedEtapaId(sub.id)}
                                   className={`group transition-all cursor-pointer select-none ${
-                                    isDragging
+                                    highlightedEtapaId === sub.id
+                                      ? 'ring-2 ring-indigo-500 bg-indigo-100/70 dark:bg-indigo-950/70 border-l-4 border-indigo-600'
+                                      : isDragging
                                       ? 'opacity-30 bg-indigo-100/50 dark:bg-indigo-950/40'
                                       : isOver
                                       ? 'border-t-2 border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/60 ring-1 ring-indigo-500'

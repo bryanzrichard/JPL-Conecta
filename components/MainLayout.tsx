@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDashboardAlerts } from '../hooks/useDashboardAlerts';
 import { Button } from './ui/Button';
 import { ThemeToggle } from './ui/ThemeToggle';
-import { GlobalSearchModal } from './GlobalSearchModal';
+import { BuscaPaleta } from './busca/BuscaPaleta';
 import ConfirmationModal from './ui/ConfirmationModal';
 import { 
     MenuIcon, XIcon, ClipboardListIcon, FileTextIcon, 
@@ -25,12 +25,30 @@ const MainLayout: React.FC = () => {
     const accountMenuRef = useRef<HTMLDivElement>(null);
     const accountButtonRef = useRef<HTMLButtonElement>(null);
 
-    // Global shortcut Ctrl+K / Cmd+K to open Search Modal
+    const isMac =
+        typeof navigator !== 'undefined' &&
+        /Mac|iPod|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
+
+    // Global shortcut Ctrl+K / Cmd+K e "/" para abrir Paleta de Busca
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
                 e.preventDefault();
                 setIsSearchOpen((prev) => !prev);
+                return;
+            }
+            if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                const target = e.target as HTMLElement | null;
+                const tagName = target?.tagName?.toLowerCase();
+                const isEditable =
+                    target?.isContentEditable ||
+                    tagName === 'input' ||
+                    tagName === 'textarea' ||
+                    tagName === 'select';
+                if (!isEditable) {
+                    e.preventDefault();
+                    setIsSearchOpen(true);
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -350,19 +368,19 @@ const MainLayout: React.FC = () => {
                         <span className="text-xs font-bold text-slate-800 dark:text-white">{currentRoute.module}</span>
                     </div>
 
-                    {/* Centro: Busca Global ⌘K */}
+                    {/* Centro: Busca Global Inteligente (Ctrl+K / ⌘K) */}
                     <div className="flex-1 flex justify-center px-4">
                         <button
                             type="button"
                             onClick={() => setIsSearchOpen(true)}
-                            className="w-96 flex items-center justify-between px-3.5 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-brand-dark-800/80 dark:hover:bg-brand-dark-800 border border-slate-200 dark:border-gray-700/80 text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all text-xs group shadow-sm"
+                            className="w-96 flex items-center justify-between px-3.5 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-brand-dark-800/80 dark:hover:bg-brand-dark-800 border border-slate-200 dark:border-gray-700/80 text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all text-xs group shadow-sm cursor-pointer"
                         >
                             <div className="flex items-center gap-2 min-w-0">
                                 <SearchIcon className="h-3.5 w-3.5 text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0" />
-                                <span className="truncate">Buscar insumos, preços, obras, tarefas...</span>
+                                <span className="truncate">Buscar notas, itens, valores, datas, pagamentos...</span>
                             </div>
                             <kbd className="inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 shrink-0">
-                                <span>⌘</span>K
+                                {isMac ? '⌘K' : 'Ctrl K'}
                             </kbd>
                         </button>
                     </div>
@@ -573,8 +591,8 @@ const MainLayout: React.FC = () => {
                 </div>
             )}
 
-            {/* Modal de Busca Global e Inteligência de Preços (Ctrl + K) */}
-            <GlobalSearchModal
+            {/* Paleta de Busca Global Inteligente (Ctrl+K / ⌘K / "/" / Lupa) */}
+            <BuscaPaleta
                 isOpen={isSearchOpen}
                 onClose={() => setIsSearchOpen(false)}
             />

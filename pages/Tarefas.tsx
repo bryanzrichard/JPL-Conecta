@@ -16,6 +16,7 @@ import { BellIcon } from '../lib/icons';
 import { useCopilot } from '../hooks/useCopilot';
 import { useTarefasDados } from '../hooks/useTarefasDados';
 import { useTarefasListas } from '../hooks/useTarefasListas';
+import { useTarefasDeepLink } from '../hooks/useTarefasDeepLink';
 import { useNotificacaoTarefas } from '../hooks/useNotificacaoTarefas';
 import { usePautaWhatsApp } from '../hooks/usePautaWhatsApp';
 import { useTarefaMutations } from '../hooks/useTarefaMutations';
@@ -41,6 +42,7 @@ export const Tarefas: React.FC = () => {
     collaboratorsMap,
     openServices,
     allTasks,
+    isLoadingTasks,
   } = useTarefasDados(profile?.company_id);
 
   // -------------------------------------------------------------
@@ -50,12 +52,14 @@ export const Tarefas: React.FC = () => {
     todayStr,
     tomorrowStr,
     activeTab,
+    setActiveTab,
     searchTerm,
     setSearchTerm,
     filters,
     setFilters,
     isFilterDrawerOpen,
     setIsFilterDrawerOpen,
+    enrichedTasks,
     activeFiltersCount,
     filteredTasks,
     todayAndTomorrowTasks,
@@ -77,6 +81,20 @@ export const Tarefas: React.FC = () => {
     projectsMap,
     collaboratorsMap,
     isDesktop,
+  });
+
+  // Deep link ?tarefa=<id>
+  useTarefasDeepLink({
+    allTasks,
+    enrichedTasks,
+    isLoadingTasks,
+    setSearchTerm,
+    setFilters,
+    setActiveTab,
+    setSelectedTask,
+    setIsMobileDetailDrawerOpen,
+    isDesktop,
+    tomorrowStr,
   });
 
   // -------------------------------------------------------------

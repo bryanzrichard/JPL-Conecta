@@ -400,6 +400,36 @@ export type ListarNotasConsultaRow = {
   itens_encontrados: string | null;
 };
 
+export type BuscaGlobalTipo =
+  | 'nota'
+  | 'item'
+  | 'servico'
+  | 'adiantamento'
+  | 'tarefa'
+  | 'compra'
+  | 'fornecedor'
+  | 'colaborador'
+  | 'obra'
+  | 'cartorio'
+  | 'etapa'
+  | 'orcamento_item';
+
+export type BuscaGlobalRow = {
+  tipo: BuscaGlobalTipo;
+  id: string;
+  titulo: string;
+  subtitulo: string | null;
+  valor: number | null;
+  data: string | null;
+  obra: string | null;
+  obra_id: string | null;
+  rota: string;
+  detalhes: Record<string, unknown> | null;
+  score: number;
+  total_tipo: number;
+  soma_tipo: number | null;
+};
+
 // --- Supabase Database Definition (Inferred) ---
 
 export type Json =
@@ -541,6 +571,17 @@ export type Database = {
           p_limite?: number | null;
         };
         Returns: ListarNotasConsultaRow[];
+      };
+      busca_global: {
+        Args: {
+          p_termo: string;
+          p_limite?: number | null;
+          p_tipo?: string | null;
+          p_project_id?: string | null;
+          p_inicio?: string | null;
+          p_fim?: string | null;
+        };
+        Returns: BuscaGlobalRow[];
       };
     };
     Enums: {

@@ -36,6 +36,25 @@ export const formatDateDM = (dateString: string | Date | null | undefined): stri
     return dateString;
 };
 
+// Helper to format dates as DD/MM/AA in pt-BR (ex: "15/10/26")
+export const formatDateDMAA = (dateString: string | Date | null | undefined): string => {
+    if (!dateString) return '';
+    if (dateString instanceof Date) {
+        if (isNaN(dateString.getTime())) return '';
+        const d = String(dateString.getDate()).padStart(2, '0');
+        const m = String(dateString.getMonth() + 1).padStart(2, '0');
+        const yy = String(dateString.getFullYear()).slice(-2);
+        return `${d}/${m}/${yy}`;
+    }
+    const clean = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const parts = clean.split('-');
+    if (parts.length === 3) {
+        const yy = parts[0].slice(-2);
+        return `${parts[2]}/${parts[1]}/${yy}`;
+    }
+    return dateString;
+};
+
 // Helper to format year-month as "mmm/yy" in pt-BR (ex: "jul/26")
 export const formatMonthYear = (val: string | Date | null | undefined): string => {
     if (!val) return '-';

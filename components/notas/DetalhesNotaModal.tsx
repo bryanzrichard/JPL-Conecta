@@ -39,6 +39,7 @@ interface DetalhesNotaModalProps {
   onNextNota?: () => void;
   hasPrev?: boolean;
   hasNext?: boolean;
+  highlightItemId?: string | null;
 }
 
 const PAGE_SIZE = 25;
@@ -101,7 +102,8 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({
   onPrevNota,
   onNextNota,
   hasPrev,
-  hasNext
+  hasNext,
+  highlightItemId,
 }) => {
   const { toast } = useToast();
   const [items, setItems] = useState<ItemNotaFiscal[]>([]);
@@ -111,6 +113,18 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'resumo' | 'anexo'>('resumo');
+
+  // Scroll e destaque automático quando item é passado por deep link
+  useEffect(() => {
+    if (highlightItemId && items.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`nota-item-row-${highlightItemId}`);
+        if (el) {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }, 150);
+    }
+  }, [highlightItemId, items]);
 
   // Navegação sequencial por teclado (← / →)
   useEffect(() => {
@@ -427,31 +441,42 @@ const DetalhesNotaModal: React.FC<DetalhesNotaModalProps> = ({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 text-xs">
-                          {items.map((item) => (
-                            <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-brand-dark-800/30 transition-colors">
-                              <td className="py-3 px-3">
-                                <p className="font-semibold text-gray-900 dark:text-white">{item.description}</p>
-                                {item.manufacturer && (
-                                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">Fabr: {item.manufacturer}</p>
-                                )}
-                              </td>
-                              <td className="py-3 px-3">
-                                <span className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-md border ${getCategoryBadgeClass(item.category)}`}>
-                                  {item.category}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3 text-right font-mono">
-                                <span>{item.quantity}</span>
-                                <span className="text-gray-400 ml-1 text-[11px]">{item.unit_of_measure || 'un'}</span>
-                              </td>
-                              <td className="py-3 px-3 text-right font-mono text-gray-600 dark:text-gray-300">
-                                {formatCurrency(item.unit_price)}
-                              </td>
-                              <td className="py-3 px-3 text-right font-mono font-bold text-gray-900 dark:text-white">
-                                {formatCurrency(item.total_price)}
-                              </td>
-                            </tr>
-                          ))}
+                          {items.map((item) => {
+                            const isHighlighted = highlightItemId === item.id;
+                            return (
+                              <tr
+                                key={item.id}
+                                id={`nota-item-row-${item.id}`}
+                                className={
+                                  isHighlighted
+                                    ? 'bg-amber-100/80 dark:bg-amber-950/60 ring-2 ring-amber-400 dark:ring-amber-500 font-medium transition-all'
+                                    : 'hover:bg-gray-50/50 dark:hover:bg-brand-dark-800/30 transition-colors'
+                                }
+                              >
+                                <td className="py-3 px-3">
+                                  <p className="font-semibold text-gray-900 dark:text-white">{item.description}</p>
+                                  {item.manufacturer && (
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">Fabr: {item.manufacturer}</p>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3">
+                                  <span className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-md border ${getCategoryBadgeClass(item.category)}`}>
+                                    {item.category}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3 text-right font-mono">
+                                  <span>{item.quantity}</span>
+                                  <span className="text-gray-400 ml-1 text-[11px]">{item.unit_of_measure || 'un'}</span>
+                                </td>
+                                <td className="py-3 px-3 text-right font-mono text-gray-600 dark:text-gray-300">
+                                  {formatCurrency(item.unit_price)}
+                                </td>
+                                <td className="py-3 px-3 text-right font-mono font-bold text-gray-900 dark:text-white">
+                                  {formatCurrency(item.total_price)}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
