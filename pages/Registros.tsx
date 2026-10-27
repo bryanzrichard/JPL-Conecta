@@ -191,8 +191,12 @@ const Registros: React.FC = () => {
           .maybeSingle();
         if (data) {
           setSelectedSupplier(data);
-          setModalEditSupplier(data);
-          setIsSupplierModalOpen(true);
+          setTimeout(() => {
+            const el = document.getElementById(`supplier-row-${id}`);
+            if (el) {
+              el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+          }, 150);
         }
       } else if (editParam.startsWith('obra_')) {
         const id = editParam.replace('obra_', '');
@@ -205,8 +209,12 @@ const Registros: React.FC = () => {
           .maybeSingle();
         if (data) {
           setSelectedProject(data);
-          setModalEditProject(data);
-          setIsProjectModalOpen(true);
+          setTimeout(() => {
+            const el = document.getElementById(`project-row-${id}`);
+            if (el) {
+              el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+          }, 150);
         }
       } else if (editParam.startsWith('colaborador_')) {
         const id = editParam.replace('colaborador_', '');
@@ -219,8 +227,12 @@ const Registros: React.FC = () => {
           .maybeSingle();
         if (data) {
           setSelectedCollaborator(data);
-          setModalEditCollaborator(data);
-          setIsCollaboratorModalOpen(true);
+          setTimeout(() => {
+            const el = document.getElementById(`collaborator-row-${id}`);
+            if (el) {
+              el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+          }, 150);
         }
       }
     };

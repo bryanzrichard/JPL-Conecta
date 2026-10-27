@@ -37,6 +37,7 @@ interface DetalhesServicoModalProps {
   onEdit?: (service: ServiceWithDetails) => void;
   onDelete?: (service: ServiceWithDetails) => void;
   onAddAdvance?: (service: ServiceWithDetails) => void;
+  highlightAdvanceId?: string | null;
 }
 
 const DetalhesServicoModal: React.FC<DetalhesServicoModalProps> = ({ 
@@ -45,10 +46,22 @@ const DetalhesServicoModal: React.FC<DetalhesServicoModalProps> = ({
   onClose, 
   onEdit, 
   onDelete,
-  onAddAdvance 
+  onAddAdvance,
+  highlightAdvanceId,
 }) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'resumo' | 'anexo'>('resumo');
+  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(highlightAdvanceId || null);
+
+  useEffect(() => {
+    if (highlightAdvanceId) {
+      setActiveHighlightId(highlightAdvanceId);
+      const timer = setTimeout(() => {
+        setActiveHighlightId(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightAdvanceId]);
 
   // Adiantamentos vinculados ao serviço (cache compartilhado via React Query)
   const {
@@ -68,6 +81,17 @@ const DetalhesServicoModal: React.FC<DetalhesServicoModalProps> = ({
       return (data || []) as Advance[];
     },
   });
+
+  useEffect(() => {
+    if (highlightAdvanceId && advances.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`modal-advance-row-${highlightAdvanceId}`);
+        if (el) {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }, 150);
+    }
+  }, [highlightAdvanceId, advances]);
   const errorAdvances = isError ? 'Não foi possível carregar as medições deste serviço.' : null;
 
   useEffect(() => {
@@ -378,32 +402,43 @@ const DetalhesServicoModal: React.FC<DetalhesServicoModalProps> = ({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 text-xs">
-                        {advances.map((adv) => (
-                          <tr key={adv.id} className="hover:bg-gray-50/50 dark:hover:bg-brand-dark-800/30 transition-colors">
-                            <td className="py-3 px-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                              {formatDate(adv.payment_date)}
-                            </td>
-                            <td className="py-3 px-3 text-gray-700 dark:text-gray-300">
-                              {adv.description || <span className="text-gray-400 italic">Medição sem descrição</span>}
-                            </td>
-                            <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                              {formatCurrency(adv.value)}
-                            </td>
-                            <td className="py-3 px-3 text-center whitespace-nowrap">
-                              {adv.receipt_path ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleViewFile(adv.receipt_path!)}
-                                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-blue-600 dark:text-brand-blue-400 hover:underline"
-                                >
-                                  <PaperclipIcon className="h-3 w-3" /> Anexo
-                                </button>
-                              ) : (
-                                <span className="text-gray-400 text-xs">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+                        {advances.map((adv) => {
+                          const isHighlighted = activeHighlightId === adv.id;
+                          return (
+                            <tr 
+                              key={adv.id} 
+                              id={`modal-advance-row-${adv.id}`}
+                              className={`transition-colors ${
+                                isHighlighted 
+                                  ? 'bg-amber-100/90 dark:bg-amber-950/70 ring-2 ring-amber-400 dark:ring-amber-500 font-medium' 
+                                  : 'hover:bg-gray-50/50 dark:hover:bg-brand-dark-800/30'
+                              }`}
+                            >
+                              <td className="py-3 px-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                                {formatDate(adv.payment_date)}
+                              </td>
+                              <td className="py-3 px-3 text-gray-700 dark:text-gray-300">
+                                {adv.description || <span className="text-gray-400 italic">Medição sem descrição</span>}
+                              </td>
+                              <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                                {formatCurrency(adv.value)}
+                              </td>
+                              <td className="py-3 px-3 text-center whitespace-nowrap">
+                                {adv.receipt_path ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleViewFile(adv.receipt_path!)}
+                                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-blue-600 dark:text-brand-blue-400 hover:underline"
+                                  >
+                                    <PaperclipIcon className="h-3 w-3" /> Anexo
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

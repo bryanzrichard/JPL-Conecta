@@ -74,11 +74,12 @@ const Cartorio: React.FC = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState<CartorioRecord | null>(null);
+    const [highlightRecordId, setHighlightRecordId] = useState<string | null>(null);
     const location = useLocation();
     const navigate = useNavigate();
     const handledCartorioIdRef = useRef<string | null>(null);
 
-    // Interceptar ?editar={id} para abrir modal de edição de cartório automaticamente sem loop
+    // Interceptar ?editar={id} para rolar até a linha e destacar por 3 segundos sem abrir modal
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         const editCartorioId = searchParams.get('editar') || (location.state as any)?.editId;
@@ -90,30 +91,20 @@ const Cartorio: React.FC = () => {
         // Limpar parâmetros da URL imediatamente para evitar reaberturas involuntárias
         navigate(location.pathname, { replace: true, state: {} });
 
-        let isCurrent = true;
+        setHighlightRecordId(editCartorioId);
+        const timer = setTimeout(() => {
+            setHighlightRecordId(null);
+        }, 3000);
 
-        const loadRecordForEdit = async () => {
-            try {
-                const { data } = await supabase
-                    .from('cartorio_records')
-                    .select('*, projects(name)')
-                    .eq('id', editCartorioId)
-                    .eq('company_id', profile.company_id)
-                    .maybeSingle();
-
-                if (data && isCurrent) {
-                    setSelectedRecord(data as any);
-                    setIsEditModalOpen(true);
-                }
-            } catch (err) {
-                console.error('Erro ao carregar registro de cartório para edição:', err);
+        setTimeout(() => {
+            const el = document.getElementById(`cartorio-row-${editCartorioId}`) || document.getElementById(`cartorio-card-${editCartorioId}`);
+            if (el) {
+                el.scrollIntoView({ block: 'center', behavior: 'smooth' });
             }
-        };
-
-        loadRecordForEdit();
+        }, 150);
 
         return () => {
-            isCurrent = false;
+            clearTimeout(timer);
         };
     }, [location.search, location.state, profile?.company_id, navigate]);
 
@@ -213,6 +204,18 @@ const Cartorio: React.FC = () => {
     });
 
     const totalPages = useMemo(() => (data?.count ? Math.ceil(data.count / PAGE_SIZE) : 0), [data?.count]);
+
+    // Rola até a linha/card destacado assim que os dados carregarem
+    useEffect(() => {
+        if (highlightRecordId && data?.data) {
+            setTimeout(() => {
+                const el = document.getElementById(`cartorio-row-${highlightRecordId}`) || document.getElementById(`cartorio-card-${highlightRecordId}`);
+                if (el) {
+                    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                }
+            }, 100);
+        }
+    }, [highlightRecordId, data?.data]);
 
     const deleteMutation = useMutation({
         mutationFn: async (record: CartorioRecord) => {
@@ -556,11 +559,21 @@ const Cartorio: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                                {data.data.map(item => (
-                                    <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <p className="font-medium text-gray-900 dark:text-white truncate max-w-[300px]" title={item.description}>{item.description}</p>
-                                        </td>
+                                {data.data.map(item => {
+                                    const isHighlighted = highlightRecordId === item.id;
+                                    return (
+                                        <tr 
+                                            key={item.id} 
+                                            id={`cartorio-row-${item.id}`}
+                                            className={`transition-colors ${
+                                                isHighlighted
+                                                    ? 'bg-amber-100/90 dark:bg-amber-950/70 ring-2 ring-amber-400 dark:ring-amber-500 font-medium'
+                                                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'
+                                            }`}
+                                        >
+                                            <td className="px-6 py-4">
+                                                <p className="font-medium text-gray-900 dark:text-white truncate max-w-[300px]" title={item.description}>{item.description}</p>
+                                            </td>
                                         <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
                                             {new Date(item.issue_date + 'T12:00:00').toLocaleDateString('pt-BR')}
                                         </td>
@@ -612,16 +625,27 @@ const Cartorio: React.FC = () => {
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </td>
-                                    </tr>
-                                ))}
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
 
                     {/* View Mobile - Cards */}
                     <div className="md:hidden flex flex-col divide-y divide-gray-200 dark:divide-gray-800">
-                        {data.data.map(item => (
-                            <div key={item.id} className="p-4 flex flex-col gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
+                        {data.data.map(item => {
+                            const isHighlighted = highlightRecordId === item.id;
+                            return (
+                                <div 
+                                    key={item.id} 
+                                    id={`cartorio-card-${item.id}`}
+                                    className={`p-4 flex flex-col gap-3 transition-colors ${
+                                        isHighlighted
+                                            ? 'bg-amber-100/90 dark:bg-amber-950/70 ring-2 ring-amber-400 dark:ring-amber-500'
+                                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'
+                                    }`}
+                                >
                                 <div className="flex justify-between items-start gap-2">
                                     <div className="flex-grow">
                                         <h3 className="font-medium text-gray-900 dark:text-white text-base leading-tight break-words">{item.description}</h3>
@@ -674,7 +698,8 @@ const Cartorio: React.FC = () => {
                                     )}
                                 </div>
                             </div>
-                        ))}
+                        );
+                    })}
                     </div>
                 </div>
             )}

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ServiceWithDetails, Advance } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
@@ -38,6 +38,7 @@ interface ServicoDetailPanelProps {
   hasNext: boolean;
   currentIndex: number;
   totalCount: number;
+  highlightAdvanceId?: string | null;
 }
 
 export const ServicoDetailPanel: React.FC<ServicoDetailPanelProps> = ({
@@ -53,8 +54,20 @@ export const ServicoDetailPanel: React.FC<ServicoDetailPanelProps> = ({
   hasNext,
   currentIndex,
   totalCount,
+  highlightAdvanceId,
 }) => {
   const { toast } = useToast();
+  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(highlightAdvanceId || null);
+
+  useEffect(() => {
+    if (highlightAdvanceId) {
+      setActiveHighlightId(highlightAdvanceId);
+      const timer = setTimeout(() => {
+        setActiveHighlightId(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightAdvanceId]);
 
   // Adiantamentos vinculados ao serviço
   const {
@@ -75,6 +88,17 @@ export const ServicoDetailPanel: React.FC<ServicoDetailPanelProps> = ({
     },
     staleTime: 30000,
   });
+
+  useEffect(() => {
+    if (highlightAdvanceId && advances.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`advance-panel-row-${highlightAdvanceId}`);
+        if (el) {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }, 150);
+    }
+  }, [highlightAdvanceId, advances]);
 
   const handleViewFile = async (path: string) => {
     try {
@@ -443,32 +467,43 @@ export const ServicoDetailPanel: React.FC<ServicoDetailPanelProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-gray-800/80 text-[11px]">
-                  {advances.map((adv) => (
-                    <tr key={adv.id} className="hover:bg-slate-50/60 dark:hover:bg-brand-dark-800/40 transition-colors">
-                      <td className="py-2 px-2.5 font-medium text-slate-900 dark:text-white whitespace-nowrap font-mono">
-                        {formatDate(adv.payment_date)}
-                      </td>
-                      <td className="py-2 px-2.5 text-slate-700 dark:text-gray-300 max-w-[160px] truncate" title={adv.description || ''}>
-                        {adv.description || <span className="text-slate-400 italic">Medição</span>}
-                      </td>
-                      <td className="py-2 px-2.5 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                        {formatCurrency(adv.value)}
-                      </td>
-                      <td className="py-2 px-2.5 text-center whitespace-nowrap">
-                        {adv.receipt_path ? (
-                          <button
-                            type="button"
-                            onClick={() => handleViewFile(adv.receipt_path!)}
-                            className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                          >
-                            <PaperclipIcon className="h-3 w-3" /> Ver
-                          </button>
-                        ) : (
-                          <span className="text-slate-400 text-[10px]">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {advances.map((adv) => {
+                    const isHighlighted = activeHighlightId === adv.id;
+                    return (
+                      <tr 
+                        key={adv.id} 
+                        id={`advance-panel-row-${adv.id}`}
+                        className={`transition-colors ${
+                          isHighlighted 
+                            ? 'bg-amber-100/90 dark:bg-amber-950/70 ring-2 ring-amber-400 dark:ring-amber-500 font-medium' 
+                            : 'hover:bg-slate-50/60 dark:hover:bg-brand-dark-800/40'
+                        }`}
+                      >
+                        <td className="py-2 px-2.5 font-medium text-slate-900 dark:text-white whitespace-nowrap font-mono">
+                          {formatDate(adv.payment_date)}
+                        </td>
+                        <td className="py-2 px-2.5 text-slate-700 dark:text-gray-300 max-w-[160px] truncate" title={adv.description || ''}>
+                          {adv.description || <span className="text-slate-400 italic">Medição</span>}
+                        </td>
+                        <td className="py-2 px-2.5 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                          {formatCurrency(adv.value)}
+                        </td>
+                        <td className="py-2 px-2.5 text-center whitespace-nowrap">
+                          {adv.receipt_path ? (
+                            <button
+                              type="button"
+                              onClick={() => handleViewFile(adv.receipt_path!)}
+                              className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                            >
+                              <PaperclipIcon className="h-3 w-3" /> Ver
+                            </button>
+                          ) : (
+                            <span className="text-slate-400 text-[10px]">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

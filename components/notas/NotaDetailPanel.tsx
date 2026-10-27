@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { NotaWithItemCount, NotaFiscal, ItemNotaFiscal, PAYMENT_METHODS } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
@@ -35,6 +35,7 @@ interface NotaDetailPanelProps {
   hasNext: boolean;
   currentIndex: number;
   totalCount: number;
+  highlightItemId?: string | null;
 }
 
 const formatDate = (dateStr: string | null | undefined) => {
@@ -102,9 +103,21 @@ export const NotaDetailPanel: React.FC<NotaDetailPanelProps> = ({
   hasNext,
   currentIndex,
   totalCount,
+  highlightItemId,
 }) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'detalhes' | 'anexo'>('detalhes');
+  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(highlightItemId || null);
+
+  useEffect(() => {
+    if (highlightItemId) {
+      setActiveHighlightId(highlightItemId);
+      const timer = setTimeout(() => {
+        setActiveHighlightId(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightItemId]);
 
   // Buscar itens da nota fiscal via React Query
   const { data: items = [], isLoading: loadingItems, isError, error: itemsError } = useQuery({
@@ -124,6 +137,18 @@ export const NotaDetailPanel: React.FC<NotaDetailPanelProps> = ({
     enabled: !!nota?.id,
     staleTime: 30000,
   });
+
+  // Scroll automatico ate o item destacado quando a lista de itens carregar
+  useEffect(() => {
+    if (highlightItemId && items.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`nota-panel-item-row-${highlightItemId}`);
+        if (el) {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }, 150);
+    }
+  }, [highlightItemId, items]);
 
   const handleViewFile = async (path: string) => {
     try {
@@ -470,27 +495,38 @@ export const NotaDetailPanel: React.FC<NotaDetailPanelProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-gray-800/80">
-                      {items.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50/60 dark:hover:bg-brand-dark-800/40 transition-colors">
-                          <td className="py-2 px-2 font-medium text-slate-900 dark:text-white max-w-[180px] truncate" title={item.description}>
-                            {item.description}
-                          </td>
-                          <td className="py-2 px-2 whitespace-nowrap">
-                            <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${getCategoryBadgeClass(item.category)}`}>
-                              {item.category || 'Geral'}
-                            </span>
-                          </td>
-                          <td className="py-2 px-2 text-right font-mono tabular-nums text-slate-600 dark:text-gray-300 whitespace-nowrap">
-                            {item.quantity} {item.unit_of_measure ? item.unit_of_measure : ''}
-                          </td>
-                          <td className="py-2 px-2 text-right font-mono tabular-nums text-slate-600 dark:text-gray-300 whitespace-nowrap">
-                            {formatCurrency(item.unit_price)}
-                          </td>
-                          <td className="py-2 px-2 text-right font-mono tabular-nums font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                            {formatCurrency(item.total_price)}
-                          </td>
-                        </tr>
-                      ))}
+                      {items.map((item) => {
+                        const isHighlighted = activeHighlightId === item.id;
+                        return (
+                          <tr 
+                            key={item.id} 
+                            id={`nota-panel-item-row-${item.id}`}
+                            className={
+                              isHighlighted
+                                ? 'bg-amber-100/90 dark:bg-amber-950/70 ring-2 ring-amber-400 dark:ring-amber-500 font-medium transition-all'
+                                : 'hover:bg-slate-50/60 dark:hover:bg-brand-dark-800/40 transition-colors'
+                            }
+                          >
+                            <td className="py-2 px-2 font-medium text-slate-900 dark:text-white max-w-[180px] truncate" title={item.description}>
+                              {item.description}
+                            </td>
+                            <td className="py-2 px-2 whitespace-nowrap">
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${getCategoryBadgeClass(item.category)}`}>
+                                {item.category || 'Geral'}
+                              </span>
+                            </td>
+                            <td className="py-2 px-2 text-right font-mono tabular-nums text-slate-600 dark:text-gray-300 whitespace-nowrap">
+                              {item.quantity} {item.unit_of_measure ? item.unit_of_measure : ''}
+                            </td>
+                            <td className="py-2 px-2 text-right font-mono tabular-nums text-slate-600 dark:text-gray-300 whitespace-nowrap">
+                              {formatCurrency(item.unit_price)}
+                            </td>
+                            <td className="py-2 px-2 text-right font-mono tabular-nums font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                              {formatCurrency(item.total_price)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

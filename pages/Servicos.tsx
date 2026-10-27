@@ -161,6 +161,7 @@ const Servicos: React.FC = () => {
     // Modais e Estados de Edição/Exclusão
     const [selectedService, setSelectedService] = useState<ServiceWithDetails | null>(null);
     const [selectedAdvance, setSelectedAdvance] = useState<AdvanceWithDetails | null>(null);
+    const [highlightAdvanceId, setHighlightAdvanceId] = useState<string | null>(null);
     const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);
     const [isCreateServiceModalOpen, setCreateServiceModalOpen] = useState(false);
     const [isEditServiceModalOpen, setEditServiceModalOpen] = useState(false);
@@ -174,6 +175,7 @@ const Servicos: React.FC = () => {
     const [isDeleteAdvanceModalOpen, setDeleteAdvanceModalOpen] = useState(false);
 
     const handledIdRef = useRef<string | null>(null);
+    const activeTargetIdRef = useRef<string | null>(null);
     const servicesSentinelRef = useRef<HTMLDivElement | null>(null);
     const advancesSentinelRef = useRef<HTMLDivElement | null>(null);
     const pendingAdvanceAfterFetchRef = useRef(false);
@@ -207,10 +209,10 @@ const Servicos: React.FC = () => {
         if (handledIdRef.current === targetId) return;
 
         handledIdRef.current = targetId;
+        activeTargetIdRef.current = targetId;
 
-        navigate(`${location.pathname}?tab=${editAdvanceId && !editServiceId ? 'adiantamentos' : 'servicos'}`, { replace: true, state: {} });
-
-        let isMounted = true;
+        // Limpa URL sem abortar o carregamento assíncrono
+        navigate(location.pathname, { replace: true, state: {} });
 
         const loadTarget = async () => {
             if (editServiceId) {
@@ -222,7 +224,10 @@ const Servicos: React.FC = () => {
                         .eq('id', editServiceId)
                         .maybeSingle();
 
-                    if (data && isMounted) {
+                    if (data && activeTargetIdRef.current === targetId) {
+                        if (data.status === 'Concluído') {
+                            setServiceStatusFilter('Todos');
+                        }
                         const isCompleted = data.status === 'Concluído';
                         const total_advances = (data.adiantamentos || []).reduce((acc: number, curr: any) => acc + (Number(curr.value) || 0), 0);
                         const formattedService: ServiceWithDetails = {
@@ -236,41 +241,66 @@ const Servicos: React.FC = () => {
                         if (!isDesktop) {
                             setDetailsModalOpen(true);
                         }
+                        setTimeout(() => {
+                            const el = document.getElementById(`service-row-${editServiceId}`);
+                            if (el) {
+                                el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            }
+                        }, 200);
                     }
                 } catch (err) {
-                    console.error('Erro ao abrir serviço para edição:', err);
+                    console.error('Erro ao abrir serviço para exibição:', err);
                 }
             } else if (editAdvanceId) {
-                setActiveTab('adiantamentos');
+                setActiveTab('servicos');
+                setHighlightAdvanceId(editAdvanceId);
                 try {
                     const { data: advData } = await supabase
                         .from('adiantamentos')
-                        .select('*, servicos(description, collaborator_id, project_id, collaborators(name), projects(name))')
+                        .select('id, service_id')
                         .eq('id', editAdvanceId)
-                        .maybeSingle()
-                        .returns<AdvanceQueryResult>();
+                        .maybeSingle();
 
-                    if (advData && isMounted) {
-                        const formattedAdv: AdvanceWithDetails = {
-                            ...advData,
-                            service_description: advData.servicos?.description || 'Serviço',
-                            collaborator_name: advData.servicos?.collaborators?.name || null,
-                            project_name: advData.servicos?.projects?.name || null,
-                        };
-                        setSelectedAdvance(formattedAdv);
-                        setEditAdvanceModalOpen(true);
+                    const serviceId = advData?.service_id;
+                    if (serviceId) {
+                        const { data } = await (supabase as any)
+                            .from('servicos')
+                            .select('*, collaborators(name), projects(name), adiantamentos(id, value)')
+                            .eq('id', serviceId)
+                            .maybeSingle();
+
+                        if (data && activeTargetIdRef.current === targetId) {
+                            if (data.status === 'Concluído') {
+                                setServiceStatusFilter('Todos');
+                            }
+                            const isCompleted = data.status === 'Concluído';
+                            const total_advances = (data.adiantamentos || []).reduce((acc: number, curr: any) => acc + (Number(curr.value) || 0), 0);
+                            const formattedService: ServiceWithDetails = {
+                                ...data,
+                                collaborator_name: data.collaborators?.name || null,
+                                project_name: data.projects?.name || null,
+                                total_advances,
+                                remaining_value: isCompleted ? 0 : Math.max(0, (Number(data.total_value) || 0) - total_advances),
+                            };
+                            setSelectedService(formattedService);
+                            if (!isDesktop) {
+                                setDetailsModalOpen(true);
+                            }
+                            setTimeout(() => {
+                                const el = document.getElementById(`service-row-${serviceId}`);
+                                if (el) {
+                                    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                                }
+                            }, 200);
+                        }
                     }
                 } catch (err) {
-                    console.error('Erro ao abrir adiantamento para edição:', err);
+                    console.error('Erro ao abrir adiantamento vinculado ao serviço:', err);
                 }
             }
         };
 
         loadTarget();
-
-        return () => {
-            isMounted = false;
-        };
     }, [location.search, location.state, profile?.company_id, navigate, isDesktop]);
 
     // ==========================================
@@ -1590,7 +1620,10 @@ const Servicos: React.FC = () => {
                                         <div className="w-full lg:w-[52%] xl:w-[54%] shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col animate-in fade-in-0 duration-150">
                                             <ServicoDetailPanel
                                                 service={selectedService}
-                                                onClose={() => setSelectedService(null)}
+                                                onClose={() => {
+                                                    setSelectedService(null);
+                                                    setHighlightAdvanceId(null);
+                                                }}
                                                 onEdit={(s) => { setSelectedService(s); setEditServiceModalOpen(true); }}
                                                 onDelete={(s) => { setServiceToDelete(s); setDeleteServiceModalOpen(true); }}
                                                 onAddAdvance={(s) => { setSelectedService(s); setAdvanceModalOpen(true); }}
@@ -1601,6 +1634,7 @@ const Servicos: React.FC = () => {
                                                 hasNext={hasNextService}
                                                 currentIndex={selectedServiceIndex}
                                                 totalCount={allServices.length}
+                                                highlightAdvanceId={highlightAdvanceId}
                                             />
                                         </div>
                                     )}
@@ -2368,6 +2402,7 @@ const Servicos: React.FC = () => {
                         onClose={() => {
                             setDetailsModalOpen(false);
                             setSelectedService(null);
+                            setHighlightAdvanceId(null);
                         }}
                         onEdit={(s) => {
                             setDetailsModalOpen(false);
@@ -2385,6 +2420,7 @@ const Servicos: React.FC = () => {
                             setAdvanceModalOpen(true);
                         }}
                         service={selectedService}
+                        highlightAdvanceId={highlightAdvanceId}
                     />
                 )}
 

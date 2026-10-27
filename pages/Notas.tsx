@@ -308,7 +308,15 @@ const Notas: React.FC = () => {
             const found = allNotas.find(n => n.id === editNotaId);
             if (found && isCurrent) {
                 setSelectedNota(found);
-                setIsDetailsModalOpen(true);
+                if (!isDesktop) {
+                    setIsDetailsModalOpen(true);
+                }
+                setTimeout(() => {
+                    const el = document.getElementById(`nota-row-${editNotaId}`);
+                    if (el) {
+                        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                }, 150);
                 return;
             }
 
@@ -329,7 +337,15 @@ const Notas: React.FC = () => {
                         itens_nota_fiscal: undefined
                     };
                     setSelectedNota(formatted as any);
-                    setIsDetailsModalOpen(true);
+                    if (!isDesktop) {
+                        setIsDetailsModalOpen(true);
+                    }
+                    setTimeout(() => {
+                        const el = document.getElementById(`nota-row-${editNotaId}`);
+                        if (el) {
+                            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                        }
+                    }, 150);
                     return;
                 }
 
@@ -354,7 +370,15 @@ const Notas: React.FC = () => {
                             itens_nota_fiscal: undefined
                         };
                         setSelectedNota(formatted as any);
-                        setIsDetailsModalOpen(true);
+                        if (!isDesktop) {
+                            setIsDetailsModalOpen(true);
+                        }
+                        setTimeout(() => {
+                            const el = document.getElementById(`nota-row-${itemData.nota_fiscal_id}`);
+                            if (el) {
+                                el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            }
+                        }, 150);
                     }
                 }
             } catch (err) {
@@ -1155,7 +1179,10 @@ const Notas: React.FC = () => {
                                 <div className="w-full lg:w-[52%] xl:w-[54%] shrink-0 min-h-[480px] max-h-[calc(100vh-270px)] overflow-hidden flex flex-col animate-in fade-in-0 duration-150">
                                     <NotaDetailPanel
                                         nota={selectedNota}
-                                        onClose={() => setSelectedNota(null)}
+                                        onClose={() => {
+                                            setSelectedNota(null);
+                                            setHighlightItemId(null);
+                                        }}
                                         onEdit={handleEditNota}
                                         onDelete={handleDeleteNota}
                                         onPrevNota={handlePrevNota}
@@ -1164,6 +1191,7 @@ const Notas: React.FC = () => {
                                         hasNext={hasNextNota}
                                         currentIndex={selectedNotaIndex}
                                         totalCount={allNotas.length}
+                                        highlightItemId={highlightItemId}
                                     />
                                 </div>
                             )}
