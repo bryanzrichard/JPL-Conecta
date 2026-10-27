@@ -192,9 +192,9 @@ export function useTarefasListas({
       .sort((a, b) => (a.data_fim_prevista || '').localeCompare(b.data_fim_prevista || ''));
   }, [filteredTasks, tomorrowStr]);
 
-  // Aba 3: Lista de Compras
+  // Aba 3: Lista de Compras (apenas pendentes)
   const purchaseTasks = useMemo(() => {
-    return filteredTasks.filter((t) => t.isPurchase);
+    return filteredTasks.filter((t) => t.isPurchase && !t.isCompleted);
   }, [filteredTasks]);
 
   // Aba 5: Concluídas
@@ -207,7 +207,7 @@ export function useTarefasListas({
     () => ({
       today: todayAndTomorrowTasks.length,
       upcoming: upcomingTasks.length,
-      purchases: purchaseTasks.filter((t) => !t.isCompleted).length,
+      purchases: purchaseTasks.length,
       completed: completedTasks.length,
     }),
     [todayAndTomorrowTasks, upcomingTasks, purchaseTasks, completedTasks]

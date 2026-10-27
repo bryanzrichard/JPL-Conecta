@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
 import { formatApiError } from '../../lib/handleError';
 import { copyTextToClipboard } from '../../lib/whatsappGenerator';
-import { TaskStatus } from '../../types';
+import { Task, TaskStatus } from '../../types';
 import { CopyIcon, CheckIcon, ShoppingBagIcon } from '../../lib/icons';
 import { Button } from '../ui/Button';
 
@@ -45,6 +45,15 @@ export const CompraItensChecklist: React.FC<CompraItensChecklistProps> = ({ task
         .eq('id', task.id);
       if (error) throw error;
       return { newStatus };
+    },
+    onMutate: async ({ updatedItens, newStatus }) => {
+      await queryClient.cancelQueries({ queryKey: ['tasks'] });
+      queryClient.setQueriesData<Task[]>({ queryKey: ['tasks'] }, (old) => {
+        if (!old) return old;
+        return old.map((t) =>
+          t.id === task.id ? { ...t, materiais_previstos: updatedItens, status: newStatus } : t
+        );
+      });
     },
     onSuccess: ({ newStatus }) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
