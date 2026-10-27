@@ -1262,7 +1262,7 @@ export const Orcamentos: React.FC = () => {
   }, [selectedEtapaOrSub]);
 
   return (
-    <div className="w-full px-3 sm:px-5 lg:px-6 py-4 space-y-4 animate-in fade-in-50">
+    <div className="w-full space-y-4 animate-in fade-in-50">
       {/* ========================================================= */}
       {/* 1. CABEÇALHO & AÇÕES RÁPIDAS                              */}
       {/* ========================================================= */}
