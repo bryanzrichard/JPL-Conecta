@@ -28,6 +28,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/DropdownMenu';
 import { useUploadNotaIA } from '../hooks/useUploadNotaIA';
 import { logAuditAction } from '../lib/auditLogger';
+import { carregarNota, carregarNotaPorItem } from '../lib/carregarRegistros';
 import { useMediaQuery } from '../hooks/use-media-query';
 import NotaDetailPanel from '../components/notas/NotaDetailPanel';
 
@@ -321,22 +322,12 @@ const Notas: React.FC = () => {
             }
 
             try {
-                const { data: notaData } = await supabase
-                    .from('notas_fiscais')
-                    .select('*, projects(name), suppliers(name), itens_nota_fiscal(count)')
-                    .eq('id', editNotaId)
-                    .eq('company_id', profile.company_id)
-                    .maybeSingle();
+                const notaData = await carregarNota(editNotaId, profile.company_id);
 
                 if (!isCurrent) return;
 
                 if (notaData) {
-                    const formatted = {
-                        ...notaData,
-                        item_count: (notaData as any).itens_nota_fiscal?.[0]?.count || 0,
-                        itens_nota_fiscal: undefined
-                    };
-                    setSelectedNota(formatted as any);
+                    setSelectedNota(notaData);
                     if (!isDesktop) {
                         setIsDetailsModalOpen(true);
                     }
@@ -349,37 +340,19 @@ const Notas: React.FC = () => {
                     return;
                 }
 
-                const { data: itemData } = await supabase
-                    .from('itens_nota_fiscal')
-                    .select('nota_fiscal_id')
-                    .eq('id', editNotaId)
-                    .maybeSingle();
+                const { nota: notaFromItem, notaId } = await carregarNotaPorItem(editNotaId, profile.company_id);
 
-                if (itemData?.nota_fiscal_id && isCurrent) {
-                    const { data: notaFromItem } = await supabase
-                        .from('notas_fiscais')
-                        .select('*, projects(name), suppliers(name), itens_nota_fiscal(count)')
-                        .eq('id', itemData.nota_fiscal_id)
-                        .eq('company_id', profile.company_id)
-                        .maybeSingle();
-
-                    if (notaFromItem && isCurrent) {
-                        const formatted = {
-                            ...notaFromItem,
-                            item_count: (notaFromItem as any).itens_nota_fiscal?.[0]?.count || 0,
-                            itens_nota_fiscal: undefined
-                        };
-                        setSelectedNota(formatted as any);
-                        if (!isDesktop) {
-                            setIsDetailsModalOpen(true);
-                        }
-                        setTimeout(() => {
-                            const el = document.getElementById(`nota-row-${itemData.nota_fiscal_id}`);
-                            if (el) {
-                                el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                            }
-                        }, 150);
+                if (notaFromItem && isCurrent) {
+                    setSelectedNota(notaFromItem);
+                    if (!isDesktop) {
+                        setIsDetailsModalOpen(true);
                     }
+                    setTimeout(() => {
+                        const el = document.getElementById(`nota-row-${notaId || editNotaId}`);
+                        if (el) {
+                            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                        }
+                    }, 150);
                 }
             } catch (err) {
                 console.error('Erro ao carregar detalhes da nota selecionada:', err);

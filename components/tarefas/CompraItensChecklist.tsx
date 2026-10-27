@@ -12,9 +12,10 @@ import { Button } from '../ui/Button';
 
 interface CompraItensChecklistProps {
   task: EnrichedTask;
+  readOnly?: boolean;
 }
 
-export const CompraItensChecklist: React.FC<CompraItensChecklistProps> = ({ task }) => {
+export const CompraItensChecklist: React.FC<CompraItensChecklistProps> = ({ task, readOnly = false }) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [items, setItems] = useState<CompraItem[]>(() => parseCompraItens(task.materiais_previstos));
@@ -75,6 +76,7 @@ export const CompraItensChecklist: React.FC<CompraItensChecklistProps> = ({ task
   });
 
   const handleToggleItem = (index: number) => {
+    if (readOnly) return;
     const updated = items.map((it, idx) =>
       idx === index ? { ...it, comprado: !it.comprado } : it
     );
@@ -165,16 +167,21 @@ export const CompraItensChecklist: React.FC<CompraItensChecklistProps> = ({ task
           return (
             <li
               key={index}
-              onClick={() => handleToggleItem(index)}
-              className={`pt-1.5 first:pt-0 flex items-start gap-2.5 p-1 rounded-lg transition-colors cursor-pointer select-none hover:bg-slate-50 dark:hover:bg-brand-dark-800/50 ${
-                isDone ? 'opacity-60' : ''
-              }`}
+              onClick={() => !readOnly && handleToggleItem(index)}
+              className={`pt-1.5 first:pt-0 flex items-start gap-2.5 p-1 rounded-lg transition-colors select-none ${
+                readOnly
+                  ? 'cursor-default'
+                  : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-brand-dark-800/50'
+              } ${isDone ? 'opacity-60' : ''}`}
             >
               <input
                 type="checkbox"
+                disabled={readOnly}
                 checked={isDone}
                 onChange={() => {}} // tratado no li onClick
-                className="mt-0.5 h-4 w-4 rounded-md border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                className={`mt-0.5 h-4 w-4 rounded-md border-slate-300 text-amber-600 focus:ring-amber-500 ${
+                  readOnly ? 'cursor-default' : 'cursor-pointer'
+                }`}
               />
               <span
                 className={`text-xs font-medium leading-tight flex-1 ${

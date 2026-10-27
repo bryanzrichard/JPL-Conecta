@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
+import { useMediaQuery } from '../hooks/use-media-query';
+import { useBuscaParams } from '../hooks/useBuscaParams';
 import { useBuscaGlobal } from '../hooks/useBuscaGlobal';
 import {
   BuscaGlobalTipo,
   BuscaGlobalRow,
   getRecentSearches,
-  addRecentSearch,
   clearRecentSearches,
 } from '../lib/buscaGlobal';
 import { BuscaFiltros, ProjectOption } from '../components/busca/BuscaFiltros';
@@ -17,27 +18,32 @@ import { BuscaGruposLista } from '../components/busca/BuscaGruposLista';
 import { BuscaPrecosCards } from '../components/busca/BuscaPrecosCards';
 import { BuscaTotaisFinanceiros } from '../components/busca/BuscaTotaisFinanceiros';
 import { BuscaTabelaResultados } from '../components/busca/BuscaTabelaResultados';
-import { SearchIcon, XIcon, FilterIcon, AlertTriangleIcon } from '../lib/icons';
+import { BuscaDetalhe } from '../components/busca/BuscaDetalhe';
+import { BuscaHeader } from '../components/busca/BuscaHeader';
+import { AlertTriangleIcon } from '../lib/icons';
 
 export const Busca: React.FC = () => {
-  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const companyId = profile?.company_id;
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const qParam = searchParams.get('q') || '';
-  const tipoParam = (searchParams.get('tipo') as BuscaGlobalTipo) || null;
-  const obraParam = searchParams.get('obra') || null;
-  const inicioParam = searchParams.get('inicio') || null;
-  const fimParam = searchParams.get('fim') || null;
+  const [searchParams] = useSearchParams();
+  const tipoParamInitial = (searchParams.get('tipo') as BuscaGlobalTipo) || null;
+  const qParamInitial = searchParams.get('q') || '';
+  const obraParamInitial = searchParams.get('obra') || null;
+  const inicioParamInitial = searchParams.get('inicio') || null;
+  const fimParamInitial = searchParams.get('fim') || null;
 
-  const [termoLocal, setTermoLocal] = useState<string>(qParam);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
+  const [filtrosAbertos, setFiltrosAbertos] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('jpl_busca_filtros_abertos');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
   const [recentes, setRecentes] = useState<string[]>([]);
-
-  useEffect(() => {
-    setTermoLocal(qParam);
-  }, [qParam]);
 
   const carregarRecentes = useCallback(() => {
     if (user?.id) setRecentes(getRecentSearches(user.id));
@@ -47,34 +53,60 @@ export const Busca: React.FC = () => {
     carregarRecentes();
   }, [carregarRecentes]);
 
-  const updateParams = useCallback(
-    (updates: Record<string, string | null | undefined>) => {
-      const next = new URLSearchParams(searchParams);
-      for (const [key, val] of Object.entries(updates)) {
-        if (val === null || val === undefined || val === '') {
-          next.delete(key);
-        } else {
-          next.set(key, val);
-        }
+  const toggleFiltros = useCallback(() => {
+    setFiltrosAbertos((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('jpl_busca_filtros_abertos', String(next));
+      } catch {
+        // ignore
       }
-      setSearchParams(next, { replace: true });
-    },
-    [searchParams, setSearchParams]
-  );
+      return next;
+    });
+  }, []);
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      const clean = termoLocal.trim();
-      if (clean !== qParam) {
-        updateParams({ q: clean || null });
-        if (clean.length >= 2 && user?.id) {
-          addRecentSearch(user.id, clean);
-          carregarRecentes();
-        }
-      }
-    }, 250);
-    return () => clearTimeout(handler);
-  }, [termoLocal, qParam, updateParams, user?.id, carregarRecentes]);
+  const limitePrincipal = tipoParamInitial ? 200 : 20;
+  const {
+    grupos,
+    rawRows,
+    isLoading,
+    isError,
+    refetch,
+    debouncedTerm,
+  } = useBuscaGlobal(qParamInitial, {
+    limite: limitePrincipal,
+    tipo: tipoParamInitial,
+    projectId: obraParamInitial,
+    inicio: inicioParamInitial,
+    fim: fimParamInitial,
+    enabled: qParamInitial.trim().length >= 2,
+  });
+
+  const {
+    qParam,
+    tipoParam,
+    obraParam,
+    inicioParam,
+    fimParam,
+    selParam,
+    termoLocal,
+    setTermoLocal,
+    updateParams,
+    visibleRows,
+    selectedRow,
+    currentIndex,
+    hasPrev,
+    hasNext,
+    handlePrevRow,
+    handleNextRow,
+    handleSelectRow,
+    handleAuditFilter,
+  } = useBuscaParams({
+    user,
+    rawRows,
+    grupos,
+    onAddRecent: carregarRecentes,
+  });
 
   const { data: obras = [] } = useQuery<ProjectOption[]>({
     queryKey: ['projects-busca-filtro', companyId],
@@ -119,23 +151,6 @@ export const Busca: React.FC = () => {
     return map;
   }, [countsRows]);
 
-  const limitePrincipal = tipoParam ? 200 : 20;
-  const {
-    grupos,
-    rawRows,
-    isLoading,
-    isError,
-    refetch,
-    debouncedTerm,
-  } = useBuscaGlobal(qParam, {
-    limite: limitePrincipal,
-    tipo: tipoParam,
-    projectId: obraParam,
-    inicio: inicioParam,
-    fim: fimParam,
-    enabled: qParam.trim().length >= 2,
-  });
-
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (tipoParam) count++;
@@ -145,23 +160,13 @@ export const Busca: React.FC = () => {
   }, [tipoParam, obraParam, inicioParam, fimParam]);
 
   const handleLimparFiltros = useCallback(() => {
-    updateParams({ tipo: null, obra: null, inicio: null, fim: null });
+    updateParams({ tipo: null, obra: null, inicio: null, fim: null, sel: null });
   }, [updateParams]);
 
   const handleSelectSugestao = (termo: string) => {
     setTermoLocal(termo);
-    updateParams({ q: termo });
-    if (user?.id) {
-      addRecentSearch(user.id, termo);
-      carregarRecentes();
-    }
-  };
-
-  const handleSelectRow = (row: BuscaGlobalRow) => {
-    if (user?.id && qParam.trim()) {
-      addRecentSearch(user.id, qParam.trim());
-    }
-    navigate(row.rota);
+    updateParams({ q: termo, sel: null });
+    carregarRecentes();
   };
 
   const totalTipoAtual = useMemo(() => {
@@ -182,70 +187,56 @@ export const Busca: React.FC = () => {
   }, [tipoParam, rawRows]);
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full">
-      {/* 1. CAMPO DE BUSCA NO TOPO */}
-      <div className="flex flex-col gap-3">
-        <div className="relative w-full">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-            <SearchIcon className="h-5 w-5" />
-          </div>
-          <input
-            type="text"
-            value={termoLocal}
-            onChange={(e) => setTermoLocal(e.target.value)}
-            placeholder="Buscar em notas, itens, pagamentos, serviços, obras, tarefas..."
-            className="w-full pl-11 pr-20 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-xs text-sm sm:text-base font-normal"
-          />
-          {termoLocal && (
-            <button
-              type="button"
-              onClick={() => {
-                setTermoLocal('');
-                updateParams({ q: null });
-              }}
-              className="absolute inset-y-0 right-10 pr-2 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-            >
-              <XIcon className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setMobileDrawerOpen(true)}
-            className="lg:hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-indigo-600 cursor-pointer"
-          >
-            <div className="relative">
-              <FilterIcon className="h-5 w-5" />
-              {activeFiltersCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-[9px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </div>
-          </button>
-        </div>
-      </div>
+    <div className="flex flex-col h-[calc(100vh-4rem)] w-full overflow-hidden bg-slate-50 dark:bg-brand-dark-950 select-text">
+      {/* 1. CABEÇALHO OPERACIONAL NO ESTILO NOTAS */}
+      <BuscaHeader
+        termoLocal={termoLocal}
+        onChangeTermo={(val) => setTermoLocal(val)}
+        onClearTermo={() => {
+          setTermoLocal('');
+          updateParams({ q: null, sel: null });
+        }}
+        onToggleFiltros={isDesktop ? toggleFiltros : () => setMobileDrawerOpen(true)}
+        filtrosAbertos={filtrosAbertos}
+        activeFiltersCount={activeFiltersCount}
+        isDesktop={isDesktop}
+        tipoParam={tipoParam}
+        rawRowsCount={rawRows.length}
+        totalTipo={totalTipoAtual}
+        somaTipo={somaTipoAtual}
+        gruposCount={grupos.length}
+        visibleRowsCount={visibleRows.length}
+      />
 
-      {/* 2. LAYOUT PRINCIPAL: FILTROS + CONTEÚDO */}
-      <div className="flex items-start gap-8">
-        {/* FILTROS DESKTOP */}
-        <aside className="hidden lg:block w-64 shrink-0 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs sticky top-20">
-          <BuscaFiltros
-            tipoSelecionado={tipoParam}
-            onSelectTipo={(t) => updateParams({ tipo: t })}
-            tipoCounts={tipoCountsMap}
-            obraSelecionada={obraParam}
-            onSelectObra={(o) => updateParams({ obra: o })}
-            obras={obras}
-            dataInicio={inicioParam}
-            dataFim={fimParam}
-            onSelectPeriodo={(ini, fim) => updateParams({ inicio: ini, fim })}
-            onLimparFiltros={handleLimparFiltros}
-            activeFiltersCount={activeFiltersCount}
-          />
-        </aside>
+      {/* 2. CORPO DIVIDIDO EM TRÊS ÁREAS */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* COLUNA 1: FILTROS DESKTOP (RECOLHÍVEL, ~240px) */}
+        {isDesktop && filtrosAbertos && (
+          <aside className="w-[240px] shrink-0 border-r border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] p-3 overflow-y-auto custom-scrollbar animate-in slide-in-from-left-2 duration-150">
+            <BuscaFiltros
+              tipoSelecionado={tipoParam}
+              onSelectTipo={(t) => updateParams({ tipo: t, sel: null })}
+              tipoCounts={tipoCountsMap}
+              obraSelecionada={obraParam}
+              onSelectObra={(o) => updateParams({ obra: o, sel: null })}
+              obras={obras}
+              dataInicio={inicioParam}
+              dataFim={fimParam}
+              onSelectPeriodo={(ini, fim) => updateParams({ inicio: ini, fim, sel: null })}
+              onLimparFiltros={handleLimparFiltros}
+              activeFiltersCount={activeFiltersCount}
+            />
+          </aside>
+        )}
 
-        {/* ÁREA DE RESULTADOS */}
-        <main className="flex-1 min-w-0">
+        {/* COLUNA 2: RESULTADOS (46% com painel aberto, 100% sem painel) */}
+        <main
+          className={`overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4 ${
+            selectedRow && isDesktop
+              ? 'w-full lg:w-[46%] shrink-0 border-r border-[#E2E8F0] dark:border-[#1E293B]'
+              : 'flex-1 min-w-0'
+          }`}
+        >
           {(!qParam || qParam.trim().length < 2) && (
             <BuscaSugestoes
               recentes={recentes}
@@ -299,7 +290,7 @@ export const Busca: React.FC = () => {
           )}
 
           {!isLoading && !isError && tipoParam && rawRows.length > 0 && (
-            <div>
+            <div className="space-y-4">
               {tipoParam === 'item' && <BuscaPrecosCards linhas={rawRows} />}
 
               {(tipoParam === 'adiantamento' || tipoParam === 'servico') && (
@@ -316,6 +307,9 @@ export const Busca: React.FC = () => {
                 totalTipo={totalTipoAtual}
                 somaTipo={somaTipoAtual}
                 termo={debouncedTerm}
+                onSelectRow={handleSelectRow}
+                selectedKey={selParam}
+                isDetailOpen={!!selectedRow && isDesktop}
               />
             </div>
           )}
@@ -324,14 +318,32 @@ export const Busca: React.FC = () => {
             <BuscaGruposLista
               grupos={grupos}
               termo={debouncedTerm}
-              onSelectTipo={(tipo) => updateParams({ tipo })}
+              onSelectTipo={(tipo) => updateParams({ tipo, sel: null })}
               onSelectRow={handleSelectRow}
+              selectedKey={selParam}
             />
           )}
         </main>
+
+        {/* COLUNA 3: PAINEL DE DETALHE DESKTOP (54%) */}
+        {selectedRow && isDesktop && (
+          <aside className="w-full lg:w-[54%] shrink-0 h-full overflow-hidden bg-white dark:bg-[#111827] animate-in fade-in-50 duration-200">
+            <BuscaDetalhe
+              item={selectedRow}
+              onClose={() => updateParams({ sel: null })}
+              onPrev={handlePrevRow}
+              onNext={handleNextRow}
+              hasPrev={hasPrev}
+              hasNext={hasNext}
+              currentIndex={currentIndex}
+              totalCount={visibleRows.length}
+              onAuditFilter={handleAuditFilter}
+            />
+          </aside>
+        )}
       </div>
 
-      {/* 3. DRAWER DE FILTROS MOBILE */}
+      {/* 3. GAVETA DE FILTROS MOBILE */}
       {mobileDrawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div
@@ -341,18 +353,41 @@ export const Busca: React.FC = () => {
           <div className="relative ml-auto w-full max-w-xs h-full bg-white dark:bg-slate-900 p-5 shadow-xl overflow-y-auto flex flex-col z-10">
             <BuscaFiltros
               tipoSelecionado={tipoParam}
-              onSelectTipo={(t) => updateParams({ tipo: t })}
+              onSelectTipo={(t) => updateParams({ tipo: t, sel: null })}
               tipoCounts={tipoCountsMap}
               obraSelecionada={obraParam}
-              onSelectObra={(o) => updateParams({ obra: o })}
+              onSelectObra={(o) => updateParams({ obra: o, sel: null })}
               obras={obras}
               dataInicio={inicioParam}
               dataFim={fimParam}
-              onSelectPeriodo={(ini, fim) => updateParams({ inicio: ini, fim })}
+              onSelectPeriodo={(ini, fim) => updateParams({ inicio: ini, fim, sel: null })}
               onLimparFiltros={handleLimparFiltros}
               activeFiltersCount={activeFiltersCount}
               isMobileDrawer={true}
               onCloseDrawer={() => setMobileDrawerOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 4. GAVETA DE DETALHE MOBILE (BOTTOM-SHEET) */}
+      {!isDesktop && selectedRow && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div
+            className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs transition-opacity"
+            onClick={() => updateParams({ sel: null })}
+          />
+          <div className="relative w-full h-[88vh] max-h-[92vh] bg-white dark:bg-slate-900 rounded-t-2xl shadow-2xl overflow-hidden flex flex-col z-10 animate-in slide-in-from-bottom duration-300">
+            <BuscaDetalhe
+              item={selectedRow}
+              onClose={() => updateParams({ sel: null })}
+              onPrev={handlePrevRow}
+              onNext={handleNextRow}
+              hasPrev={hasPrev}
+              hasNext={hasNext}
+              currentIndex={currentIndex}
+              totalCount={visibleRows.length}
+              onAuditFilter={handleAuditFilter}
             />
           </div>
         </div>

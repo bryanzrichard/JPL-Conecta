@@ -8,6 +8,7 @@ import { Service, ServiceWithDetails, AdvanceWithDetails, Advance, Collaborator,
 import { formatCurrency, formatDateBR as formatDate, openStorageFile } from '../lib/utils';
 import { formatApiError } from '../lib/handleError';
 import { deleteServiceWithAttachments, deleteAdvanceWithAttachment } from '../components/servicos/serviceActions';
+import { carregarServico, carregarServicoPorAdiantamento } from '../lib/carregarRegistros';
 import { useMediaQuery } from '../hooks/use-media-query';
 
 // UI Components
@@ -218,25 +219,12 @@ const Servicos: React.FC = () => {
             if (editServiceId) {
                 setActiveTab('servicos');
                 try {
-                    const { data } = await (supabase as any)
-                        .from('servicos')
-                        .select('*, collaborators(name), projects(name), adiantamentos(id, value)')
-                        .eq('id', editServiceId)
-                        .maybeSingle();
+                    const formattedService = await carregarServico(editServiceId);
 
-                    if (data && activeTargetIdRef.current === targetId) {
-                        if (data.status === 'Concluído') {
+                    if (formattedService && activeTargetIdRef.current === targetId) {
+                        if (formattedService.status === 'Concluído') {
                             setServiceStatusFilter('Todos');
                         }
-                        const isCompleted = data.status === 'Concluído';
-                        const total_advances = (data.adiantamentos || []).reduce((acc: number, curr: any) => acc + (Number(curr.value) || 0), 0);
-                        const formattedService: ServiceWithDetails = {
-                            ...data,
-                            collaborator_name: data.collaborators?.name || null,
-                            project_name: data.projects?.name || null,
-                            total_advances,
-                            remaining_value: isCompleted ? 0 : Math.max(0, (Number(data.total_value) || 0) - total_advances),
-                        };
                         setSelectedService(formattedService);
                         if (!isDesktop) {
                             setDetailsModalOpen(true);
@@ -255,44 +243,22 @@ const Servicos: React.FC = () => {
                 setActiveTab('servicos');
                 setHighlightAdvanceId(editAdvanceId);
                 try {
-                    const { data: advData } = await supabase
-                        .from('adiantamentos')
-                        .select('id, service_id')
-                        .eq('id', editAdvanceId)
-                        .maybeSingle();
+                    const { servico: formattedService, servicoId } = await carregarServicoPorAdiantamento(editAdvanceId);
 
-                    const serviceId = advData?.service_id;
-                    if (serviceId) {
-                        const { data } = await (supabase as any)
-                            .from('servicos')
-                            .select('*, collaborators(name), projects(name), adiantamentos(id, value)')
-                            .eq('id', serviceId)
-                            .maybeSingle();
-
-                        if (data && activeTargetIdRef.current === targetId) {
-                            if (data.status === 'Concluído') {
-                                setServiceStatusFilter('Todos');
-                            }
-                            const isCompleted = data.status === 'Concluído';
-                            const total_advances = (data.adiantamentos || []).reduce((acc: number, curr: any) => acc + (Number(curr.value) || 0), 0);
-                            const formattedService: ServiceWithDetails = {
-                                ...data,
-                                collaborator_name: data.collaborators?.name || null,
-                                project_name: data.projects?.name || null,
-                                total_advances,
-                                remaining_value: isCompleted ? 0 : Math.max(0, (Number(data.total_value) || 0) - total_advances),
-                            };
-                            setSelectedService(formattedService);
-                            if (!isDesktop) {
-                                setDetailsModalOpen(true);
-                            }
-                            setTimeout(() => {
-                                const el = document.getElementById(`service-row-${serviceId}`);
-                                if (el) {
-                                    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                                }
-                            }, 200);
+                    if (formattedService && activeTargetIdRef.current === targetId) {
+                        if (formattedService.status === 'Concluído') {
+                            setServiceStatusFilter('Todos');
                         }
+                        setSelectedService(formattedService);
+                        if (!isDesktop) {
+                            setDetailsModalOpen(true);
+                        }
+                        setTimeout(() => {
+                            const el = document.getElementById(`service-row-${servicoId || editAdvanceId}`);
+                            if (el) {
+                                el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            }
+                        }, 200);
                     }
                 } catch (err) {
                     console.error('Erro ao abrir adiantamento vinculado ao serviço:', err);

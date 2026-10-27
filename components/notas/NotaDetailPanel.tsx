@@ -27,8 +27,8 @@ import { formatCurrency, openStorageFile } from '../../lib/utils';
 interface NotaDetailPanelProps {
   nota: NotaWithItemCount | NotaFiscal;
   onClose: () => void;
-  onEdit: (nota: NotaWithItemCount | NotaFiscal) => void;
-  onDelete: (nota: NotaWithItemCount | NotaFiscal) => void;
+  onEdit?: (nota: NotaWithItemCount | NotaFiscal) => void;
+  onDelete?: (nota: NotaWithItemCount | NotaFiscal) => void;
   onPrevNota: () => void;
   onNextNota: () => void;
   hasPrev: boolean;
@@ -36,6 +36,7 @@ interface NotaDetailPanelProps {
   currentIndex: number;
   totalCount: number;
   highlightItemId?: string | null;
+  headerAction?: React.ReactNode;
 }
 
 const formatDate = (dateStr: string | null | undefined) => {
@@ -104,6 +105,7 @@ export const NotaDetailPanel: React.FC<NotaDetailPanelProps> = ({
   currentIndex,
   totalCount,
   highlightItemId,
+  headerAction,
 }) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'detalhes' | 'anexo'>('detalhes');
@@ -233,27 +235,33 @@ export const NotaDetailPanel: React.FC<NotaDetailPanelProps> = ({
           <div className="h-4 w-px bg-slate-200 dark:bg-gray-800 mx-0.5 hidden sm:block" />
 
           {/* Botões de Ação Rápida: Editar, Excluir e Fechar */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(nota)}
-            className="h-7 px-2 text-[11px] font-semibold text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1 cursor-pointer"
-            title="Editar Nota Fiscal"
-          >
-            <EditIcon className="h-3 w-3" />
-            <span className="hidden sm:inline">Editar</span>
-          </Button>
+          {headerAction}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onDelete(nota)}
-            className="h-7 px-2 text-[11px] font-semibold text-[#E11D48] hover:bg-[#FFF1F2] border-rose-200/80 dark:text-[#FB7185] dark:hover:bg-rose-500/[0.12] dark:border-rose-900/40 gap-1 cursor-pointer"
-            title="Excluir Nota Fiscal"
-          >
-            <Trash2Icon className="h-3 w-3" />
-            <span className="hidden sm:inline">Excluir</span>
-          </Button>
+          {onEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit(nota)}
+              className="h-7 px-2 text-[11px] font-semibold text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1 cursor-pointer"
+              title="Editar Nota Fiscal"
+            >
+              <EditIcon className="h-3 w-3" />
+              <span className="hidden sm:inline">Editar</span>
+            </Button>
+          )}
+
+          {onDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onDelete(nota)}
+              className="h-7 px-2 text-[11px] font-semibold text-[#E11D48] hover:bg-[#FFF1F2] border-rose-200/80 dark:text-[#FB7185] dark:hover:bg-rose-500/[0.12] dark:border-rose-900/40 gap-1 cursor-pointer"
+              title="Excluir Nota Fiscal"
+            >
+              <Trash2Icon className="h-3 w-3" />
+              <span className="hidden sm:inline">Excluir</span>
+            </Button>
+          )}
 
           <Button
             variant="ghost"

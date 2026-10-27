@@ -24,6 +24,7 @@ interface BuscaPrecosCardsProps {
 export const BuscaPrecosCards: React.FC<BuscaPrecosCardsProps> = ({ linhas }) => {
   const navigate = useNavigate();
   const [expandido, setExpandido] = useState<boolean>(false);
+  const [secaoAberta, setSecaoAberta] = useState<boolean>(true);
 
   const stats = useMemo(() => calculateProductPriceStats(linhas), [linhas]);
 
@@ -37,14 +38,23 @@ export const BuscaPrecosCards: React.FC<BuscaPrecosCardsProps> = ({ linhas }) =>
   return (
     <div className="mb-6 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setSecaoAberta((prev) => !prev)}
+          className="flex items-center gap-2 text-left cursor-pointer group"
+        >
           <TagIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-            Comparação e Inteligência de Preços ({stats.length}{' '}
-            {stats.length === 1 ? 'produto agrupado' : 'produtos agrupados'})
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+            Comparação de preços ({stats.length}{' '}
+            {stats.length === 1 ? 'produto' : 'produtos'})
           </h2>
-        </div>
-        {temMais && (
+          {secaoAberta ? (
+            <ChevronUpIcon className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
+          ) : (
+            <ChevronDownIcon className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
+          )}
+        </button>
+        {secaoAberta && temMais && (
           <button
             type="button"
             onClick={() => setExpandido((prev) => !prev)}
@@ -65,11 +75,13 @@ export const BuscaPrecosCards: React.FC<BuscaPrecosCardsProps> = ({ linhas }) =>
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {produtosVisiveis.map((prod) => (
-          <ProductPriceCard key={prod.chave} prod={prod} onNavigate={navigate} />
-        ))}
-      </div>
+      {secaoAberta && (
+        <div className="grid grid-cols-1 gap-4">
+          {produtosVisiveis.map((prod) => (
+            <ProductPriceCard key={prod.chave} prod={prod} onNavigate={navigate} />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

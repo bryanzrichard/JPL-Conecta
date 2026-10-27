@@ -141,7 +141,7 @@ const MainLayout: React.FC = () => {
     const userEmail = user?.email || 'bryanrichardjpl@icloud.com';
     const userInitial = userEmail.charAt(0).toUpperCase();
     const isFullBleedRoute = false;
-    const isCompactTopRoute = ['/servicos', '/notas', '/registro', '/registros', '/orcamentos', '/orcamento', '/tarefas'].includes(location.pathname);
+    const isCompactTopRoute = ['/servicos', '/notas', '/registro', '/registros', '/orcamentos', '/orcamento', '/tarefas', '/busca'].includes(location.pathname);
 
     const formattedKeyExpiry = profile?.company_keys?.expires_at 
         ? formatDateBR(profile.company_keys.expires_at)

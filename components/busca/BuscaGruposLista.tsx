@@ -9,6 +9,7 @@ interface BuscaGruposListaProps {
   termo: string;
   onSelectTipo: (tipo: BuscaGlobalTipo) => void;
   onSelectRow: (row: BuscaGlobalRow) => void;
+  selectedKey?: string | null;
 }
 
 export const BuscaGruposLista: React.FC<BuscaGruposListaProps> = ({
@@ -16,6 +17,7 @@ export const BuscaGruposLista: React.FC<BuscaGruposListaProps> = ({
   termo,
   onSelectTipo,
   onSelectRow,
+  selectedKey,
 }) => {
   return (
     <div className="flex flex-col gap-6">
@@ -57,7 +59,7 @@ export const BuscaGruposLista: React.FC<BuscaGruposListaProps> = ({
                 key={`${item.id}-${idx}`}
                 linha={item}
                 termo={termo}
-                isActive={false}
+                isActive={selectedKey === `${item.tipo}:${item.id}`}
                 onSelect={() => onSelectRow(item)}
                 onSetActive={() => {}}
                 index={idx}

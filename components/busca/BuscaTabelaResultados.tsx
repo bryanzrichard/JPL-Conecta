@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { BuscaGlobalRow, BuscaGlobalTipo } from '../../types';
 import {
   ROTULOS_BUSCA,
@@ -25,6 +24,9 @@ interface BuscaTabelaResultadosProps {
   totalTipo: number;
   somaTipo: number | null;
   termo: string;
+  onSelectRow: (row: BuscaGlobalRow) => void;
+  selectedKey?: string | null;
+  isDetailOpen?: boolean;
 }
 
 type SortField = 'data' | 'valor';
@@ -36,8 +38,10 @@ export const BuscaTabelaResultados: React.FC<BuscaTabelaResultadosProps> = ({
   totalTipo,
   somaTipo,
   termo,
+  onSelectRow,
+  selectedKey,
+  isDetailOpen = false,
 }) => {
-  const navigate = useNavigate();
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
@@ -132,11 +136,15 @@ export const BuscaTabelaResultados: React.FC<BuscaTabelaResultadosProps> = ({
                 {renderSortIndicator('data')}
               </th>
               <th className="py-2.5 px-3.5">Título</th>
-              <th className="py-2.5 px-3.5">Obra</th>
-              <th className="py-2.5 px-3.5">Fornecedor / Subtítulo</th>
+              {!isDetailOpen && (
+                <>
+                  <th className="py-2.5 px-3.5">Obra</th>
+                  <th className="py-2.5 px-3.5">Fornecedor / Subtítulo</th>
+                </>
+              )}
               {isItem && (
                 <>
-                  <th className="py-2.5 px-3.5 text-right w-24">Qtd</th>
+                  {!isDetailOpen && <th className="py-2.5 px-3.5 text-right w-24">Qtd</th>}
                   <th className="py-2.5 px-3.5 text-right w-28">Preço Unit.</th>
                 </>
               )}
@@ -154,12 +162,18 @@ export const BuscaTabelaResultados: React.FC<BuscaTabelaResultadosProps> = ({
               const highlighted = highlightMatches(linha.titulo, termo);
               const precoUnit = isItem ? extrairPrecoUnitarioItem(linha.detalhes) : null;
               const itemData = isItem ? extrairDadosItem(linha) : null;
+              const isSelected = selectedKey === `${linha.tipo}:${linha.id}`;
 
               return (
                 <tr
                   key={`${linha.id}-${idx}`}
-                  onClick={() => navigate(linha.rota)}
-                  className="hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 cursor-pointer transition-colors group"
+                  id={`busca-tabela-row-${linha.id}`}
+                  onClick={() => onSelectRow(linha)}
+                  className={`cursor-pointer transition-colors group ${
+                    isSelected
+                      ? 'bg-indigo-50/90 dark:bg-indigo-950/60 font-medium'
+                      : 'hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20'
+                  }`}
                 >
                   {/* Data */}
                   <td className="py-2.5 px-3.5 text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
@@ -188,23 +202,29 @@ export const BuscaTabelaResultados: React.FC<BuscaTabelaResultadosProps> = ({
                   </td>
 
                   {/* Obra */}
-                  <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                    {linha.obra || '-'}
-                  </td>
+                  {!isDetailOpen && (
+                    <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                      {linha.obra || '-'}
+                    </td>
+                  )}
 
                   {/* Subtítulo / Fornecedor */}
-                  <td className="py-2.5 px-3.5 text-slate-500 dark:text-slate-400 truncate max-w-[200px]">
-                    {linha.subtitulo || '-'}
-                  </td>
+                  {!isDetailOpen && (
+                    <td className="py-2.5 px-3.5 text-slate-500 dark:text-slate-400 truncate max-w-[200px]">
+                      {linha.subtitulo || '-'}
+                    </td>
+                  )}
 
                   {/* Itens: Qtd e Preço Unitário */}
                   {isItem && (
                     <>
-                      <td className="py-2.5 px-3.5 text-right font-mono whitespace-nowrap">
-                        {itemData && itemData.quantity > 0
-                          ? `${itemData.quantity.toLocaleString('pt-BR')} ${itemData.unidade}`
-                          : '-'}
-                      </td>
+                      {!isDetailOpen && (
+                        <td className="py-2.5 px-3.5 text-right font-mono whitespace-nowrap">
+                          {itemData && itemData.quantity > 0
+                            ? `${itemData.quantity.toLocaleString('pt-BR')} ${itemData.unidade}`
+                            : '-'}
+                        </td>
+                      )}
                       <td className="py-2.5 px-3.5 text-right font-mono whitespace-nowrap text-slate-600 dark:text-slate-300">
                         {precoUnit || '-'}
                       </td>
@@ -230,12 +250,17 @@ export const BuscaTabelaResultados: React.FC<BuscaTabelaResultadosProps> = ({
           const highlighted = highlightMatches(linha.titulo, termo);
           const precoUnit = isItem ? extrairPrecoUnitarioItem(linha.detalhes) : null;
           const itemData = isItem ? extrairDadosItem(linha) : null;
+          const isSelected = selectedKey === `${linha.tipo}:${linha.id}`;
 
           return (
             <div
               key={`m-${linha.id}-${idx}`}
-              onClick={() => navigate(linha.rota)}
-              className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs cursor-pointer active:bg-slate-50 dark:active:bg-slate-800 flex flex-col gap-1.5"
+              onClick={() => onSelectRow(linha)}
+              className={`p-3 rounded-xl border shadow-2xs cursor-pointer flex flex-col gap-1.5 transition-colors ${
+                isSelected
+                  ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 ring-1 ring-indigo-500/50'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 active:bg-slate-50 dark:active:bg-slate-800'
+              }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="text-xs font-semibold text-slate-900 dark:text-white">

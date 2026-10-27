@@ -28,8 +28,8 @@ import { formatCurrency, openStorageFile, formatDateBR as formatDate } from '../
 interface ServicoDetailPanelProps {
   service: ServiceWithDetails;
   onClose: () => void;
-  onEdit: (service: ServiceWithDetails) => void;
-  onDelete: (service: ServiceWithDetails) => void;
+  onEdit?: (service: ServiceWithDetails) => void;
+  onDelete?: (service: ServiceWithDetails) => void;
   onAddAdvance?: (service: ServiceWithDetails) => void;
   onViewAdvances?: (service: ServiceWithDetails) => void;
   onPrevService: () => void;
@@ -39,6 +39,7 @@ interface ServicoDetailPanelProps {
   currentIndex: number;
   totalCount: number;
   highlightAdvanceId?: string | null;
+  headerAction?: React.ReactNode;
 }
 
 export const ServicoDetailPanel: React.FC<ServicoDetailPanelProps> = ({
@@ -55,6 +56,7 @@ export const ServicoDetailPanel: React.FC<ServicoDetailPanelProps> = ({
   currentIndex,
   totalCount,
   highlightAdvanceId,
+  headerAction,
 }) => {
   const { toast } = useToast();
   const [activeHighlightId, setActiveHighlightId] = useState<string | null>(highlightAdvanceId || null);
@@ -246,29 +248,35 @@ export const ServicoDetailPanel: React.FC<ServicoDetailPanelProps> = ({
             </Button>
           )}
 
+          {headerAction}
+
           {/* BOTÃO EDITAR */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(service)}
-            className="h-7 sm:h-7.5 px-2 text-xs font-semibold text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1 cursor-pointer"
-            title="Editar Contrato"
-          >
-            <EditIcon className="h-3 w-3" />
-            <span className="hidden sm:inline">Editar</span>
-          </Button>
+          {onEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit(service)}
+              className="h-7 sm:h-7.5 px-2 text-xs font-semibold text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1 cursor-pointer"
+              title="Editar Contrato"
+            >
+              <EditIcon className="h-3 w-3" />
+              <span className="hidden sm:inline">Editar</span>
+            </Button>
+          )}
 
           {/* BOTÃO EXCLUIR */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onDelete(service)}
-            className="h-7 sm:h-7.5 px-2 text-xs font-semibold text-[#E11D48] hover:bg-[#FFF1F2] border-rose-200/80 dark:text-[#FB7185] dark:hover:bg-rose-500/[0.12] dark:border-rose-900/40 gap-1 cursor-pointer"
-            title="Excluir Contrato"
-          >
-            <Trash2Icon className="h-3 w-3" />
-            <span className="hidden sm:inline">Excluir</span>
-          </Button>
+          {onDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onDelete(service)}
+              className="h-7 sm:h-7.5 px-2 text-xs font-semibold text-[#E11D48] hover:bg-[#FFF1F2] border-rose-200/80 dark:text-[#FB7185] dark:hover:bg-rose-500/[0.12] dark:border-rose-900/40 gap-1 cursor-pointer"
+              title="Excluir Contrato"
+            >
+              <Trash2Icon className="h-3 w-3" />
+              <span className="hidden sm:inline">Excluir</span>
+            </Button>
+          )}
 
           {/* BOTÃO FECHAR */}
           <Button

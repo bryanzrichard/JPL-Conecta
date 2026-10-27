@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext';
 import { initialFilters, TarefasTab } from './useTarefasListas';
 import { EnrichedTask, TarefasFilters } from '../components/tarefas/types';
 import { Task } from '../types';
+import { carregarTarefa } from '../lib/carregarRegistros';
 
 export interface UseTarefasDeepLinkParams {
   allTasks: Task[];
@@ -66,46 +67,62 @@ export function useTarefasDeepLink({
 
     const task = enrichedTasks.find((t) => t.id === targetTarefaId);
 
-    if (!task) {
-      toast.error('Tarefa não encontrada');
+    const applySelection = (targetTask: EnrichedTask) => {
+      // 1. Limpar filtros e termo de busca
+      setSearchTerm('');
+      setFilters(initialFilters);
+
+      // 2. Determinar a aba correta
+      if (targetTask.isCompleted) {
+        setActiveTab('completed');
+      } else if (targetTask.isPurchase) {
+        setActiveTab('purchases');
+      } else if (
+        targetTask.data_fim_prevista &&
+        targetTask.data_fim_prevista > tomorrowStr
+      ) {
+        setActiveTab('upcoming');
+      } else {
+        setActiveTab('today');
+      }
+
+      // 3. Selecionar a tarefa para abrir o painel ou gaveta
+      setSelectedTask(targetTask);
+      if (!isDesktop) {
+        setIsMobileDetailDrawerOpen(true);
+      }
+
+      // 4. Rolar até a linha da tarefa
+      setTimeout(() => {
+        const el = document.getElementById(`task-row-${targetTask.id}`);
+        if (el) {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }, 150);
+
+      // 5. Remover o parâmetro da URL com replace
       navigate('/tarefas', { replace: true });
+    };
+
+    if (task) {
+      applySelection(task);
       return;
     }
 
-    // 1. Limpar filtros e termo de busca
-    setSearchTerm('');
-    setFilters(initialFilters);
-
-    // 2. Determinar a aba correta
-    if (task.isCompleted) {
-      setActiveTab('completed');
-    } else if (task.isPurchase) {
-      setActiveTab('purchases');
-    } else if (
-      task.data_fim_prevista &&
-      task.data_fim_prevista > tomorrowStr
-    ) {
-      setActiveTab('upcoming');
-    } else {
-      setActiveTab('today');
-    }
-
-    // 3. Selecionar a tarefa para abrir o painel ou gaveta
-    setSelectedTask(task);
-    if (!isDesktop) {
-      setIsMobileDetailDrawerOpen(true);
-    }
-
-    // 4. Rolar até a linha da tarefa
-    setTimeout(() => {
-      const el = document.getElementById(`task-row-${task.id}`);
-      if (el) {
-        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    let isSubscribed = true;
+    carregarTarefa(targetTarefaId).then((fetched) => {
+      if (!isSubscribed) return;
+      if (fetched) {
+        applySelection(fetched);
+      } else {
+        toast.error('Tarefa não encontrada');
+        navigate('/tarefas', { replace: true });
       }
-    }, 150);
+    });
 
-    // 5. Remover o parâmetro da URL com replace
-    navigate('/tarefas', { replace: true });
+    return () => {
+      isSubscribed = false;
+    };
   }, [
     location.search,
     isLoadingTasks,

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BuscaGlobalRow, BuscaGlobalTipo } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import {
@@ -6,6 +6,8 @@ import {
   UsersIcon,
   BuildingIcon,
   AlertTriangleIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
 } from '../../lib/icons';
 
 interface BuscaTotaisFinanceirosProps {
@@ -46,6 +48,7 @@ export const BuscaTotaisFinanceiros: React.FC<BuscaTotaisFinanceirosProps> = ({
   tipo,
   totalTipo,
 }) => {
+  const [secaoAberta, setSecaoAberta] = useState<boolean>(true);
   const { totalGeral, porColaborador, porObra } = useMemo(() => {
     let geral = 0;
     const mapaColab = new Map<string, { total: number; quantidade: number }>();
@@ -112,7 +115,28 @@ export const BuscaTotaisFinanceiros: React.FC<BuscaTotaisFinanceirosProps> = ({
         </div>
       )}
 
-      {/* Card de Resumo Geral */}
+      {/* Botão de Toggle da Seção */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setSecaoAberta((prev) => !prev)}
+          className="flex items-center gap-2 text-left cursor-pointer group"
+        >
+          <DollarSignIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+            Totais por colaborador e obra ({formatCurrency(totalGeral)})
+          </h3>
+          {secaoAberta ? (
+            <ChevronUpIcon className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
+          ) : (
+            <ChevronDownIcon className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
+          )}
+        </button>
+      </div>
+
+      {secaoAberta && (
+        <>
+          {/* Card de Resumo Geral */}
       <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200 dark:border-emerald-800">
@@ -202,6 +226,8 @@ export const BuscaTotaisFinanceiros: React.FC<BuscaTotaisFinanceirosProps> = ({
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };

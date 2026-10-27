@@ -14,10 +14,10 @@ import CompraItensChecklist from './CompraItensChecklist';
 interface TaskDetailPanelProps {
   task: EnrichedTask;
   onClose: () => void;
-  onEdit: (task: EnrichedTask) => void;
-  onDelete: (task: EnrichedTask) => void;
-  onToggleStatus: (task: EnrichedTask) => void;
-  onRescheduleTomorrow: (task: EnrichedTask) => void;
+  onEdit?: (task: EnrichedTask) => void;
+  onDelete?: (task: EnrichedTask) => void;
+  onToggleStatus?: (task: EnrichedTask) => void;
+  onRescheduleTomorrow?: (task: EnrichedTask) => void;
   onPrevTask: () => void;
   onNextTask: () => void;
   hasPrev: boolean;
@@ -25,6 +25,7 @@ interface TaskDetailPanelProps {
   currentIndex: number;
   totalCount: number;
   isMutating?: boolean;
+  headerAction?: React.ReactNode;
 }
 
 type NamedItem = { nome?: unknown };
@@ -78,6 +79,7 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
   task, onClose, onEdit, onDelete, onToggleStatus, onRescheduleTomorrow,
   onPrevTask, onNextTask, hasPrev, hasNext, currentIndex, totalCount,
   isMutating = false,
+  headerAction,
 }) => {
   const materiais = extractNames(task.materiais_previstos);
   const compraItens = parseCompraItens(task.materiais_previstos);
@@ -204,6 +206,8 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          {headerAction}
+
           <div className="inline-flex items-center bg-white dark:bg-brand-dark-800 rounded-lg p-0.5 border border-slate-200 dark:border-gray-700 shadow-xs">
             <Button
               variant="ghost"
@@ -243,62 +247,70 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
       </div>
 
       {/* 2. BARRA DE AÇÕES (FIXA NO TOPO, LOGO ABAIXO DA TOPBAR) */}
-      <div className="p-3 bg-white dark:bg-[#111827] border-b border-slate-200/80 dark:border-gray-800 flex items-center justify-between gap-2 shrink-0 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            disabled={isMutating}
-            onClick={() => onToggleStatus(task)}
-            variant={task.isCompleted ? 'outline' : 'primary'}
-            className={`h-8 text-xs font-semibold gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-              task.isCompleted
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-gray-100 border border-slate-300 dark:border-gray-600'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-            }`}
-          >
-            <CheckCircle2Icon className={`h-3.5 w-3.5 ${task.isCompleted ? 'text-slate-600 dark:text-gray-300' : 'text-white'}`} />
-            <span>{task.isCompleted ? 'Reabrir Tarefa' : 'Concluir Tarefa'}</span>
-          </Button>
+      {(onToggleStatus || onRescheduleTomorrow || onEdit || onDelete) && (
+        <div className="p-3 bg-white dark:bg-[#111827] border-b border-slate-200/80 dark:border-gray-800 flex items-center justify-between gap-2 shrink-0 flex-wrap">
+          <div className="flex items-center gap-2">
+            {onToggleStatus && (
+              <Button
+                size="sm"
+                disabled={isMutating}
+                onClick={() => onToggleStatus(task)}
+                variant={task.isCompleted ? 'outline' : 'primary'}
+                className={`h-8 text-xs font-semibold gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  task.isCompleted
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-gray-100 border border-slate-300 dark:border-gray-600'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                }`}
+              >
+                <CheckCircle2Icon className={`h-3.5 w-3.5 ${task.isCompleted ? 'text-slate-600 dark:text-gray-300' : 'text-white'}`} />
+                <span>{task.isCompleted ? 'Reabrir Tarefa' : 'Concluir Tarefa'}</span>
+              </Button>
+            )}
 
-          {!task.isCompleted && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isMutating}
-              onClick={() => onRescheduleTomorrow(task)}
-              className="h-8 text-xs font-semibold border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Adiar prazo para amanhã"
-            >
-              <ClockIcon className="h-3.5 w-3.5 text-slate-400" />
-              <span>Adiar p/ Amanhã</span>
-            </Button>
-          )}
+            {onRescheduleTomorrow && !task.isCompleted && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isMutating}
+                onClick={() => onRescheduleTomorrow(task)}
+                className="h-8 text-xs font-semibold border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Adiar prazo para amanhã"
+              >
+                <ClockIcon className="h-3.5 w-3.5 text-slate-400" />
+                <span>Adiar p/ Amanhã</span>
+              </Button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(task)}
+                className="h-8 px-2.5 text-xs font-semibold text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1 cursor-pointer"
+                title="Editar Tarefa"
+              >
+                <EditIcon className="h-3.5 w-3.5" />
+                <span>Editar</span>
+              </Button>
+            )}
+
+            {onDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onDelete(task)}
+                className="h-8 px-2.5 text-xs font-semibold text-[#E11D48] hover:bg-[#FFF1F2] border-rose-200/80 dark:text-[#FB7185] dark:hover:bg-rose-500/[0.12] dark:border-rose-900/40 gap-1 cursor-pointer"
+                title="Excluir Tarefa"
+              >
+                <Trash2Icon className="h-3.5 w-3.5" />
+                <span>Excluir</span>
+              </Button>
+            )}
+          </div>
         </div>
-
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(task)}
-            className="h-8 px-2.5 text-xs font-semibold text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-brand-dark-800 gap-1 cursor-pointer"
-            title="Editar Tarefa"
-          >
-            <EditIcon className="h-3.5 w-3.5" />
-            <span>Editar</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onDelete(task)}
-            className="h-8 px-2.5 text-xs font-semibold text-[#E11D48] hover:bg-[#FFF1F2] border-rose-200/80 dark:text-[#FB7185] dark:hover:bg-rose-500/[0.12] dark:border-rose-900/40 gap-1 cursor-pointer"
-            title="Excluir Tarefa"
-          >
-            <Trash2Icon className="h-3.5 w-3.5" />
-            <span>Excluir</span>
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* 3. CORPO DETALHADO (SCROLLABLE) */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar text-xs">
@@ -306,7 +318,7 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
           <>
             {/* 1) CompraItensChecklist (logo no início do corpo) */}
             {compraItens.length > 0 ? (
-              <CompraItensChecklist task={task} />
+              <CompraItensChecklist task={task} readOnly={!onToggleStatus} />
             ) : materiais.length > 0 ? (
               <div className="bg-white dark:bg-brand-dark-900 border border-slate-200 dark:border-gray-800 p-3.5 rounded-xl shadow-xs space-y-2">
                 <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-gray-800">
