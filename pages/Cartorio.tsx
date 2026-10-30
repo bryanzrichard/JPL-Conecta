@@ -128,8 +128,14 @@ const Cartorio: React.FC = () => {
         });
     }, [location.search, location.state, profile?.company_id, navigate, toast]);
 
+    // Último valor aplicado da busca, sempre igual ao estado atual (inclusive após o deep link limpar a busca)
+    const debouncedSearchRef = useRef(debouncedSearch);
+    debouncedSearchRef.current = debouncedSearch;
+
     React.useEffect(() => {
         const handler = setTimeout(() => {
+            // Só volta para a página 1 quando o texto da busca realmente mudou
+            if (searchTerm === debouncedSearchRef.current) return;
             setDebouncedSearch(searchTerm);
             setPage(0);
         }, 500);
